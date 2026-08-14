@@ -38,4 +38,4 @@ jobs:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
         run: |
           firebase use site-progress-app-8d6c2
-          firebase deploy --only firestore:rules,storage --non-interactive --project site-progress-app-8d6c2
+          firebase deploy --only firestore:rules,storage:rules --non-interactive --project site-progress-app-8d6c2
