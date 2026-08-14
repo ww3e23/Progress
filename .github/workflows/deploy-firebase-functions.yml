@@ -20,12 +20,16 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: functions/package-lock.json
-      - name: Require FIREBASE_TOKEN
+      - name: Auth Firebase
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
         run: |
-          if [ -z "$FIREBASE_TOKEN" ]; then
-            echo "::error::缺少 repo Secret FIREBASE_TOKEN。請用 firebase login:ci 取得後加到 Settings → Secrets，再重新跑此 workflow。"
+          if [ -n "$FIREBASE_SERVICE_ACCOUNT" ]; then
+            printf '%s\n' "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/firebase-sa.json"
+            echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/firebase-sa.json" >> "$GITHUB_ENV"
+          elif [ -z "$FIREBASE_TOKEN" ]; then
+            echo "::error::请到 Progress Secrets 新增 FIREBASE_SERVICE_ACCOUNT（Firebase 服务帐户 JSON）。"
             exit 1
           fi
       - name: Install Firebase CLI
@@ -41,4 +45,4 @@ jobs:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
         run: |
           firebase use site-progress-app-8d6c2
-          firebase deploy --only functions --non-interactive
+          firebase deploy --only functions --non-interactive --project site-progress-app-8d6c2
