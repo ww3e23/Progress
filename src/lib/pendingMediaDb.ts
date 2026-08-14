@@ -8,7 +8,7 @@ export type PendingDefectMedia = {
   updatedAt: string
 }
 
-const DB_NAME = 'ci-pending-media'
+const DB_NAME = 'progress-pending-media'
 const STORE = 'defects'
 
 async function db() {

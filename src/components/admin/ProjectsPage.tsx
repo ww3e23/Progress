@@ -194,7 +194,7 @@ export function ProjectsPage() {
     if (mode === 'user' && !getGoogleOAuthClientId()) {
       setDriveMsg(
         '「用我的 Google 帳號同步」尚未啟用：請先在 GCP 建立 OAuth 網頁用戶端，並設定 VITE_GOOGLE_OAUTH_CLIENT_ID 後重新部署。\n' +
-          '建立頁面：https://console.cloud.google.com/auth/clients/create?project=ci-inspection',
+          '建立頁面：https://console.cloud.google.com/auth/clients/create?project=site-progress-app',
       )
       return
     }

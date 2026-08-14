@@ -27,5 +27,5 @@ jobs:
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
         run: |
-          firebase use ci-inspection
+          firebase use site-progress-app
           firebase deploy --only firestore:rules,storage --non-interactive

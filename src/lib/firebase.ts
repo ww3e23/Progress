@@ -2,6 +2,7 @@ import { initializeApp, type FirebaseApp } from 'firebase/app'
 import { getAuth, type Auth } from 'firebase/auth'
 import { getFirestore, type Firestore } from 'firebase/firestore'
 import { getStorage, type FirebaseStorage } from 'firebase/storage'
+import { FORBIDDEN_FIREBASE_PROJECT_ID } from './storageKeys'
 
 const config = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY as string | undefined,
@@ -16,8 +17,18 @@ export function getFirebaseWebConfig() {
   return config
 }
 
+/** 進度 App 絕不可連上查驗 ci-inspection */
+function isForbiddenFirebaseProject(): boolean {
+  return config.projectId === FORBIDDEN_FIREBASE_PROJECT_ID
+}
+
 export function isFirebaseConfigured(): boolean {
-  return Boolean(config.apiKey && config.projectId && config.appId)
+  if (!config.apiKey || !config.projectId || !config.appId) return false
+  if (isForbiddenFirebaseProject()) {
+    console.error('[progress] refused to use ci-inspection Firebase')
+    return false
+  }
+  return true
 }
 
 let app: FirebaseApp | null = null

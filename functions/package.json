@@ -1,5 +1,5 @@
 {
-  "name": "ci-inspection-functions",
+  "name": "site-progress-functions",
   "private": true,
   "main": "lib/index.js",
   "engines": {

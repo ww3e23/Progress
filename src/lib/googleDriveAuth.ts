@@ -2,8 +2,8 @@ const GIS_SRC = 'https://accounts.google.com/gsi/client'
 /** 需可讀寫使用者既有資料夾；drive.file 看不到手動建立的資料夾（會 File not found） */
 const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive'
 
-const TOKEN_KEY = 'ci_drive_oauth_token'
-const TOKEN_EXP_KEY = 'ci_drive_oauth_token_exp'
+const TOKEN_KEY = 'progress_drive_oauth_token'
+const TOKEN_EXP_KEY = 'progress_drive_oauth_token_exp'
 
 type TokenClient = {
   requestAccessToken: (override?: { prompt?: string }) => void
@@ -74,7 +74,7 @@ export function preloadGoogleDriveAuth(): Promise<void> {
   return loadGis().catch(() => undefined)
 }
 
-/** 網頁 OAuth 用戶端 ID（會公開嵌在前端；靠 JS origin 限制）。CI 未設 env 時用此預設。 */
+/** 網頁 OAuth 用戶端 ID（會公開嵌在前端；靠 JS origin 限制）。未設 env 時用此預設。 */
 const DEFAULT_WEB_CLIENT_ID =
   '829326871761-5ls56g2qktrk242v43551ladikvs2uhv.apps.googleusercontent.com'
 

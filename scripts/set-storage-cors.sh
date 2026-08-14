@@ -7,7 +7,7 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 CORS_FILE="$ROOT/storage.cors.json"
-BUCKET="${1:-ci-inspection.firebasestorage.app}"
+BUCKET="${1:-site-progress-app.firebasestorage.app}"
 
 if ! command -v gsutil >/dev/null 2>&1 && ! command -v gcloud >/dev/null 2>&1; then
   echo "請先安裝 Google Cloud SDK（含 gsutil）"
@@ -21,4 +21,4 @@ if command -v gcloud >/dev/null 2>&1; then
 else
   gsutil cors set "$CORS_FILE" "gs://${BUCKET}"
 fi
-echo "完成。請重新整理 https://ww3e23.github.io/CI/ 後再試下載。"
+echo "完成。請重新整理 https://ww3e23.github.io/Progress/ 後再試下載。"

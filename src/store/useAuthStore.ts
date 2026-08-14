@@ -11,6 +11,7 @@ import { seedMembers, seedProjects, seedUsers } from '../data/authSeed'
 import { accountDisplay, isValidAccountInput, normalizeLoginId } from '../lib/accountId'
 import { createId } from '../lib/id'
 import { getFirebaseAuth, isFirebaseConfigured } from '../lib/firebase'
+import { PROGRESS_AUTH_STORAGE_KEY } from '../lib/storageKeys'
 import { APP_MIN_PASSWORD_LENGTH, isValidAppPassword, toFirebasePassword } from '../lib/password'
 import {
   deleteProjectMemberDoc,
@@ -647,7 +648,7 @@ export const useAuthStore = create<AuthState & AuthActions>()(
           return { ok: false, error: '請先登入後再同步' }
         }
         const permissionHint =
-          'Firestore 規則未允許讀寫。請到 Firebase Console → 專案 ci-inspection → Firestore → 規則，貼上本專案 firestore.rules 後按「發布」，再重新登入並同步。'
+          'Firestore 規則未允許讀寫。請到 Firebase Console → 專案 site-progress-app → Firestore → 規則，貼上本專案 firestore.rules 後按「發布」，再重新登入並同步。'
 
         // 先把本機目錄推上雲端，再拉回來（電腦建的資料可到手機）
         try {
@@ -761,7 +762,8 @@ export const useAuthStore = create<AuthState & AuthActions>()(
       },
     }),
     {
-      name: 'site-auth-v2',
+      // 專用 key；刻意不從 site-auth-v2 遷移，以免帶入查驗 CI 專案
+      name: PROGRESS_AUTH_STORAGE_KEY,
       version: 2,
     },
   ),
