@@ -9,6 +9,7 @@ import type {
 } from '../types'
 import { naKey } from './floors'
 import { sortFloorsAsc } from './floors'
+import { isVillaLayout } from './units'
 
 export function cellKey(unitId: string, workItemId: string, stageId: string): string {
   return `${unitId}|${workItemId}|${stageId}`
@@ -421,8 +422,21 @@ export function orderedActiveUnits(state: Pick<ProjectState, 'buildings' | 'unit
     .sort((a, b) => a.sortOrder - b.sortOrder)
   const out: Unit[] = []
   for (const building of buildings) {
-    for (const floor of floorsOfBuilding(building)) {
-      out.push(...activeUnitsOnFloor(state, building.id, floor))
+    if (isVillaLayout(building)) {
+      for (const code of building.unitCodes) {
+        for (const floor of floorsOfBuilding(building)) {
+          if (building.naKeys.includes(naKey(floor, code))) continue
+          const unit = state.units.find(
+            (u) =>
+              u.buildingId === building.id && u.floor === floor && u.code === code && u.active,
+          )
+          if (unit) out.push(unit)
+        }
+      }
+    } else {
+      for (const floor of floorsOfBuilding(building)) {
+        out.push(...activeUnitsOnFloor(state, building.id, floor))
+      }
     }
   }
   return out

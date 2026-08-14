@@ -25,6 +25,7 @@ import {
   type FloorMatrixCell,
 } from '../../lib/stageProgress'
 import type { FocusedStageCell, StageStatus, Unit } from '../../types'
+import { formatUnitTitle, layoutForUnit } from '../../lib/units'
 
 type HomeView = 'matrix' | 'unit'
 
@@ -250,7 +251,7 @@ export function HomePage() {
             )}
           </div>
           <p style={{ margin: '8px 0 0', fontSize: 12, fontWeight: 600, color: 'var(--ink-soft)' }}>
-            以工項為準，一格代表整層。點一下整層輪轉：未開始 → 施工中 → 完成。長按可選戶拍照、記缺失或整層卡關。
+            一格是該層的工序。點一下輪轉：未開始 → 施工中 → 完成。長按可拍照、記缺失或卡關。
           </p>
         </>
       ) : (
@@ -386,10 +387,13 @@ function FloorUnitPickSheet({
         {floor}　{cell.stageName}
       </h3>
       <p style={{ margin: '0 0 14px', color: 'var(--ink-soft)', fontSize: 13, fontWeight: 600 }}>
-        {workItemName} · 整層 {units.length} 戶 · {stageStatusLabel(cell.status)}
+        {workItemName} · {units.length > 1 ? `這層 ${units.length} 戶 · ` : ''}
+        {stageStatusLabel(cell.status)}
         {cell.mixed ? '（戶別進度不同）' : ''}
         {cell.openDefects > 0 ? ` · 未關缺失 ${cell.openDefects}` : ''}
       </p>
+      {units.length > 1 && (
+      <>
       <div style={{ fontWeight: 800, fontSize: 13, marginBottom: 8 }}>選一戶拍照／記缺失</div>
       <div className="chip-row" style={{ marginBottom: 14 }}>
         {units.map((u) => (
@@ -398,6 +402,8 @@ function FloorUnitPickSheet({
           </button>
         ))}
       </div>
+      </>
+      )}
       {cell.status === 'blocked' ? (
         <button type="button" className="btn btn-ghost" disabled={!canEdit} onClick={onUnblockFloor}>
           整層解除卡關
@@ -430,12 +436,15 @@ function UnitView({
   onStep: (delta: number) => void
 }) {
   const units = useProjectStore((s) => s.units)
+  const buildings = useProjectStore((s) => s.buildings)
   const currentUnitId = useProjectStore((s) => s.currentUnitId)
   const defects = useProjectStore((s) => s.defects)
   const stageProgress = useProjectStore((s) => s.stageProgress)
   const workItems = useProjectStore((s) => s.workItems)
   const setCurrentUnit = useProjectStore((s) => s.setCurrentUnit)
   const unit = units.find((u) => u.id === currentUnitId) ?? units.find((u) => u.active)
+  const layout = layoutForUnit(buildings, unit)
+  const villa = layout === 'villa'
   const rows = unit
     ? unitWorkItemRows(
         { ...useProjectStore.getState(), defects, stageProgress, workItems, units },
@@ -457,16 +466,18 @@ function UnitView({
   return (
     <div>
       <div className="unit-pager">
-        <button type="button" className="icon-btn" aria-label="上一戶" onClick={() => onStep(-1)}>
+        <button type="button" className="icon-btn" aria-label={villa ? '上一層' : '上一戶'} onClick={() => onStep(-1)}>
           <ChevronLeft size={20} />
         </button>
         <button type="button" className="unit-pager-current" onClick={onOpenSwitcher}>
           <div style={{ fontWeight: 800, fontSize: 15 }}>
-            {unit.buildingName} {unit.floor} {unit.code}戶
+            {formatUnitTitle(unit, layout)}
           </div>
-          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--ink-soft)' }}>點此挑選戶別</div>
+          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--ink-soft)' }}>
+            {villa ? '點此切換別墅／樓層' : '點此挑選戶別'}
+          </div>
         </button>
-        <button type="button" className="icon-btn" aria-label="下一戶" onClick={() => onStep(1)}>
+        <button type="button" className="icon-btn" aria-label={villa ? '下一層' : '下一戶'} onClick={() => onStep(1)}>
           <ChevronRight size={20} />
         </button>
       </div>

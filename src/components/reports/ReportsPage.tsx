@@ -10,6 +10,7 @@ import { StageCellButton } from '../progress/StageCellButton'
 import { exportProgressExcel } from '../../lib/excelProgress'
 import { formatActivity } from '../../lib/progress'
 import { formatActorLabel } from '../../lib/currentActor'
+import { formatUnitTitle, layoutForUnit } from '../../lib/units'
 import {
   activeWorkItems,
   buildWorkItemFloorMatrix,
@@ -165,9 +166,9 @@ export function ReportsPage() {
               </button>
               <button type="button" className="unit-pager-current" onClick={() => setUnitOpen(true)}>
                 <div style={{ fontWeight: 800, fontSize: 15 }}>
-                  {unit.buildingName} {unit.floor} {unit.code}戶
+                  {formatUnitTitle(unit, layoutForUnit(state.buildings, unit))}
                 </div>
-                <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--ink-soft)' }}>點此挑選戶別</div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--ink-soft)' }}>點此切換</div>
               </button>
               <button
                 type="button"

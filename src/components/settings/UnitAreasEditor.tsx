@@ -8,6 +8,7 @@ import {
   normalizeAreaName,
 } from '../../lib/areas'
 import { fileToCompressedDataUrl } from '../../lib/imageCompress'
+import { formatUnitTitle, layoutForUnit } from '../../lib/units'
 import { createId } from '../../lib/id'
 import { Modal } from '../ui/Modal'
 import { TitleHint } from '../ui/TitleHint'
@@ -23,6 +24,7 @@ export function UnitAreasEditor({
   onClose: () => void
 }) {
   const units = useProjectStore((s) => s.units)
+  const buildings = useProjectStore((s) => s.buildings)
   const defects = useProjectStore((s) => s.defects)
   const setUnitAreas = useProjectStore((s) => s.setUnitAreas)
   const setUnitDefaultPlan = useProjectStore((s) => s.setUnitDefaultPlan)
@@ -188,7 +190,7 @@ export function UnitAreasEditor({
         style={{ margin: '0 0 6px', fontSize: 20 }}
         hint="可先為此戶上傳預設位置圖；之後新增缺失會自動帶入，方便直接標註。下方可自訂此戶施工區域。"
       >
-        {unit.code}戶・設定
+        {formatUnitTitle(unit, layoutForUnit(buildings, unit))}・設定
       </TitleHint>
       <p style={{ margin: '0 0 14px', color: 'var(--ink-soft)', fontSize: 13, fontWeight: 600 }}>
         {unit.buildingName} {unit.floor}

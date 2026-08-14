@@ -1,6 +1,7 @@
 import { useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import { useProjectStore } from '../../store/useProjectStore'
 import { collectAllAreas } from '../../lib/areas'
+import { formatUnitTitle, layoutForUnit } from '../../lib/units'
 import type { DefectStatus } from '../../types'
 import { Modal } from '../ui/Modal'
 import { TitleHint } from '../ui/TitleHint'
@@ -171,7 +172,7 @@ export function AdvancedFilterSheet({
                 className={`chip ${draft.unitIds.includes(u.id) ? 'on' : ''}`}
                 onClick={() => setDraft((d) => ({ ...d, unitIds: toggle(d.unitIds, u.id) }))}
               >
-                {u.buildingName} {u.floor} {u.code}
+                {formatUnitTitle(u, layoutForUnit(buildings, u))}
               </button>
             ))}
           </div>

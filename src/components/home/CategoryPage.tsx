@@ -6,6 +6,7 @@ import { resolveDefectRemark } from '../../lib/defectDisplay'
 import { statusLabel } from '../../lib/progress'
 import { AddDefectSheet } from '../defects/AddDefectSheet'
 import { DefectDetailModal } from '../defects/DefectDetailModal'
+import { formatUnitTitle, layoutForUnit } from '../../lib/units'
 import type { Defect, DefectStatus } from '../../types'
 
 const statusClass: Record<DefectStatus, string> = {
@@ -27,6 +28,7 @@ export function CategoryPage({
   const items = useProjectStore((s) => s.checklistItems)
   const defects = useProjectStore((s) => s.defects)
   const units = useProjectStore((s) => s.units)
+  const buildings = useProjectStore((s) => s.buildings)
   const currentUnitId = useProjectStore((s) => s.currentUnitId)
   const unitCategoryDone = useProjectStore((s) => s.unitCategoryDone)
   const setUnitCategoryDone = useProjectStore((s) => s.setUnitCategoryDone)
@@ -80,7 +82,7 @@ export function CategoryPage({
           marginBottom: 8,
         }}
       >
-        <ArrowLeft size={18} /> {unit.code}戶 ＞ {cat.name}
+        <ArrowLeft size={18} /> {unit ? `${formatUnitTitle(unit, layoutForUnit(buildings, unit))} ＞ ` : ''}{cat.name}
       </button>
 
       <h1 className="serif" style={{ margin: '0 0 14px', fontSize: 28, fontWeight: 700 }}>

@@ -10,6 +10,7 @@ import { defectsByStatus, statusLabel } from '../../lib/progress'
 import { isProgressRecord } from '../../lib/stageProgress'
 import type { Defect, DefectStatus } from '../../types'
 import { UnitSwitcher } from '../UnitSwitcher'
+import { formatUnitTitle, layoutForUnit } from '../../lib/units'
 import { DefectDetailModal } from './DefectDetailModal'
 import { PackUnitPhotosButton } from './PackUnitPhotosButton'
 
@@ -19,6 +20,7 @@ type QuickStatus = 'all' | DefectStatus
 export function DefectsPage() {
   const defects = useProjectStore((s) => s.defects)
   const units = useProjectStore((s) => s.units)
+  const buildings = useProjectStore((s) => s.buildings)
   const items = useProjectStore((s) => s.checklistItems)
   const workItems = useProjectStore((s) => s.workItems)
   const currentUnitId = useProjectStore((s) => s.currentUnitId)
@@ -67,8 +69,8 @@ export function DefectsPage() {
   ]
 
   const unitLabel = unit
-    ? `${unit.buildingName} ${unit.floor} ${unit.code}戶`
-    : '尚未選擇戶別'
+    ? formatUnitTitle(unit, layoutForUnit(buildings, unit))
+    : '尚未選擇'
 
   return (
     <div className="rise">

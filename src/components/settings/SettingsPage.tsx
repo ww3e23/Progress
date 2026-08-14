@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { ChevronDown, Search } from 'lucide-react'
 import { useProjectStore } from '../../store/useProjectStore'
-import { countActiveUnits, newBuildingDraft, summarizeBuilding } from '../../lib/units'
+import { countHouseholds, countProjectHouseholds, formatUnitTitle, isVillaLayout, layoutForUnit, newBuildingDraft, newVillaDraft, summarizeBuilding } from '../../lib/units'
 import { getUnitAreas } from '../../lib/areas'
 import { BuildingEditor } from './BuildingEditor'
 import { WorkItemEditor } from './WorkItemEditor'
@@ -48,11 +48,36 @@ export function SettingsPage({ embedded = false }: { embedded?: boolean }) {
   const currentUnit =
     units.find((u) => u.id === currentUnitId) ?? units.find((u) => u.active)
 
+  function openNewApartment() {
+    const nextIndex = activeBuildings.length
+    const letter = String.fromCharCode(65 + (nextIndex % 26))
+    setBuildingsOpen(true)
+    setEditing(
+      newBuildingDraft({
+        name: `${letter}棟`,
+        unitCodes: [`${letter}1`, `${letter}2`, `${letter}3`],
+        sortOrder: nextIndex,
+      }),
+    )
+  }
+
+  function openNewVilla() {
+    const nextIndex = activeBuildings.length
+    const villaCount = activeBuildings.filter((b) => isVillaLayout(b)).length
+    setBuildingsOpen(true)
+    setEditing(
+      newVillaDraft({
+        name: `${villaCount + 1}號`,
+        sortOrder: nextIndex,
+      }),
+    )
+  }
+
   const activeBuildings = [...buildings]
     .filter((b) => b.active)
     .sort((a, b) => a.sortOrder - b.sortOrder)
 
-  const totalActiveUnits = units.filter((u) => u.active).length
+  const totalHouseholds = countProjectHouseholds(activeBuildings)
 
   const activeWorkList = [...workItems]
     .filter((w) => w.active)
@@ -68,7 +93,7 @@ export function SettingsPage({ embedded = false }: { embedded?: boolean }) {
         <header style={{ marginBottom: 14 }}>
           <div className="eyebrow">PROJECT SETUP</div>
           <h1 className="serif" style={{ margin: '4px 0 0', fontSize: 22, fontWeight: 700 }}>
-            棟別、樓層與戶別
+            棟別與別墅
           </h1>
         </header>
       )}
@@ -76,7 +101,7 @@ export function SettingsPage({ embedded = false }: { embedded?: boolean }) {
       <div className="section-row" style={{ marginTop: embedded ? 0 : undefined }}>
         <TitleHint
           as="h2"
-          hint={`以規則批次建立：棟別、樓層範圍、各層戶別編號。目前 ${activeBuildings.length} 棟・${totalActiveUnits} 有效戶。`}
+          hint={`大樓用每層戶號；別墅用整棟一戶、樓層是屋內施工分層。目前 ${activeBuildings.length} 棟・${totalHouseholds} 戶。`}
         >
           棟別結構
         </TitleHint>
@@ -102,7 +127,7 @@ export function SettingsPage({ embedded = false }: { embedded?: boolean }) {
         >
           <div style={{ minWidth: 0, textAlign: 'left' }}>
             <div style={{ fontWeight: 800, fontSize: 15 }}>
-              {activeBuildings.length} 棟 · {totalActiveUnits} 有效戶
+              {activeBuildings.length} 棟 · {totalHouseholds} 戶
             </div>
             <div
               style={{
@@ -162,7 +187,9 @@ export function SettingsPage({ embedded = false }: { embedded?: boolean }) {
                       whiteSpace: 'nowrap',
                     }}
                   >
-                    {b.unitCodes.join('、')} · {countActiveUnits(b)} 戶
+                    {isVillaLayout(b)
+                      ? `屋內 ${b.floors.join('、')}`
+                      : `${b.unitCodes.join('、')} · ${countHouseholds(b)} 戶`}
                   </div>
                 </div>
                 <button
@@ -176,47 +203,24 @@ export function SettingsPage({ embedded = false }: { embedded?: boolean }) {
               </div>
             ))}
 
-            <div className="btn-dashed-wrap">
-              <button
-                type="button"
-                className="btn-dashed"
-                onClick={() => {
-                  const nextIndex = activeBuildings.length
-                  const letter = String.fromCharCode(65 + (nextIndex % 26))
-                  setEditing(
-                    newBuildingDraft({
-                      name: `${letter}棟`,
-                      unitCodes: [`${letter}1`, `${letter}2`, `${letter}3`],
-                      sortOrder: nextIndex,
-                    }),
-                  )
-                }}
-              >
-                + 新增棟別
+            <div className="btn-dashed-wrap" style={{ display: 'grid', gap: 8 }}>
+              <button type="button" className="btn-dashed" onClick={openNewApartment}>
+                + 新增大樓／公寓
+              </button>
+              <button type="button" className="btn-dashed" onClick={openNewVilla}>
+                + 新增別墅整棟
               </button>
             </div>
           </div>
         )}
 
         {!buildingsOpen && (
-          <div className="btn-dashed-wrap" style={{ paddingTop: 0 }}>
-            <button
-              type="button"
-              className="btn-dashed"
-              onClick={() => {
-                setBuildingsOpen(true)
-                const nextIndex = activeBuildings.length
-                const letter = String.fromCharCode(65 + (nextIndex % 26))
-                setEditing(
-                  newBuildingDraft({
-                    name: `${letter}棟`,
-                    unitCodes: [`${letter}1`, `${letter}2`, `${letter}3`],
-                    sortOrder: nextIndex,
-                  }),
-                )
-              }}
-            >
-              + 新增棟別
+          <div className="btn-dashed-wrap" style={{ paddingTop: 0, display: 'grid', gap: 8 }}>
+            <button type="button" className="btn-dashed" onClick={openNewApartment}>
+              + 新增大樓／公寓
+            </button>
+            <button type="button" className="btn-dashed" onClick={openNewVilla}>
+              + 新增別墅整棟
             </button>
           </div>
         )}
@@ -396,7 +400,7 @@ export function SettingsPage({ embedded = false }: { embedded?: boolean }) {
       <article className="glass" style={{ padding: 14, marginBottom: 8 }}>
         <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-soft)', lineHeight: 1.45 }}>
           {currentUnit
-            ? `目前戶：${currentUnit.buildingName} ${currentUnit.floor} ${currentUnit.code}戶 · ${getUnitAreas(currentUnit, projectAreas, areaTemplates).join('、')}`
+            ? `目前：${formatUnitTitle(currentUnit, layoutForUnit(buildings, currentUnit))} · ${getUnitAreas(currentUnit, projectAreas, areaTemplates).join('、')}`
             : '尚未選擇有效戶別'}
           {projectAreas.length > 0 ? (
             <>

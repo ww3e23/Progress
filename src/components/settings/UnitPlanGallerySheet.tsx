@@ -4,6 +4,7 @@ import { useProjectStore } from '../../store/useProjectStore'
 import { useCurrentRole, useCurrentUser } from '../../store/useAuthStore'
 import { fileToCompressedDataUrl } from '../../lib/imageCompress'
 import { floorRank as floorSortKey, sortFloorsDesc } from '../../lib/floors'
+import { formatUnitTitle, layoutForUnit } from '../../lib/units'
 import { Modal } from '../ui/Modal'
 import { GlassSelect } from '../ui/GlassSelect'
 import { TitleHint } from '../ui/TitleHint'
@@ -228,7 +229,7 @@ export function UnitPlanGallerySheet({ onClose }: { onClose: () => void }) {
                   >
                     <div>
                       <div style={{ fontWeight: 800, fontSize: 15 }}>
-                        {unit.code}戶
+                        {formatUnitTitle(unit, layoutForUnit(buildings, unit))}
                       </div>
                       <div
                         style={{
@@ -268,11 +269,11 @@ export function UnitPlanGallerySheet({ onClose }: { onClose: () => void }) {
                         cursor: 'zoom-in',
                         overflow: 'hidden',
                       }}
-                      aria-label={`預覽 ${unit.code}戶位置圖`}
+                      aria-label={`預覽 ${formatUnitTitle(unit, layoutForUnit(buildings, unit))}位置圖`}
                     >
                       <img
                         src={planUrl}
-                        alt={`${unit.code}戶位置圖`}
+                        alt={`${formatUnitTitle(unit, layoutForUnit(buildings, unit))}位置圖`}
                         style={{
                           width: '100%',
                           maxHeight: 140,

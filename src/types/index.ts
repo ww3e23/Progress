@@ -48,6 +48,9 @@ export interface FocusedStageCell {
   stageId: string
 }
 
+/** apartment＝集合住宅（每層多戶）；villa＝別墅整棟（一戶跨樓層） */
+export type BuildingLayout = 'apartment' | 'villa'
+
 export interface BuildingRule {
   id: string
   name: string
@@ -56,6 +59,8 @@ export interface BuildingRule {
   naKeys: string[]
   sortOrder: number
   active: boolean
+  /** 未寫時：只有一個戶號視為別墅整棟，避免舊資料顯示「每層 1 戶」 */
+  layout?: BuildingLayout
 }
 
 export interface Unit {

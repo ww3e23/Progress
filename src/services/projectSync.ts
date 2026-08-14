@@ -56,6 +56,7 @@ function serializeBuilding(b: BuildingRule) {
     naKeys: b.naKeys,
     sortOrder: b.sortOrder,
     active: b.active,
+    layout: b.layout ?? null,
     updatedAt: serverTimestamp(),
   }
 }
@@ -69,6 +70,7 @@ function parseBuilding(id: string, data: Record<string, unknown>): BuildingRule 
     naKeys: Array.isArray(data.naKeys) ? data.naKeys.map(String) : [],
     sortOrder: Number(data.sortOrder ?? 0),
     active: data.active !== false,
+    layout: data.layout === 'villa' ? 'villa' : data.layout === 'apartment' ? 'apartment' : undefined,
   }
 }
 

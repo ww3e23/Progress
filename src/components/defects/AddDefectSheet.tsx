@@ -14,6 +14,7 @@ import { UnitAreasEditor } from '../settings/UnitAreasEditor'
 
 import type { SiteRecordKind } from '../../types'
 import { activeWorkItems, sortedStages } from '../../lib/stageProgress'
+import { formatUnitTitle, layoutForUnit } from '../../lib/units'
 
 export function AddDefectSheet({
   onClose,
@@ -33,6 +34,7 @@ export function AddDefectSheet({
 }) {
   const isProgress = recordKind === 'progress'
   const units = useProjectStore((s) => s.units)
+  const buildings = useProjectStore((s) => s.buildings)
   const defects = useProjectStore((s) => s.defects)
   const workItems = useProjectStore((s) => s.workItems)
   const projectAreas = useProjectStore((s) => s.areas)
@@ -237,7 +239,7 @@ export function AddDefectSheet({
           </span>
         </div>
         <p style={{ margin: '8px 0 12px', color: 'var(--ink-soft)', fontSize: 13 }}>
-          {unit.buildingName}・{unit.floor}・{unit.code}戶
+          {formatUnitTitle(unit, layoutForUnit(buildings, unit))}
           {workItem ? `｜${workItem.name}` : ''}
           {stage ? `／${stage.name}` : ''}
         </p>

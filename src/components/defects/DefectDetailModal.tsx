@@ -11,6 +11,7 @@ import { statusLabel } from '../../lib/progress'
 import { Modal } from '../ui/Modal'
 import { useCurrentRole, useCurrentUser } from '../../store/useAuthStore'
 import { useProjectStore } from '../../store/useProjectStore'
+import { formatUnitTitle, layoutForUnit } from '../../lib/units'
 import { EditDefectSheet } from './EditDefectSheet'
 import { SavePhotosSheet } from './SavePhotosSheet'
 
@@ -34,6 +35,13 @@ export function DefectDetailModal({
   const updateDefectStatus = useProjectStore((s) => s.updateDefectStatus)
   const checklistItems = useProjectStore((s) => s.checklistItems)
   const live = useProjectStore((s) => s.defects.find((d) => d.id === defect.id) ?? defect)
+  const buildings = useProjectStore((s) => s.buildings)
+  const units = useProjectStore((s) => s.units)
+  const locUnit = units.find((u) => u.id === live.unitId)
+  const locTitle = formatUnitTitle(
+    { buildingName: live.buildingName, floor: live.floor, code: live.unitCode },
+    layoutForUnit(buildings, locUnit),
+  )
   const itemLabel = resolveDefectItemLabel(live, checklistItems)
   const remark = resolveDefectRemark(live, checklistItems)
   const inspector = defectInspectorLabel(live)
@@ -160,7 +168,7 @@ export function DefectDetailModal({
           <p style={{ margin: '10px 0 0', color: 'var(--ink-soft)', fontSize: 13, lineHeight: 1.5 }}>
             {live.categoryName} · 區域 {live.area}
             <br />
-            {live.buildingName} {live.floor} {live.unitCode}戶
+            {locTitle}
             <br />
             狀態：{statusLabel(live.status)}
             {inspector ? (

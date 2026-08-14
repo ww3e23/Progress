@@ -8,6 +8,7 @@ import {
 } from '../../lib/defectDisplay'
 import { statusLabel } from '../../lib/progress'
 import { useProjectStore } from '../../store/useProjectStore'
+import { formatUnitTitle, layoutForUnit } from '../../lib/units'
 import { Modal } from '../ui/Modal'
 import { DefectDetailModal } from './DefectDetailModal'
 import { PackUnitPhotosButton } from './PackUnitPhotosButton'
@@ -27,6 +28,7 @@ export function UnitDefectsSheet({
   onClose: () => void
 }) {
   const units = useProjectStore((s) => s.units)
+  const buildings = useProjectStore((s) => s.buildings)
   const categories = useProjectStore((s) => s.categories)
   const defects = useProjectStore((s) => s.defects)
   const items = useProjectStore((s) => s.checklistItems)
@@ -83,8 +85,8 @@ export function UnitDefectsSheet({
 
   const title = unit
     ? category
-      ? `${unit.code}戶・${category.name}`
-      : `${unit.buildingName} ${unit.floor} ${unit.code}戶`
+      ? `${formatUnitTitle(unit, layoutForUnit(buildings, unit))}・${category.name}`
+      : formatUnitTitle(unit, layoutForUnit(buildings, unit))
     : '本戶缺失'
 
   return (
