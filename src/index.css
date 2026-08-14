@@ -394,6 +394,7 @@ button.status-pill:active {
   font-weight: 700;
   color: var(--ink-soft);
   letter-spacing: 0.02em;
+  padding: 0 8px 0 22px;
 }
 
 .filter-select select,
@@ -402,7 +403,7 @@ button.status-pill:active {
   -webkit-appearance: none;
   width: 100%;
   min-height: 46px;
-  padding: 0 40px 0 16px;
+  padding: 0 20px 0 22px;
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.65);
   background: linear-gradient(150deg, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0.42));
@@ -423,8 +424,7 @@ button.status-pill:active {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  padding-right: 14px;
+  gap: 12px;
 }
 
 .glass-select-value {
@@ -524,8 +524,8 @@ button.status-pill:active {
 .glass-select-option {
   width: 100%;
   min-height: 42px;
-  padding: 8px 12px;
-  border-radius: 12px;
+  padding: 8px 16px;
+  border-radius: 14px;
   text-align: left;
   font-weight: 700;
   font-size: 14px;
