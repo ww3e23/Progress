@@ -140,9 +140,8 @@ export function ProjectsPage() {
       return
     }
     const okConfirm = window.confirm(
-      `將綁定「雲端硬碟擁有者」到「${selected.name}」。\n` +
-        `請用「擁有／可編輯該資料夾」的 Google 帳號授權一次。\n\n` +
-        `綁定後，現場人員按同步時不必再登入 Google，照片會寫入此帳號的雲端硬碟。`,
+      `將綁定雲端硬碟到「${selected.name}」。\n` +
+        `請用「擁有／可編輯該資料夾」的 Google 帳號授權一次。`,
     )
     if (!okConfirm) return
 
@@ -156,8 +155,10 @@ export function ProjectsPage() {
       }
       const email = res.result.email
       setDriveMsg(
-        `已綁定雲端硬碟擁有者${email ? `：${email}` : ''}。\n` +
-          `之後現場與後台按「同步到雲端硬碟」都不必再登 Google。` +
+        `已綁定雲端硬碟${email ? `：${email}` : ''}。\n` +
+          (res.result.browserDirect
+            ? '請再按「同步到雲端硬碟」把照片寫入該資料夾。'
+            : '之後現場與後台按「同步到雲端硬碟」都不必再登 Google。') +
           (res.result.reusedRefreshToken
             ? '\n（沿用既有授權；若同步失敗請到 Google 帳戶權限移除此應用後重綁）'
             : ''),
@@ -450,8 +451,8 @@ export function ProjectsPage() {
               <div style={{ marginTop: 8, fontSize: 12, color: 'var(--ink-soft)', fontWeight: 600, lineHeight: 1.5 }}>
                 狀態：
                 {selected.driveOwnerConnected
-                  ? `已綁定擁有者${selected.driveOwnerEmail ? `（${selected.driveOwnerEmail}）` : ''}，現場同步免登 Google`
-                  : '尚未綁定擁有者 — 現場按同步仍無法寫入「我的雲端硬碟」'}
+                  ? `已綁定${selected.driveOwnerEmail ? `（${selected.driveOwnerEmail}）` : ''}，可同步到雲端硬碟`
+                  : '尚未綁定 — 請先完成一次 Google 授權'}
                 <br />
                 建議流程：① 貼上資料夾網址並儲存 → ② 按「綁定雲端硬碟擁有者」完成一次授權 → ③ 現場／後台按「同步到雲端硬碟」。
                 <br />

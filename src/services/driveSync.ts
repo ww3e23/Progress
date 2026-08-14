@@ -3,10 +3,19 @@ import { getFirebaseApp, getFirebaseAuth, isFirebaseConfigured } from '../lib/fi
 import {
   getGoogleOAuthClientId,
   requestGoogleDriveAccessToken,
-  requestGoogleDriveAuthCode,
+  requestGoogleDriveAccessTokenSilent,
 } from '../lib/googleDriveAuth'
+import {
+  driveAssertFolder,
+  driveEnsureFolderPath,
+  driveFindFolderPath,
+  driveGetEmail,
+  driveTrashFolder,
+  driveUploadDataUrl,
+} from '../lib/googleDriveClient'
 import { useAuthStore } from '../store/useAuthStore'
 import { useProjectStore } from '../store/useProjectStore'
+import { getPendingDefectMedia } from '../lib/pendingMediaDb'
 import { syncDefect } from './cloudSync'
 
 export type DriveSyncResult = {
@@ -52,6 +61,8 @@ export type DriveOwnerConnectResult = {
   projectId: string
   email?: string | null
   reusedRefreshToken?: boolean
+  /** true＝尚未部署雲端函數，改用瀏覽器直連（同步時可能再跳一次 Google） */
+  browserDirect?: boolean
 }
 
 export const FIREBASE_DRIVE_UNAVAILABLE =
@@ -72,13 +83,188 @@ async function ensureFirebaseUser() {
   return { ok: true as const, app }
 }
 
-function cleanError(err: unknown): string {
-  const anyErr = err as { message?: string }
-  const message = anyErr.message || String(err)
-  return message.replace(/^Firebase:\s*/i, '').replace(/\s*\(.*\)$/, '')
+function isFunctionsUnavailable(err: unknown): boolean {
+  const anyErr = err as { code?: string; message?: string }
+  const blob = `${anyErr.code || ''} ${anyErr.message || err}`.toLowerCase()
+  return (
+    blob.includes('internal') ||
+    blob.includes('not-found') ||
+    blob.includes('not found') ||
+    blob.includes('unavailable') ||
+    blob.includes('failed to fetch') ||
+    blob.includes('cors')
+  )
 }
 
-/** 後台：綁定專案雲端硬碟擁有者（彈一次 Google，之後現場免登） */
+let functionsKnownDown = false
+
+function noteFunctionsUnavailable(err: unknown): boolean {
+  if (!isFunctionsUnavailable(err)) return false
+  functionsKnownDown = true
+  return true
+}
+
+function describeDriveError(err: unknown): string {
+  const anyErr = err as { code?: string; message?: string }
+  const raw = String(anyErr.message || err)
+  if (isFunctionsUnavailable(err)) {
+    return '雲端函數尚未部署，已改用你剛授權的 Google 帳號在瀏覽器直接寫入雲端硬碟。'
+  }
+  return raw.replace(/^Firebase:\s*/i, '').replace(/\s*\(.*\)$/, '') || '操作失敗'
+}
+
+function markDriveOwnerConnected(projectId: string, email: string | null) {
+  const project = useAuthStore.getState().projects.find((p) => p.id === projectId)
+  if (!project) return
+  useAuthStore.getState().upsertProject({
+    ...project,
+    driveOwnerConnected: true,
+    driveOwnerEmail: email || project.driveOwnerEmail,
+  })
+}
+
+function projectBundle(projectId: string) {
+  const s = useProjectStore.getState()
+  if (s.activeProjectId === projectId) {
+    return { defects: s.defects, checklistItems: s.checklistItems }
+  }
+  const b = s.bundles[projectId]
+  return { defects: b?.defects ?? [], checklistItems: b?.checklistItems ?? [] }
+}
+
+function defectsForProject(projectId: string) {
+  return projectBundle(projectId).defects
+}
+
+function leafFolderName(projectId: string, defect: ReturnType<typeof defectsForProject>[number]): string {
+  const item = projectBundle(projectId).checklistItems.find((i) => i.id === defect.checklistItemId)
+  const itemLabel = (item?.description || '').trim()
+  const desc = (defect.description || '').trim()
+  const parts = [`#${defect.defectNumber}`]
+  if (itemLabel) parts.push(itemLabel)
+  if (desc && desc !== itemLabel) parts.push(desc.slice(0, 60))
+  else if (!itemLabel) parts.push(desc || '未命名缺失')
+  return parts.join(' ')
+}
+
+function usablePhotoUrl(url?: string): boolean {
+  return Boolean(url && (url.startsWith('data:') || /^https?:\/\//i.test(url)))
+}
+
+async function photosForDefect(
+  projectId: string,
+  d: ReturnType<typeof defectsForProject>[number],
+): Promise<Array<{ name: string; url: string }>> {
+  let plan = d.planPhotoDataUrl
+  let photos = [...(d.photoDataUrls ?? [])]
+  if (!usablePhotoUrl(plan) || photos.some((p) => !usablePhotoUrl(p))) {
+    try {
+      const pending = await getPendingDefectMedia(d.id)
+      if (pending && (!pending.projectId || pending.projectId === projectId)) {
+        if (!usablePhotoUrl(plan) && usablePhotoUrl(pending.planPhotoDataUrl)) {
+          plan = pending.planPhotoDataUrl
+        }
+        if (pending.photoDataUrls?.length) {
+          photos = photos.length
+            ? photos.map((p, i) => (usablePhotoUrl(p) ? p : pending.photoDataUrls[i] || p))
+            : pending.photoDataUrls
+        }
+      }
+    } catch {
+      /* IndexedDB 不可用時略過 */
+    }
+  }
+  return [
+    ...(usablePhotoUrl(plan) ? [{ name: 'plan.jpg', url: plan as string }] : []),
+    ...photos
+      .filter((url) => usablePhotoUrl(url))
+      .map((url, i) => ({ name: `photo-${i + 1}.jpg`, url })),
+  ]
+}
+
+async function syncPhotosFromBrowser(
+  projectId: string,
+  accessToken: string,
+  options?: DriveSyncOptions,
+): Promise<{ ok: boolean; result?: DriveSyncResult; error?: string }> {
+  const project = useAuthStore.getState().projects.find((p) => p.id === projectId)
+  const folderId = project?.driveFolderId
+  if (!folderId) return { ok: false, error: '請先貼上並儲存雲端硬碟資料夾網址' }
+
+  await driveAssertFolder(accessToken, folderId)
+  const email = await driveGetEmail(accessToken)
+  let defects = defectsForProject(projectId).filter((d) => d.status !== 'voided')
+  if (options?.defectIds?.length) {
+    const allow = new Set(options.defectIds)
+    defects = defects.filter((d) => allow.has(d.id))
+  }
+
+  let uploaded = 0
+  let skipped = 0
+  const errors: string[] = []
+  for (const d of defects) {
+    const photos = await photosForDefect(projectId, d)
+    if (photos.length === 0) {
+      skipped += 1
+      continue
+    }
+    const segments = [
+      d.buildingName || '未指定棟別',
+      d.floor || '未指定樓層',
+      d.unitCode || '未指定戶別',
+      d.categoryName || d.area || '未指定大項',
+      leafFolderName(projectId, d),
+    ]
+    try {
+      const leaf = await driveEnsureFolderPath(accessToken, folderId, segments)
+      for (const photo of photos) {
+        const wrote = await driveUploadDataUrl(accessToken, leaf, photo.name, photo.url)
+        if (wrote) uploaded += 1
+        else skipped += 1
+      }
+    } catch (err) {
+      errors.push(`${segments.join('/')}: ${describeDriveError(err)}`)
+    }
+  }
+
+  markDriveOwnerConnected(projectId, email)
+  return {
+    ok: true,
+    result: {
+      ok: true,
+      projectId,
+      uploaded,
+      skipped,
+      scanned: defects.length,
+      errors,
+      clientEmail: email,
+      folderLayout: '棟別 / 樓層 / 戶別 / 大項 / #編號 小項名稱 備註',
+    },
+  }
+}
+
+async function withBrowserDriveToken(
+  preferSilent: boolean,
+): Promise<{ ok: true; token: string } | { ok: false; error: string }> {
+  if (!getGoogleOAuthClientId()) {
+    return {
+      ok: false,
+      error:
+        '尚未設定 Google OAuth 用戶端。請到 GCP 建立「網頁應用程式」用戶端，並把用戶端 ID 設成 VITE_GOOGLE_OAUTH_CLIENT_ID 後重新部署。',
+    }
+  }
+  try {
+    if (preferSilent) {
+      const silent = await requestGoogleDriveAccessTokenSilent()
+      if (silent) return { ok: true, token: silent }
+    }
+    return { ok: true, token: await requestGoogleDriveAccessToken() }
+  } catch (err) {
+    return { ok: false, error: describeDriveError(err) }
+  }
+}
+
+/** 後台：綁定專案雲端硬碟擁有者（彈一次 Google，驗證資料夾可寫入） */
 export async function connectProjectDriveOwner(
   projectId: string,
 ): Promise<{ ok: boolean; result?: DriveOwnerConnectResult; error?: string }> {
@@ -94,32 +280,25 @@ export async function connectProjectDriveOwner(
   }
 
   try {
-    // 先彈 Google（緊接在使用者確認之後），再等 Firebase，避免彈出視窗被擋
-    const code = await requestGoogleDriveAuthCode()
-    const ready = await ensureFirebaseUser()
-    if (!ready.ok) return ready
-    const functions = getFunctions(ready.app, 'asia-east1')
-    const callable = httpsCallable<{ projectId: string; code: string }, DriveOwnerConnectResult>(
-      functions,
-      'connectProjectDriveOwner',
-      { timeout: 60_000 },
-    )
-    const res = await callable({ projectId, code })
-    const email = res.data.email || null
-    if (email || res.data.ok) {
-      const projects = useAuthStore.getState().projects
-      const project = projects.find((p) => p.id === projectId)
-      if (project) {
-        useAuthStore.getState().upsertProject({
-          ...project,
-          driveOwnerConnected: true,
-          driveOwnerEmail: email || project.driveOwnerEmail,
-        })
-      }
+    const project = useAuthStore.getState().projects.find((p) => p.id === projectId)
+    const folderId = project?.driveFolderId
+    if (!folderId) return { ok: false, error: '請先貼上並儲存雲端硬碟資料夾網址' }
+
+    const accessToken = await requestGoogleDriveAccessToken()
+    await driveAssertFolder(accessToken, folderId)
+    const email = await driveGetEmail(accessToken)
+    markDriveOwnerConnected(projectId, email)
+    return {
+      ok: true,
+      result: {
+        ok: true,
+        projectId,
+        email,
+        browserDirect: true,
+      },
     }
-    return { ok: true, result: res.data }
   } catch (err) {
-    return { ok: false, error: cleanError(err) }
+    return { ok: false, error: describeDriveError(err) }
   }
 }
 
@@ -136,23 +315,25 @@ export async function disconnectProjectDriveOwner(
       'disconnectProjectDriveOwner',
     )
     await callable({ projectId })
-    const project = useAuthStore.getState().projects.find((p) => p.id === projectId)
-    if (project) {
-      useAuthStore.getState().upsertProject({
-        ...project,
-        driveOwnerConnected: false,
-        driveOwnerEmail: undefined,
-      })
-    }
-    return { ok: true }
   } catch (err) {
-    return { ok: false, error: cleanError(err) }
+    if (!noteFunctionsUnavailable(err)) {
+      return { ok: false, error: describeDriveError(err) }
+    }
   }
+  const project = useAuthStore.getState().projects.find((p) => p.id === projectId)
+  if (project) {
+    useAuthStore.getState().upsertProject({
+      ...project,
+      driveOwnerConnected: false,
+      driveOwnerEmail: undefined,
+    })
+  }
+  return { ok: true }
 }
 
 /**
  * 現場／後台同步：後端用「已綁定擁有者」寫入雲端硬碟，不彈 Google。
- * 若尚未綁定擁有者，則僅適用共用雲端硬碟的服務帳戶路徑。
+ * 雲端函數未部署時，改用瀏覽器已授權的 Google 帳號直連上傳。
  */
 export async function syncProjectPhotosToDrive(
   projectId: string,
@@ -164,24 +345,30 @@ export async function syncProjectPhotosToDrive(
   const ready = await ensureFirebaseUser()
   if (!ready.ok) return ready
 
-  try {
-    // 先對齊作廢狀態，避免 App 已刪、Firestore 仍 pending 又被上傳到 Drive
-    await pushLocalVoidedDefects(projectId)
+  await pushLocalVoidedDefects(projectId)
 
-    const functions = getFunctions(ready.app, 'asia-east1')
-    const callable = httpsCallable<
-      { projectId: string; defectIds?: string[]; force?: boolean },
-      DriveSyncResult
-    >(functions, 'syncProjectPhotosToDrive', { timeout: 540_000 })
-    const res = await callable({
-      projectId,
-      ...(opts.defectIds && opts.defectIds.length ? { defectIds: opts.defectIds } : {}),
-      ...(opts.force ? { force: true } : {}),
-    })
-    return { ok: true, result: res.data }
-  } catch (err) {
-    return { ok: false, error: cleanError(err) }
+  if (!functionsKnownDown) {
+    try {
+      const functions = getFunctions(ready.app, 'asia-east1')
+      const callable = httpsCallable<
+        { projectId: string; defectIds?: string[]; force?: boolean },
+        DriveSyncResult
+      >(functions, 'syncProjectPhotosToDrive', { timeout: 540_000 })
+      const res = await callable({
+        projectId,
+        ...(opts.defectIds && opts.defectIds.length ? { defectIds: opts.defectIds } : {}),
+        ...(opts.force ? { force: true } : {}),
+      })
+      return { ok: true, result: res.data }
+    } catch (err) {
+      if (!noteFunctionsUnavailable(err)) {
+        return { ok: false, error: describeDriveError(err) }
+      }
+    }
   }
+  const token = await withBrowserDriveToken(false)
+  if (!token.ok) return token
+  return syncPhotosFromBrowser(projectId, token.token, opts)
 }
 
 async function callUserDriveSync(
@@ -192,24 +379,29 @@ async function callUserDriveSync(
   const ready = await ensureFirebaseUser()
   if (!ready.ok) return ready
 
-  try {
-    const functions = getFunctions(ready.app, 'asia-east1')
-    const callable = httpsCallable<
-      { projectId: string; accessToken: string; defectIds?: string[]; force?: boolean },
-      DriveSyncResult
-    >(functions, 'syncProjectPhotosToDriveAsUser', { timeout: 540_000 })
-    const res = await callable({
-      projectId,
-      accessToken,
-      ...(options?.defectIds && options.defectIds.length
-        ? { defectIds: options.defectIds }
-        : {}),
-      ...(options?.force ? { force: true } : {}),
-    })
-    return { ok: true, result: res.data }
-  } catch (err) {
-    return { ok: false, error: cleanError(err) }
+  if (!functionsKnownDown) {
+    try {
+      const functions = getFunctions(ready.app, 'asia-east1')
+      const callable = httpsCallable<
+        { projectId: string; accessToken: string; defectIds?: string[]; force?: boolean },
+        DriveSyncResult
+      >(functions, 'syncProjectPhotosToDriveAsUser', { timeout: 540_000 })
+      const res = await callable({
+        projectId,
+        accessToken,
+        ...(options?.defectIds && options.defectIds.length
+          ? { defectIds: options.defectIds }
+          : {}),
+        ...(options?.force ? { force: true } : {}),
+      })
+      return { ok: true, result: res.data }
+    } catch (err) {
+      if (!noteFunctionsUnavailable(err)) {
+        return { ok: false, error: describeDriveError(err) }
+      }
+    }
   }
+  return syncPhotosFromBrowser(projectId, accessToken, options)
 }
 
 /**
@@ -233,7 +425,7 @@ export async function syncProjectPhotosToDriveAsUser(
     const accessToken = await requestGoogleDriveAccessToken()
     return await callUserDriveSync(projectId, accessToken, { force: true, ...options })
   } catch (err) {
-    return { ok: false, error: cleanError(err) }
+    return { ok: false, error: describeDriveError(err) }
   }
 }
 
@@ -265,19 +457,39 @@ export async function reconcileDefectOnDrive(params: {
   const ready = await ensureFirebaseUser()
   if (!ready.ok) return ready
 
-  try {
-    const functions = getFunctions(ready.app, 'asia-east1')
-    const callable = httpsCallable<
-      { projectId: string; defectId: string },
-      DriveReconcileResult
-    >(functions, 'reconcileDefectOnDrive', { timeout: 180_000 })
-    const res = await callable({
-      projectId: params.projectId,
-      defectId: params.defectId,
-    })
-    return { ok: true, result: res.data }
-  } catch (err) {
-    return { ok: false, error: cleanError(err) }
+  if (!functionsKnownDown) {
+    try {
+      const functions = getFunctions(ready.app, 'asia-east1')
+      const callable = httpsCallable<
+        { projectId: string; defectId: string },
+        DriveReconcileResult
+      >(functions, 'reconcileDefectOnDrive', { timeout: 180_000 })
+      const res = await callable({
+        projectId: params.projectId,
+        defectId: params.defectId,
+      })
+      return { ok: true, result: res.data }
+    } catch (err) {
+      if (!noteFunctionsUnavailable(err)) {
+        return { ok: false, error: describeDriveError(err) }
+      }
+    }
+  }
+  const token = await withBrowserDriveToken(true)
+  if (!token.ok) {
+    return { ok: true, result: { ok: true, skipped: true, reason: 'no-browser-token' } }
+  }
+  const synced = await syncPhotosFromBrowser(params.projectId, token.token, {
+    defectIds: [params.defectId],
+  })
+  if (!synced.ok) return { ok: true, result: { ok: true, skipped: true, reason: synced.error } }
+  return {
+    ok: true,
+    result: {
+      ok: true,
+      action: 'synced',
+      uploaded: synced.result?.uploaded ?? 0,
+    },
   }
 }
 
@@ -356,29 +568,46 @@ export async function deleteDefectPhotosFromDrive(params: {
       })
       return { ok: true, result: res.data }
     } catch (ownerErr) {
-      if (!getGoogleOAuthClientId()) {
-        return { ok: false, error: cleanError(ownerErr) }
-      }
-      let accessToken: string
-      try {
-        accessToken = await requestGoogleDriveAccessToken()
-      } catch (err) {
-        return {
-          ok: false,
-          error:
-            (err as Error)?.message ||
-            cleanError(ownerErr) ||
-            '雲端硬碟同步刪除失敗，請請後台確認已綁定擁有者',
+      if (!isFunctionsUnavailable(ownerErr) && getGoogleOAuthClientId()) {
+        const token = await requestGoogleDriveAccessTokenSilent()
+        if (token) {
+          try {
+            const res = await callable({
+              projectId: params.projectId,
+              defectId: params.defectId,
+              accessToken: token,
+            })
+            return { ok: true, result: res.data }
+          } catch {
+            /* fall through to browser trash */
+          }
         }
       }
-      const res = await callable({
-        projectId: params.projectId,
-        defectId: params.defectId,
-        accessToken,
-      })
-      return { ok: true, result: res.data }
+      const token = await requestGoogleDriveAccessTokenSilent()
+      if (!token || !project.driveFolderId) {
+        return { ok: true, result: { ok: true, skipped: true, reason: 'no-browser-token' } }
+      }
+      const defect = defectsForProject(params.projectId).find((d) => d.id === params.defectId)
+      if (!defect) {
+        return { ok: true, result: { ok: true, skipped: true, reason: 'no-defect' } }
+      }
+      const leafId = await driveFindFolderPath(token, project.driveFolderId, [
+        defect.buildingName || '未指定棟別',
+        defect.floor || '未指定樓層',
+        defect.unitCode || '未指定戶別',
+        defect.categoryName || defect.area || '未指定大項',
+        leafFolderName(params.projectId, defect),
+      ])
+      if (!leafId) {
+        return { ok: true, result: { ok: true, skipped: true, reason: 'folder-not-found' } }
+      }
+      await driveTrashFolder(token, leafId)
+      return { ok: true, result: { ok: true, trashedFolder: true } }
     }
   } catch (err) {
-    return { ok: false, error: cleanError(err) }
+    if (isFunctionsUnavailable(err)) {
+      return { ok: true, result: { ok: true, skipped: true, reason: 'functions-unavailable' } }
+    }
+    return { ok: false, error: describeDriveError(err) }
   }
 }

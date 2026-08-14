@@ -40,7 +40,9 @@ export async function syncProjectMeta(project: ProjectMeta): Promise<boolean> {
       status: project.status,
       driveFolderId: project.driveFolderId ?? null,
       driveFolderUrl: project.driveFolderUrl ?? null,
-      // driveOwner* 由 Cloud Functions 寫入，前端勿覆蓋
+      // 雲端函數未部署時，由瀏覽器綁定寫入；已部署後仍可並存
+      driveOwnerConnected: Boolean(project.driveOwnerConnected),
+      driveOwnerEmail: project.driveOwnerEmail ?? null,
       updatedAt: serverTimestamp(),
       mode: 'site-progress',
     },
