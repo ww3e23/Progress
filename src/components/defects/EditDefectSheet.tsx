@@ -18,11 +18,9 @@ export function EditDefectSheet({
   defect: Defect
   onClose: () => void
 }) {
-  const categories = useProjectStore((s) => s.categories)
   const units = useProjectStore((s) => s.units)
   const projectAreas = useProjectStore((s) => s.areas)
   const areaTemplates = useProjectStore((s) => s.areaTemplates) ?? []
-  const checklistItems = useProjectStore((s) => s.checklistItems)
   const updateDefect = useProjectStore((s) => s.updateDefect)
   const role = useCurrentRole()
   const user = useCurrentUser()
@@ -34,17 +32,6 @@ export function EditDefectSheet({
     return list.includes(defect.area) ? list : [defect.area, ...list]
   }, [unit, projectAreas, areaTemplates, defect.area])
 
-  const activeCats = categories.filter((c) => c.active)
-  const [catId, setCatId] = useState(defect.categoryId)
-  const cat = activeCats.find((c) => c.id === catId) ?? activeCats[0]
-  const catItems = useMemo(
-    () =>
-      checklistItems
-        .filter((i) => i.categoryId === cat?.id && i.active)
-        .sort((a, b) => a.sortOrder - b.sortOrder),
-    [checklistItems, cat?.id],
-  )
-  const [itemId, setItemId] = useState<string | null>(defect.checklistItemId ?? null)
   const [area, setArea] = useState(defect.area)
   const [description, setDescription] = useState(() =>
     resolveDefectRemark(defect, useProjectStore.getState().checklistItems),
@@ -56,12 +43,6 @@ export function EditDefectSheet({
   const [error, setError] = useState('')
   const [annotateOpen, setAnnotateOpen] = useState(false)
   const [areasOpen, setAreasOpen] = useState(false)
-
-  // 換大項時：若目前細項不屬於新大項，改選該大項第一筆（或清空）
-  const effectiveItemId = useMemo(() => {
-    if (itemId && catItems.some((i) => i.id === itemId)) return itemId
-    return catItems[0]?.id ?? null
-  }, [itemId, catItems])
 
   async function onPick(file: File | undefined, kind: 'plan' | 'photo') {
     if (!file) return
@@ -86,18 +67,11 @@ export function EditDefectSheet({
       setError('目前角色為僅查看，無法修改缺失')
       return
     }
-    if (!cat) {
-      setError('請選擇缺失大項')
-      return
-    }
     const text = description.trim()
 
     setSaving(true)
     setError('')
     const result = await updateDefect(defect.id, {
-      categoryId: cat.id,
-      categoryName: cat.name,
-      checklistItemId: effectiveItemId,
       area,
       description: text,
       planPhotoDataUrl: planPhoto ?? null,
@@ -126,38 +100,6 @@ export function EditDefectSheet({
             目前為僅查看權限，無法修改。
           </div>
         )}
-
-        <div className="field">
-          <GlassSelect
-            label="缺失大項"
-            value={cat?.id ?? ''}
-            options={activeCats.map((c) => ({ value: c.id, label: c.name }))}
-            onChange={(id) => {
-              setCatId(id)
-              const first = checklistItems
-                .filter((i) => i.categoryId === id && i.active)
-                .sort((a, b) => a.sortOrder - b.sortOrder)[0]
-              setItemId(first?.id ?? null)
-            }}
-            disabled={!canEdit}
-          />
-        </div>
-
-        <div className="field">
-          <GlassSelect
-            label="缺失細項"
-            value={effectiveItemId ?? ''}
-            options={catItems.map((item) => ({ value: item.id, label: item.description }))}
-            onChange={setItemId}
-            disabled={!canEdit || catItems.length === 0}
-            searchable={catItems.length > 6}
-          />
-          {catItems.length === 0 && (
-            <p style={{ margin: '8px 0 0', color: 'var(--terracotta)', fontSize: 12, fontWeight: 700 }}>
-              此大項尚無啟用中的細項
-            </p>
-          )}
-        </div>
 
         <div className="field">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 6 }}>

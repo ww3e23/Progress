@@ -50,8 +50,6 @@ export function AdvancedFilterSheet({
 }) {
   const buildings = useProjectStore((s) => s.buildings)
   const units = useProjectStore((s) => s.units)
-  const categories = useProjectStore((s) => s.categories)
-  const items = useProjectStore((s) => s.checklistItems)
   const projectAreas = useProjectStore((s) => s.areas)
   const defects = useProjectStore((s) => s.defects)
   const activities = useProjectStore((s) => s.activities)
@@ -176,48 +174,6 @@ export function AdvancedFilterSheet({
                 {u.buildingName} {u.floor} {u.code}
               </button>
             ))}
-          </div>
-        </Section>
-
-        <Section title="大項／細項">
-          <div className="chip-row" style={{ marginBottom: 8 }}>
-            {categories.filter((c) => c.active).map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                className={`chip ${draft.categoryIds.includes(c.id) ? 'on' : ''}`}
-                onClick={() =>
-                  setDraft((d) => ({ ...d, categoryIds: toggle(d.categoryIds, c.id) }))
-                }
-              >
-                {c.name}
-              </button>
-            ))}
-          </div>
-          <div className="chip-row" style={{ maxHeight: 100, overflow: 'auto' }}>
-            {items
-              .filter(
-                (i) =>
-                  i.active &&
-                  (!draft.categoryIds.length || draft.categoryIds.includes(i.categoryId)),
-              )
-              .map((i) => (
-                <button
-                  key={i.id}
-                  type="button"
-                  className={`chip ${draft.checklistItemIds.includes(i.id) ? 'on' : ''}`}
-                  onClick={() =>
-                    setDraft((d) => ({
-                      ...d,
-                      checklistItemIds: toggle(d.checklistItemIds, i.id),
-                    }))
-                  }
-                  style={{ maxWidth: '100%' }}
-                >
-                  {i.description.slice(0, 18)}
-                  {i.description.length > 18 ? '…' : ''}
-                </button>
-              ))}
           </div>
         </Section>
 

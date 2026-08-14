@@ -4,31 +4,24 @@ import { useProjectStore } from '../../store/useProjectStore'
 import { countActiveUnits, newBuildingDraft, summarizeBuilding } from '../../lib/units'
 import { getUnitAreas } from '../../lib/areas'
 import { BuildingEditor } from './BuildingEditor'
-import { TemplateEditor } from './TemplateEditor'
 import { WorkItemEditor } from './WorkItemEditor'
 import { UnitAreasEditor } from './UnitAreasEditor'
 import { ProjectAreasEditor } from './ProjectAreasEditor'
 import { BatchAreasApplySheet } from './BatchAreasApplySheet'
 import { UnitPlanGallerySheet } from './UnitPlanGallerySheet'
-import { createId } from '../../lib/id'
-import type { BuildingRule, ChecklistCategory, WorkItem } from '../../types'
+import type { BuildingRule, WorkItem } from '../../types'
 import { TitleHint } from '../ui/TitleHint'
 import { newWorkItemDraft } from '../../data/defaultWorkItems'
 
 export function SettingsPage({ embedded = false }: { embedded?: boolean }) {
   const buildings = useProjectStore((s) => s.buildings)
-  const categories = useProjectStore((s) => s.categories)
-  const checklistItems = useProjectStore((s) => s.checklistItems)
   const units = useProjectStore((s) => s.units)
   const projectAreas = useProjectStore((s) => s.areas)
   const areaTemplates = useProjectStore((s) => s.areaTemplates) ?? []
   const currentUnitId = useProjectStore((s) => s.currentUnitId)
   const upsertBuilding = useProjectStore((s) => s.upsertBuilding)
   const removeBuilding = useProjectStore((s) => s.removeBuilding)
-  const upsertCategory = useProjectStore((s) => s.upsertCategory)
-  const removeCategory = useProjectStore((s) => s.removeCategory)
   const resetDemoData = useProjectStore((s) => s.resetDemoData)
-  const applyDefaultChecklist = useProjectStore((s) => s.applyDefaultChecklist)
   const workItems = useProjectStore((s) => s.workItems)
   const upsertWorkItem = useProjectStore((s) => s.upsertWorkItem)
   const removeWorkItem = useProjectStore((s) => s.removeWorkItem)
@@ -37,8 +30,6 @@ export function SettingsPage({ embedded = false }: { embedded?: boolean }) {
   const [editing, setEditing] = useState<BuildingRule | null>(null)
   const [editingWork, setEditingWork] = useState<WorkItem | null>(null)
   const [isNewWork, setIsNewWork] = useState(false)
-  const [editingCat, setEditingCat] = useState<ChecklistCategory | null>(null)
-  const [isNewCat, setIsNewCat] = useState(false)
   const [unitAreasOpen, setUnitAreasOpen] = useState(false)
   const [projectAreasOpen, setProjectAreasOpen] = useState(false)
   const [batchAreasOpen, setBatchAreasOpen] = useState(false)
@@ -53,9 +44,6 @@ export function SettingsPage({ embedded = false }: { embedded?: boolean }) {
   )
   const [expandedWorkId, setExpandedWorkId] = useState<string | null>(null)
   const [workQuery, setWorkQuery] = useState('')
-  const [catsOpen, setCatsOpen] = useState(
-    () => categories.filter((c) => c.active).length <= 4,
-  )
 
   const currentUnit =
     units.find((u) => u.id === currentUnitId) ?? units.find((u) => u.active)
@@ -65,9 +53,6 @@ export function SettingsPage({ embedded = false }: { embedded?: boolean }) {
     .sort((a, b) => a.sortOrder - b.sortOrder)
 
   const totalActiveUnits = units.filter((u) => u.active).length
-  const activeCats = categories
-    .filter((c) => c.active)
-    .sort((a, b) => a.sortOrder - b.sortOrder)
 
   const activeWorkList = [...workItems]
     .filter((w) => w.active)
@@ -464,178 +449,6 @@ export function SettingsPage({ embedded = false }: { embedded?: boolean }) {
         </div>
       </article>
 
-      <div className="section-row">
-        <TitleHint
-          as="h2"
-          hint="新專案已預載標準缺失分類。編輯細項後會套用到所有戶別；已有缺失的項目刪除時會改為停用並保留紀錄。"
-        >
-          缺失分類範本
-        </TitleHint>
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          <button
-            type="button"
-            className="link"
-            onClick={() => {
-              if (activeCats.length === 0) {
-                applyDefaultChecklist('fill-if-empty')
-                return
-              }
-              if (
-                confirm(
-                  '要以預設缺失分類覆蓋目前大項嗎？\n（門／窗／天花板／粉刷牆面／地壁磚／木地板）',
-                )
-              ) {
-                applyDefaultChecklist('replace')
-              }
-            }}
-          >
-            套用預設範本
-          </button>
-        </div>
-      </div>
-
-      {activeCats.length === 0 && (
-        <button
-          type="button"
-          className="btn btn-primary"
-          style={{ width: '100%', marginBottom: 12 }}
-          onClick={() => applyDefaultChecklist('fill-if-empty')}
-        >
-          載入預設缺失分類
-        </button>
-      )}
-
-      <div className="glass" style={{ padding: 0, overflow: 'hidden', marginBottom: 8 }}>
-        <button
-          type="button"
-          className="building-fold-toggle"
-          aria-expanded={catsOpen}
-          onClick={() => setCatsOpen((v) => !v)}
-        >
-          <div style={{ minWidth: 0, textAlign: 'left' }}>
-            <div style={{ fontWeight: 800, fontSize: 15 }}>
-              {activeCats.length} 個大項
-            </div>
-            <div
-              style={{
-                marginTop: 2,
-                color: 'var(--ink-soft)',
-                fontSize: 12,
-                fontWeight: 600,
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {activeCats.length === 0
-                ? '尚未設定分類'
-                : catsOpen
-                  ? '點此收合分類清單'
-                  : activeCats.map((c) => c.name).join('、')}
-            </div>
-          </div>
-          <ChevronDown
-            size={20}
-            style={{
-              flexShrink: 0,
-              color: 'var(--ink-soft)',
-              transform: catsOpen ? 'rotate(180deg)' : undefined,
-              transition: 'transform 0.2s ease',
-            }}
-          />
-        </button>
-
-        {catsOpen && (
-          <>
-            <div className="fold-list">
-              {activeCats.map((cat) => (
-                <div key={cat.id} className="building-fold-row">
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-                    <div
-                      style={{
-                        width: 32,
-                        height: 32,
-                        borderRadius: 10,
-                        background: cat.color,
-                        color: '#fff',
-                        display: 'grid',
-                        placeItems: 'center',
-                        fontWeight: 800,
-                        fontSize: 13,
-                        flexShrink: 0,
-                      }}
-                    >
-                      {cat.iconChar}
-                    </div>
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ fontWeight: 800, fontSize: 14 }}>{cat.name}</div>
-                      <div style={{ color: 'var(--ink-soft)', fontSize: 11, fontWeight: 600 }}>
-                        {cat.itemCount} 細項
-                      </div>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    className="btn btn-ghost"
-                    style={{ minHeight: 36, flexShrink: 0, padding: '0 12px' }}
-                    onClick={() => {
-                      setIsNewCat(false)
-                      setEditingCat(cat)
-                    }}
-                  >
-                    編輯
-                  </button>
-                </div>
-              ))}
-            </div>
-            <button
-              type="button"
-              className="btn-dashed"
-              style={{ margin: 12, marginTop: 8 }}
-              onClick={() => {
-                setIsNewCat(true)
-                setEditingCat({
-                  id: createId('cat'),
-                  name: '',
-                  iconChar: '項',
-                  color: '#245A8C',
-                  itemCount: 0,
-                  sortOrder: categories.length,
-                  active: true,
-                })
-              }}
-            >
-              + 新增大項
-            </button>
-          </>
-        )}
-
-        {!catsOpen && (
-          <div style={{ padding: '0 12px 12px' }}>
-            <button
-              type="button"
-              className="btn-dashed"
-              style={{ width: '100%' }}
-              onClick={() => {
-                setCatsOpen(true)
-                setIsNewCat(true)
-                setEditingCat({
-                  id: createId('cat'),
-                  name: '',
-                  iconChar: '項',
-                  color: '#245A8C',
-                  itemCount: 0,
-                  sortOrder: categories.length,
-                  active: true,
-                })
-              }}
-            >
-              + 新增大項
-            </button>
-          </div>
-        )}
-      </div>
-
       {editing && (
         <BuildingEditor
           initial={editing}
@@ -673,35 +486,6 @@ export function SettingsPage({ embedded = false }: { embedded?: boolean }) {
               : () => {
                   removeWorkItem(editingWork.id)
                   setEditingWork(null)
-                }
-          }
-        />
-      )}
-
-      {editingCat && (
-        <TemplateEditor
-          initial={editingCat}
-          initialItems={checklistItems
-            .filter((i) => i.categoryId === editingCat.id && i.active)
-            .sort((a, b) => a.sortOrder - b.sortOrder)}
-          onCancel={() => {
-            setEditingCat(null)
-            setIsNewCat(false)
-          }}
-          onSave={(cat, items) => {
-            upsertCategory(cat, items)
-            setEditingCat(null)
-            setIsNewCat(false)
-          }}
-          onDelete={
-            isNewCat
-              ? undefined
-              : () => {
-                  if (!confirm('確定刪除／停用此大項？若已有缺失紀錄將改為停用並保留歷史。')) return
-                  const r = removeCategory(editingCat.id)
-                  if (r.reason) alert(r.reason)
-                  setEditingCat(null)
-                  setIsNewCat(false)
                 }
           }
         />
