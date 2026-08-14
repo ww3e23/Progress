@@ -7,7 +7,7 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 CORS_FILE="$ROOT/storage.cors.json"
-BUCKET="${1:-site-progress-app.firebasestorage.app}"
+BUCKET="${1:-site-progress-app-8d6c2.firebasestorage.app}"
 
 if ! command -v gsutil >/dev/null 2>&1 && ! command -v gcloud >/dev/null 2>&1; then
   echo "請先安裝 Google Cloud SDK（含 gsutil）"

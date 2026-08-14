@@ -25,7 +25,7 @@ jobs:
         if: ${{ secrets.GCP_SA_KEY != '' }}
         run: |
           chmod +x scripts/set-storage-cors.sh
-          ./scripts/set-storage-cors.sh site-progress-app.firebasestorage.app
+          ./scripts/set-storage-cors.sh site-progress-app-8d6c2.firebasestorage.app
       - name: Missing credentials
         if: ${{ secrets.GCP_SA_KEY == '' }}
         run: |

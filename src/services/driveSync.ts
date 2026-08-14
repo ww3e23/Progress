@@ -55,8 +55,8 @@ export type DriveOwnerConnectResult = {
 }
 
 export const FIREBASE_DRIVE_UNAVAILABLE =
-  '施工進度站尚未接上獨立 Firebase 專案（site-progress-app），無法完成雲端硬碟綁定。\n\n' +
-  '請勿使用查驗 CI 的 ci-inspection。請在 Firebase 新建 site-progress-app，把網頁設定填進 Progress 的 GitHub Secrets 後重新部署。'
+  '施工進度站尚未接上獨立 Firebase 專案（site-progress-app-8d6c2），無法完成雲端硬碟綁定。\n\n' +
+  '請勿使用查驗 CI 的 ci-inspection。'
 
 async function ensureFirebaseUser() {
   if (!isFirebaseConfigured()) {

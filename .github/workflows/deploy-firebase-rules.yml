@@ -27,5 +27,5 @@ jobs:
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
         run: |
-          firebase use site-progress-app
+          firebase use site-progress-app-8d6c2
           firebase deploy --only firestore:rules,storage --non-interactive

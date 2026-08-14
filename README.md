@@ -7,7 +7,7 @@
 | | 查验 CI | 现场进度 Progress |
 |---|---|---|
 | 网址 | https://ww3e23.github.io/CI/ | https://ww3e23.github.io/Progress/ |
-| Firebase | `ci-inspection` | `site-progress-app` |
+| Firebase | `ci-inspection` | `site-progress-app-8d6c2` |
 | 本机帐号 | `ci-inspection-auth-v1` | `site-progress-auth-v1` |
 | 本机资料 | `ci-inspection-data-v1` | `site-progress-data-v1` |
 

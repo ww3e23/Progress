@@ -7,5 +7,5 @@ export const LEGACY_AUTH_STORAGE_KEY = 'site-auth-v2'
 export const LEGACY_PROJECT_STORAGE_KEY = 'site-inspection-v5'
 
 /** 進度 App 獨立 Firebase 專案；禁止連上查驗的 ci-inspection */
-export const PROGRESS_FIREBASE_PROJECT_ID = 'site-progress-app'
+export const PROGRESS_FIREBASE_PROJECT_ID = 'site-progress-app-8d6c2'
 export const FORBIDDEN_FIREBASE_PROJECT_ID = 'ci-inspection'

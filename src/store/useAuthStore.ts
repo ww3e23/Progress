@@ -648,7 +648,7 @@ export const useAuthStore = create<AuthState & AuthActions>()(
           return { ok: false, error: '請先登入後再同步' }
         }
         const permissionHint =
-          'Firestore 規則未允許讀寫。請到 Firebase Console → 專案 site-progress-app → Firestore → 規則，貼上本專案 firestore.rules 後按「發布」，再重新登入並同步。'
+          'Firestore 規則未允許讀寫。請到 Firebase Console → 專案 site-progress-app-8d6c2 → Firestore → 規則，貼上本專案 firestore.rules 後按「發布」，再重新登入並同步。'
 
         // 先把本機目錄推上雲端，再拉回來（電腦建的資料可到手機）
         try {
