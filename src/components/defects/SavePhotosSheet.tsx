@@ -194,7 +194,7 @@ export function SavePhotosSheet({
                   maxHeight: 240,
                   objectFit: 'contain',
                   borderRadius: 12,
-                  background: '#1c211d',
+                  background: '#152033',
                   display: 'block',
                   WebkitTouchCallout: 'default',
                   WebkitUserSelect: 'auto',

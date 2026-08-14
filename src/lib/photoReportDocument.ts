@@ -242,16 +242,16 @@ export function buildPhotoReportHtml(input: PhotoReportInput): string {
   <title>${escapeHtml(projectName)}｜圖片進度報告</title>
   <style>
     :root {
-      --ink: #1a211c;
-      --soft: #5e6861;
-      --mute: #8a928b;
-      --line: rgba(26, 33, 28, 0.10);
-      --line-strong: rgba(47, 93, 76, 0.35);
-      --green: #2f5d4c;
-      --green-soft: rgba(47, 93, 76, 0.08);
-      --paper: #f4f2ec;
-      --card: #fffcf7;
-      --photo-mat: #efece4;
+      --ink: #1e2733;
+      --soft: #5a6573;
+      --mute: #7a8490;
+      --line: rgba(30, 39, 51, 0.10);
+      --line-strong: rgba(36, 90, 140, 0.35);
+      --green: #245a8c;
+      --green-soft: rgba(36, 90, 140, 0.08);
+      --paper: #e6eef6;
+      --card: #f7fafd;
+      --photo-mat: #dfe7f0;
     }
     * { box-sizing: border-box; }
     html, body { margin: 0; padding: 0; }
@@ -385,7 +385,7 @@ export function buildPhotoReportHtml(input: PhotoReportInput): string {
       align-self: start;
       padding: 4px 9px;
       border-radius: 6px;
-      border: 1px solid rgba(47, 93, 76, 0.22);
+      border: 1px solid rgba(36, 90, 140, 0.22);
       background: var(--green-soft);
       color: var(--green);
       font-size: 11px; font-weight: 700; white-space: nowrap;

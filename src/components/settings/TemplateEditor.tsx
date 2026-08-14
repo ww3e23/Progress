@@ -5,7 +5,7 @@ import { createId } from '../../lib/id'
 import { Modal } from '../ui/Modal'
 import { TitleHint } from '../ui/TitleHint'
 
-const PRESET_COLORS = ['#2F5D4C', '#3C6E8F', '#A67C52', '#AE4C3B', '#6B7C8A', '#8B6B4A', '#C97B2E']
+const PRESET_COLORS = ['#245A8C', '#4A7FA3', '#A67C52', '#AE4C3B', '#6B7C8A', '#8B6B4A', '#C97B2E']
 
 export function TemplateEditor({
   initial,

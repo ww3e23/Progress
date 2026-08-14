@@ -285,7 +285,7 @@ export function DefectDetailModal({
                 maxHeight: 280,
                 objectFit: 'contain',
                 display: 'block',
-                background: '#1c211d',
+                background: '#152033',
                 WebkitTouchCallout: 'default',
               }}
             />

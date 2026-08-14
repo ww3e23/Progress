@@ -77,7 +77,7 @@ function parseCategory(id: string, data: Record<string, unknown>): ChecklistCate
     id,
     name: String(data.name ?? ''),
     iconChar: String(data.iconChar ?? '項'),
-    color: String(data.color ?? '#2F5D4C'),
+    color: String(data.color ?? '#245A8C'),
     itemCount: Number(data.itemCount ?? 0),
     sortOrder: Number(data.sortOrder ?? 0),
     active: data.active !== false,

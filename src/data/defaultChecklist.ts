@@ -14,7 +14,7 @@ const DEFAULT_CATS: CatDef[] = [
     id: 'cat_door',
     name: '門',
     iconChar: '門',
-    color: '#2F5D4C',
+    color: '#245A8C',
     items: [
       '門鎖是否可以正常上鎖開鎖。',
       '鎖頭與鎖孔正確密合，不致鬆動?',

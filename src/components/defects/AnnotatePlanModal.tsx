@@ -305,7 +305,7 @@ export function AnnotatePlanModal({
             {label}
           </button>
         ))}
-        {['#AE4C3B', '#C97B2E', '#2F5D4C', '#3C6E8F'].map((c) => (
+        {['#AE4C3B', '#C97B2E', '#245A8C', '#4A7FA3'].map((c) => (
           <button
             key={c}
             type="button"

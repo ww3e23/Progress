@@ -20,7 +20,7 @@ function statusTone(status: Defect['status']): string {
     case 'returned':
       return '#ae4c3b'
     case 'completed':
-      return '#2f5d4c'
+      return '#245a8c'
     default:
       return '#8a8578'
   }
@@ -29,15 +29,15 @@ function statusTone(status: Defect['status']): string {
 function cellColor(status: string): string {
   switch (status) {
     case 'completed':
-      return '#2f5d4c'
+      return '#245a8c'
     case 'has_defects':
       return '#ae4c3b'
     case 'in_progress':
       return '#c97b2e'
     case 'not_started':
-      return '#f7f3ea'
+      return '#eef4fa'
     default:
-      return '#d9d5cb'
+      return '#d5dde6'
   }
 }
 
@@ -189,12 +189,12 @@ export function buildInspectionReportHtml(input: ReportInput): string {
   <title>${escapeHtml(projectName)}｜進度報告</title>
   <style>
     :root {
-      --ink: #22291f;
-      --soft: #5b6259;
-      --green: #2f5d4c;
-      --paper: #f4efe4;
-      --card: #fffcf6;
-      --line: rgba(34,41,31,0.1);
+      --ink: #1e2733;
+      --soft: #5a6573;
+      --green: #245a8c;
+      --paper: #e6eef6;
+      --card: #f7fafd;
+      --line: rgba(30,39,51,0.1);
     }
     * { box-sizing: border-box; }
     body {
@@ -204,7 +204,7 @@ export function buildInspectionReportHtml(input: ReportInput): string {
         'Noto Sans TC', 'PingFang TC', 'Microsoft JhengHei', 'Heiti TC',
         'Source Han Sans TC', sans-serif;
       background:
-        radial-gradient(90% 50% at 10% 0%, rgba(47,93,76,0.14), transparent 55%),
+        radial-gradient(90% 50% at 10% 0%, rgba(36,90,140,0.14), transparent 55%),
         radial-gradient(70% 40% at 100% 10%, rgba(201,123,46,0.12), transparent 50%),
         var(--paper);
     }
@@ -268,7 +268,7 @@ export function buildInspectionReportHtml(input: ReportInput): string {
     .bar-row { display: grid; grid-template-columns: 72px 1fr 48px; gap: 10px; align-items: center; margin: 8px 0; }
     .bar-label { font-weight: 700; font-size: 13px; }
     .bar-track { height: 10px; border-radius: 999px; background: rgba(34,41,31,0.08); overflow: hidden; }
-    .bar-fill { height: 100%; background: linear-gradient(90deg, #3a6f5c, #2f5d4c); border-radius: 999px; }
+    .bar-fill { height: 100%; background: linear-gradient(90deg, #3474a8, #245a8c); border-radius: 999px; }
     .bar-num { font-weight: 800; font-size: 13px; text-align: right; }
     table.matrix { width: 100%; border-collapse: collapse; font-size: 11px; table-layout: fixed; }
     table.matrix th, table.matrix td { padding: 4px 2px; text-align: center; }
@@ -317,7 +317,7 @@ export function buildInspectionReportHtml(input: ReportInput): string {
       }
       body {
         background:
-          radial-gradient(90% 50% at 10% 0%, rgba(47,93,76,0.14), transparent 55%),
+          radial-gradient(90% 50% at 10% 0%, rgba(36,90,140,0.14), transparent 55%),
           radial-gradient(70% 40% at 100% 10%, rgba(201,123,46,0.12), transparent 50%),
           var(--paper) !important;
       }
@@ -389,13 +389,13 @@ export function buildInspectionReportHtml(input: ReportInput): string {
 
     <section class="section">
       <h2>進度矩陣</h2>
-      <p class="lead">綠＝完成、紅＝有缺失、琥珀＝進行中、米白＝未開始、灰＝不適用。</p>
+      <p class="lead">藍＝完成、紅＝有缺失、琥珀＝進行中、米白＝未開始、灰＝不適用。</p>
       <div class="legend">
-        <span><i class="dot" style="background:#2f5d4c"></i>已完成</span>
+        <span><i class="dot" style="background:#245a8c"></i>已完成</span>
         <span><i class="dot" style="background:#ae4c3b"></i>有缺失</span>
         <span><i class="dot" style="background:#c97b2e"></i>進行中</span>
-        <span><i class="dot" style="background:#f7f3ea"></i>未開始</span>
-        <span><i class="dot" style="background:#d9d5cb"></i>不適用</span>
+        <span><i class="dot" style="background:#eef4fa"></i>未開始</span>
+        <span><i class="dot" style="background:#d5dde6"></i>不適用</span>
       </div>
       ${matrixTablesHtml}
     </section>

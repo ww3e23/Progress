@@ -12,13 +12,13 @@ import {
 const HEADER_FILL: ExcelJS.Fill = {
   type: 'pattern',
   pattern: 'solid',
-  fgColor: { argb: 'FF1F4E79' },
+  fgColor: { argb: 'FF245A8C' },
 }
 
 const DONE_FILL: ExcelJS.Fill = {
   type: 'pattern',
   pattern: 'solid',
-  fgColor: { argb: 'FFC6EFCE' },
+  fgColor: { argb: 'FFBDD7EE' },
 }
 
 const PROGRESS_FILL: ExcelJS.Fill = {

@@ -1,31 +1,31 @@
 :root {
-  --bg-base: #efebe1;
-  --bg-blob-green: rgba(58, 102, 84, 0.28);
-  --bg-blob-amber: rgba(201, 123, 46, 0.22);
+  --bg-base: #e6eef6;
+  --bg-blob-green: rgba(52, 118, 176, 0.28);
+  --bg-blob-amber: rgba(201, 123, 46, 0.18);
 
-  --ink: #22291f;
-  --ink-soft: #5b6259;
+  --ink: #1e2733;
+  --ink-soft: #5a6573;
 
-  --green-deep: #2f5d4c;
-  --green-deep2: #264b3e;
-  --green-glass: rgba(47, 93, 76, 0.16);
+  --green-deep: #245a8c;
+  --green-deep2: #1a446c;
+  --green-glass: rgba(36, 90, 140, 0.16);
 
   --amber: #c97b2e;
-  --slate: #3c6e8f;
+  --slate: #4a7fa3;
   --terracotta: #ae4c3b;
-  --stone: #8a8578;
+  --stone: #7a8490;
 
   --paper: rgba(255, 255, 255, 0.55);
   --border-glass: rgba(255, 255, 255, 0.55);
-  --shadow-soft: 0 20px 45px -18px rgba(34, 41, 31, 0.28), 0 4px 12px -4px rgba(34, 41, 31, 0.12);
-  --shadow-tight: 0 8px 20px -10px rgba(34, 41, 31, 0.22);
+  --shadow-soft: 0 20px 45px -18px rgba(30, 39, 51, 0.28), 0 4px 12px -4px rgba(30, 39, 51, 0.12);
+  --shadow-tight: 0 8px 20px -10px rgba(30, 39, 51, 0.22);
 
   --matrix-done: var(--green-deep);
   --matrix-defect: var(--terracotta);
   --matrix-progress: var(--amber);
   --matrix-tpl: var(--slate);
   --matrix-empty: #ffffff;
-  --matrix-na: #d9d5cb;
+  --matrix-na: #d5dde6;
 
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --nav-h: 72px;
@@ -148,7 +148,7 @@ button { cursor: pointer; border: none; background: none; color: inherit; }
 }
 
 .glass-green {
-  background: linear-gradient(150deg, rgba(47, 93, 76, 0.3), rgba(47, 93, 76, 0.16));
+  background: linear-gradient(150deg, rgba(36, 90, 140, 0.3), rgba(36, 90, 140, 0.16));
   backdrop-filter: blur(18px) saturate(160%);
   -webkit-backdrop-filter: blur(18px) saturate(160%);
   border: 1px solid rgba(255, 255, 255, 0.4);
@@ -179,13 +179,13 @@ button { cursor: pointer; border: none; background: none; color: inherit; }
 .hero-layer-a {
   z-index: 0;
   transform: translate(10px, 10px) rotate(1.8deg);
-  background: rgba(47, 93, 76, 0.28);
+  background: rgba(36, 90, 140, 0.28);
 }
 
 .hero-layer-b {
   z-index: 0;
   transform: translate(16px, 14px) rotate(2.8deg);
-  background: rgba(47, 93, 76, 0.16);
+  background: rgba(36, 90, 140, 0.16);
 }
 
 .hero-stack .hero-card {
@@ -193,7 +193,7 @@ button { cursor: pointer; border: none; background: none; color: inherit; }
   z-index: 1;
   padding: 18px 16px 16px;
   border-radius: 28px;
-  background: linear-gradient(155deg, #3a6f5c 0%, #2f5d4c 55%, #264b3e 100%);
+  background: linear-gradient(155deg, #3474a8 0%, #245a8c 55%, #1a446c 100%);
   border: 1px solid rgba(255, 255, 255, 0.28);
   box-shadow: var(--shadow-soft);
   backdrop-filter: none;
@@ -237,8 +237,8 @@ button { cursor: pointer; border: none; background: none; color: inherit; }
   place-items: center;
   margin-bottom: 10px;
   color: var(--green-deep);
-  background: rgba(47, 93, 76, 0.1);
-  border: 1px solid rgba(47, 93, 76, 0.12);
+  background: rgba(36, 90, 140, 0.1);
+  border: 1px solid rgba(36, 90, 140, 0.12);
 }
 
 .status-chip-row {
@@ -444,7 +444,7 @@ button.status-pill:active {
 }
 
 .glass-select-trigger:focus {
-  outline: 2px solid rgba(47, 93, 76, 0.28);
+  outline: 2px solid rgba(36, 90, 140, 0.28);
   border-color: var(--green-deep);
 }
 
@@ -472,7 +472,7 @@ button.status-pill:active {
   margin: 2px 2px 6px;
   padding: 0 12px;
   border-radius: 12px;
-  background: rgba(47, 93, 76, 0.08);
+  background: rgba(36, 90, 140, 0.08);
   color: var(--green-deep);
 }
 
@@ -519,7 +519,7 @@ button.status-pill:active {
 }
 
 .glass-select-option:hover {
-  background: rgba(47, 93, 76, 0.08);
+  background: rgba(36, 90, 140, 0.08);
   color: var(--green-deep);
 }
 
@@ -616,7 +616,7 @@ button.status-pill:active {
 
 .btn-dashed {
   width: 100%;
-  border: 1.5px dashed rgba(47, 93, 76, 0.35);
+  border: 1.5px dashed rgba(36, 90, 140, 0.35);
   color: var(--green-deep);
   background: rgba(255, 255, 255, 0.35);
   border-radius: 16px;
@@ -672,7 +672,7 @@ button.status-pill:active {
 .field input:focus,
 .field textarea:focus,
 .field select:focus {
-  outline: 2px solid rgba(47, 93, 76, 0.25);
+  outline: 2px solid rgba(36, 90, 140, 0.25);
   border-color: var(--green-deep);
 }
 
@@ -688,7 +688,7 @@ button.status-pill:active {
   padding: 8px;
   border-radius: 999px;
   z-index: 40;
-  background: #fffcf6;
+  background: #f7fafd;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
   border: 1px solid rgba(34, 41, 31, 0.08);
@@ -798,7 +798,7 @@ button.status-pill:active {
 }
 
 .upload-box-btn {
-  border: 1.5px dashed rgba(47, 93, 76, 0.3);
+  border: 1.5px dashed rgba(36, 90, 140, 0.3);
   border-radius: 16px;
   min-height: 72px;
   display: grid;
@@ -1118,7 +1118,7 @@ button.status-pill:active {
 }
 
 .step.done {
-  background: rgba(47, 93, 76, 0.12);
+  background: rgba(36, 90, 140, 0.12);
   color: var(--green-deep);
 }
 
@@ -1139,7 +1139,7 @@ button.status-pill:active {
 }
 
 .upload-box {
-  border: 1.5px dashed rgba(47, 93, 76, 0.3);
+  border: 1.5px dashed rgba(36, 90, 140, 0.3);
   border-radius: 16px;
   min-height: 84px;
   display: grid;
@@ -1423,7 +1423,7 @@ button.status-pill:active {
   }
 }
 
-/* 角色標籤：與缺失狀態色系分開（綠／石板藍／灰） */
+/* 角色標籤：與缺失狀態色系分開（藍／石板藍／灰） */
 .role-tag {
   display: inline-flex;
   align-items: center;
@@ -1435,7 +1435,7 @@ button.status-pill:active {
   white-space: nowrap;
 }
 .role-tag.role-admin {
-  background: rgba(47, 93, 76, 0.16);
+  background: rgba(36, 90, 140, 0.16);
   color: var(--green-deep);
 }
 .role-tag.role-inspector {
@@ -1459,9 +1459,9 @@ button.status-pill:active {
   gap: 0;
   padding: 0;
   background:
-    radial-gradient(110% 55% at 12% 0%, rgba(58, 102, 84, 0.16), transparent 55%),
+    radial-gradient(110% 55% at 12% 0%, rgba(52, 118, 176, 0.16), transparent 55%),
     radial-gradient(80% 45% at 100% 20%, rgba(201, 123, 46, 0.12), transparent 58%),
-    #efebe1;
+    #e6eef6;
   color: var(--ink);
 }
 
@@ -1471,7 +1471,7 @@ button.status-pill:active {
   display: flex;
   flex-direction: column;
   min-height: 100dvh;
-  background: #f7f3ea;
+  background: #eef4fa;
   border-right: 1px solid rgba(34, 41, 31, 0.06);
   box-shadow: none;
 }
@@ -1517,7 +1517,7 @@ button.status-pill:active {
 }
 
 .admin-nav:hover {
-  background: rgba(47, 93, 76, 0.08);
+  background: rgba(36, 90, 140, 0.08);
   color: var(--green-deep);
 }
 
@@ -1567,7 +1567,7 @@ button.status-pill:active {
 }
 
 .edit-panel {
-  background: #f4efe4;
+  background: #eef3f8;
   border: 1px solid rgba(34, 41, 31, 0.06);
   box-shadow: 0 18px 44px -22px rgba(34, 41, 31, 0.3);
   border-radius: 22px;
@@ -1626,7 +1626,7 @@ button.status-pill:active {
 
 .perm-row .join-chip:hover {
   color: var(--green-deep);
-  border-color: rgba(47, 93, 76, 0.35);
+  border-color: rgba(36, 90, 140, 0.35);
 }
 
 .admin-table {
@@ -1694,7 +1694,7 @@ button.status-pill:active {
   color: var(--ink-soft);
 }
 
-.icon-btn:hover { background: rgba(47, 93, 76, 0.1); color: var(--green-deep); }
+.icon-btn:hover { background: rgba(36, 90, 140, 0.1); color: var(--green-deep); }
 
 .project-grid {
   display: grid;
@@ -1714,14 +1714,14 @@ button.status-pill:active {
 }
 
 .project-card.on {
-  background: linear-gradient(155deg, rgba(58, 111, 92, 0.14), rgba(47, 93, 76, 0.08));
-  border: 1px solid rgba(47, 93, 76, 0.22);
+  background: linear-gradient(155deg, rgba(52, 122, 176, 0.14), rgba(36, 90, 140, 0.08));
+  border: 1px solid rgba(36, 90, 140, 0.22);
   color: var(--ink);
   box-shadow: 0 14px 30px -20px rgba(38, 75, 62, 0.35);
 }
 
 .project-card.dashed {
-  border: 1.5px dashed rgba(47, 93, 76, 0.35);
+  border: 1.5px dashed rgba(36, 90, 140, 0.35);
   background: rgba(255, 255, 255, 0.45);
   display: grid;
   place-items: center;
@@ -1793,7 +1793,7 @@ button.status-pill:active {
   position: fixed;
   inset: 0;
   z-index: 90;
-  background: #1c211d;
+  background: #152033;
   display: flex;
   flex-direction: column;
 }
@@ -1823,7 +1823,7 @@ button.status-pill:active {
   flex: 1;
   width: 100%;
   border: 0;
-  background: #efebe1;
+  background: #e6eef6;
 }
 
 .annotate-overlay {
@@ -1831,7 +1831,7 @@ button.status-pill:active {
   inset: 0;
   /* 必須高於新增缺失 Modal（80），否則會被蓋在下一層 */
   z-index: 120;
-  background: #1c211d;
+  background: #152033;
   color: #fff;
   display: flex;
   flex-direction: column;
@@ -1926,7 +1926,7 @@ button.status-pill:active {
   height: 14px;
   margin-top: 0.15em;
   border-radius: 999px;
-  border: 1.5px solid rgba(47, 93, 76, 0.45);
+  border: 1.5px solid rgba(36, 90, 140, 0.45);
   background:
     radial-gradient(circle at 50% 32%, var(--green-deep) 1.4px, transparent 1.6px),
     linear-gradient(var(--green-deep), var(--green-deep)) center 62% / 1.5px 5px no-repeat;
@@ -1970,7 +1970,7 @@ button.status-pill:active {
   font-size: 13px;
   font-weight: 800;
   color: var(--green-deep);
-  background: rgba(47, 93, 76, 0.1);
+  background: rgba(36, 90, 140, 0.1);
 }
 
 .title-hint-dismiss:active {
