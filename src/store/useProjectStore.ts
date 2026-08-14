@@ -18,8 +18,11 @@ import { buildDefaultChecklist } from '../data/defaultChecklist'
 import { buildDefaultWorkItems } from '../data/defaultWorkItems'
 import { createEmptyProjectState, createProjectBundles, ensureProgressFields } from '../data/seed'
 import {
+  activeUnitsOnFloor,
+  aggregateStageStatus,
   cellKey,
   cycleStageStatus as nextCycleStatus,
+  effectiveStageStatus,
   openDefectsOnCell,
   storedStageStatus,
 } from '../lib/stageProgress'
@@ -90,8 +93,22 @@ interface ProjectActions {
     workItemId: string
     stageId: string
   }) => { ok: boolean; error?: string; status?: StageStatus }
+  /** 工項視角：整層同一工序一起輪轉，不拆戶 */
+  cycleFloorStage: (input: {
+    buildingId: string
+    floor: string
+    workItemId: string
+    stageId: string
+  }) => { ok: boolean; error?: string; status?: StageStatus }
   setStageCellStatus: (input: {
     unitId: string
+    workItemId: string
+    stageId: string
+    status: StageStatus
+  }) => { ok: boolean; error?: string }
+  setFloorStageStatus: (input: {
+    buildingId: string
+    floor: string
     workItemId: string
     stageId: string
     status: StageStatus
@@ -480,6 +497,68 @@ export const useProjectStore = create<ProjectState & BundleState & ProjectAction
         return { ok: true, status: result.next }
       },
 
+      cycleFloorStage: ({ buildingId, floor, workItemId, stageId }) => {
+        const state = get()
+        const units = activeUnitsOnFloor(state, buildingId, floor)
+        if (units.length === 0) return { ok: false, error: '此樓層沒有有效戶別' }
+        const snapshots = units.map((unit) => {
+          const key = cellKey(unit.id, workItemId, stageId)
+          const stored = storedStageStatus(state.stageProgress, key)
+          const open = openDefectsOnCell(state.defects, unit.id, workItemId, stageId).length
+          return { unit, key, stored, open, status: effectiveStageStatus(stored, open) }
+        })
+        const agg = aggregateStageStatus(snapshots.map((s) => s.status))
+        const totalOpen = snapshots.reduce((n, s) => n + s.open, 0)
+        const result = nextCycleStatus(agg.status, totalOpen)
+        if (!result.ok) return { ok: false, error: result.error }
+
+        let progress = state.stageProgress
+        let applied = 0
+        for (const snap of snapshots) {
+          if (result.next === 'completed' && snap.open > 0) continue
+          progress = patchStageEntry(progress, snap.key, result.next)
+          applied += 1
+        }
+        if (applied === 0) {
+          return { ok: false, error: '此層尚有未關閉缺失，無法標完成' }
+        }
+
+        const workItem = state.workItems.find((w) => w.id === workItemId)
+        const stage = workItem?.stages.find((s) => s.id === stageId)
+        const first = units[0]
+        set({
+          stageProgress: progress,
+          currentWorkItemId: workItemId,
+          currentBuildingId: buildingId,
+          currentFloor: floor,
+          activities: [
+            {
+              id: createId('act'),
+              at: new Date().toLocaleString('zh-TW', {
+                month: 'numeric',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+              }),
+              buildingName: first?.buildingName ?? '—',
+              floor,
+              unitCode: '整層',
+              summary: `${workItem?.name ?? '工項'}／${stage?.name ?? '工序'} 整層 → ${
+                result.next === 'completed'
+                  ? '已完成'
+                  : result.next === 'in_progress'
+                    ? '施工中'
+                    : '未開始'
+              }（${applied} 戶）`,
+              ...activityActorFields(),
+            },
+            ...state.activities,
+          ].slice(0, 40),
+        })
+        afterProjectChange(get, set)
+        return { ok: true, status: result.next }
+      },
+
       setStageCellStatus: ({ unitId, workItemId, stageId, status }) => {
         const state = get()
         const unit = state.units.find((u) => u.id === unitId)
@@ -514,6 +593,52 @@ export const useProjectStore = create<ProjectState & BundleState & ProjectAction
               summary: `${workItem?.name ?? '工項'}／${stage?.name ?? '工序'} → ${
                 nextStatus === 'blocked' ? '卡關／待協調' : nextStatus === 'in_progress' ? '施工中' : nextStatus
               }`,
+              ...activityActorFields(),
+            },
+            ...state.activities,
+          ].slice(0, 40),
+        })
+        afterProjectChange(get, set)
+        return { ok: true }
+      },
+
+      setFloorStageStatus: ({ buildingId, floor, workItemId, stageId, status }) => {
+        const state = get()
+        const units = activeUnitsOnFloor(state, buildingId, floor)
+        if (units.length === 0) return { ok: false, error: '此樓層沒有有效戶別' }
+        let progress = state.stageProgress
+        let applied = 0
+        for (const unit of units) {
+          const open = openDefectsOnCell(state.defects, unit.id, workItemId, stageId).length
+          if (status === 'completed' && open > 0) continue
+          const nextStatus = open > 0 && status !== 'blocked' ? 'defect_fixing' : status
+          progress = patchStageEntry(progress, cellKey(unit.id, workItemId, stageId), nextStatus)
+          applied += 1
+        }
+        if (applied === 0) return { ok: false, error: '此層尚有未關閉缺失，無法更新' }
+        const workItem = state.workItems.find((w) => w.id === workItemId)
+        const stage = workItem?.stages.find((s) => s.id === stageId)
+        const first = units[0]
+        set({
+          stageProgress: progress,
+          currentWorkItemId: workItemId,
+          currentBuildingId: buildingId,
+          currentFloor: floor,
+          activities: [
+            {
+              id: createId('act'),
+              at: new Date().toLocaleString('zh-TW', {
+                month: 'numeric',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+              }),
+              buildingName: first?.buildingName ?? '—',
+              floor,
+              unitCode: '整層',
+              summary: `${workItem?.name ?? '工項'}／${stage?.name ?? '工序'} 整層 → ${
+                status === 'blocked' ? '卡關／待協調' : status === 'in_progress' ? '施工中' : status
+              }（${applied} 戶）`,
               ...activityActorFields(),
             },
             ...state.activities,

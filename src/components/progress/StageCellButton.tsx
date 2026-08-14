@@ -9,6 +9,7 @@ export function StageCellButton({
   onTap,
   onLongPress,
   label,
+  mixed,
 }: {
   status: StageStatus
   openDefects: number
@@ -16,6 +17,7 @@ export function StageCellButton({
   onTap: () => void
   onLongPress: () => void
   label: string
+  mixed?: boolean
 }) {
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const longFired = useRef(false)
@@ -31,7 +33,7 @@ export function StageCellButton({
   return (
     <button
       type="button"
-      className={`stage-cell matrix-cell ${stageStatusClass(status)}`}
+      className={`stage-cell matrix-cell ${stageStatusClass(status)}${mixed ? ' mixed' : ''}`}
       aria-label={label}
       disabled={disabled}
       onContextMenu={(e) => {

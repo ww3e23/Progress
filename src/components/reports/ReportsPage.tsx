@@ -1,27 +1,54 @@
 import { useMemo, useState } from 'react'
-import { ChevronDown, FileSpreadsheet } from 'lucide-react'
+import { ChevronLeft, ChevronRight, FileSpreadsheet } from 'lucide-react'
 import { useProjectStore } from '../../store/useProjectStore'
 import { useCurrentProject } from '../../store/useAuthStore'
 import { TitleHint } from '../ui/TitleHint'
+import { GlassSelect } from '../ui/GlassSelect'
+import { UnitSwitcher } from '../UnitSwitcher'
+import { FloorStageMatrix } from '../progress/FloorStageMatrix'
+import { StageCellButton } from '../progress/StageCellButton'
 import { exportProgressExcel } from '../../lib/excelProgress'
 import { formatActivity } from '../../lib/progress'
 import { formatActorLabel } from '../../lib/currentActor'
 import {
   activeWorkItems,
+  buildWorkItemFloorMatrix,
   overallProgress,
-  workItemRollup,
+  stageStatusLabel,
+  stepActiveUnit,
+  unitWorkItemRows,
 } from '../../lib/stageProgress'
+
+type ReportView = 'workItem' | 'unit'
 
 export function ReportsPage() {
   const state = useProjectStore()
   const project = useCurrentProject()
   const [busy, setBusy] = useState(false)
-  const [itemsOpen, setItemsOpen] = useState(
-    () => activeWorkItems(useProjectStore.getState()).length <= 6,
-  )
+  const [view, setView] = useState<ReportView>('workItem')
+  const [unitOpen, setUnitOpen] = useState(false)
   const overview = useMemo(() => overallProgress(state), [state])
   const items = activeWorkItems(state)
   const activities = state.activities ?? []
+
+  const buildings = [...state.buildings]
+    .filter((b) => b.active)
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+  const building =
+    buildings.find((b) => b.id === state.currentBuildingId) ?? buildings[0]
+  const workItemId =
+    state.currentWorkItemId && items.some((w) => w.id === state.currentWorkItemId)
+      ? state.currentWorkItemId
+      : items[0]?.id
+
+  const floorMatrix = useMemo(() => {
+    if (!building || !workItemId) return null
+    return buildWorkItemFloorMatrix(state, building.id, workItemId)
+  }, [state, building, workItemId])
+
+  const unit =
+    state.units.find((u) => u.id === state.currentUnitId) ?? state.units.find((u) => u.active)
+  const unitRows = unit ? unitWorkItemRows(state, unit) : []
 
   async function exportExcel() {
     if (busy) return
@@ -35,19 +62,33 @@ export function ReportsPage() {
 
   return (
     <div className="rise">
-      <header style={{ marginBottom: 14 }}>
-        <div className="eyebrow">PROGRESS REPORT</div>
-        <TitleHint
-          as="h1"
-          className="serif"
-          style={{ margin: '4px 0 0', fontSize: 22 }}
-          hint="完成率由各工項格子自動加總。下方為現場操作紀錄。"
-        >
-          {project?.name ?? state.projectName}
-        </TitleHint>
+      <header style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start' }}>
+        <div style={{ minWidth: 0 }}>
+          <div className="eyebrow">PROGRESS REPORT</div>
+          <TitleHint
+            as="h1"
+            className="serif"
+            style={{ margin: '4px 0 0', fontSize: 22 }}
+            hint="工項矩陣看整層工序；各戶進度一次看一戶的全部工項。"
+          >
+            {project?.name ?? state.projectName}
+          </TitleHint>
+        </div>
+        <div className="view-toggle" role="tablist" aria-label="報表視角">
+          <button
+            type="button"
+            className={view === 'workItem' ? 'on' : ''}
+            onClick={() => setView('workItem')}
+          >
+            工項矩陣
+          </button>
+          <button type="button" className={view === 'unit' ? 'on' : ''} onClick={() => setView('unit')}>
+            各戶進度
+          </button>
+        </div>
       </header>
 
-      <section className="glass" style={{ padding: 16, marginBottom: 12 }}>
+      <section className="glass" style={{ padding: 16, margin: '12px 0' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 12 }}>
           <div>
             <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink-soft)' }}>全案完成率</div>
@@ -77,96 +118,112 @@ export function ReportsPage() {
         {busy ? '匯出中…' : '匯出進度 Excel'}
       </button>
 
-      <div className="section-row">
-        <h2>各工項</h2>
-      </div>
-      <div className="glass" style={{ padding: 0, overflow: 'hidden', marginBottom: 16 }}>
-        <button
-          type="button"
-          className="building-fold-toggle"
-          aria-expanded={itemsOpen}
-          onClick={() => setItemsOpen((v) => !v)}
-        >
-          <div style={{ minWidth: 0, textAlign: 'left' }}>
-            <div style={{ fontWeight: 800, fontSize: 15 }}>
-              {items.length} 個工項
-            </div>
-            <div
-              style={{
-                marginTop: 2,
-                color: 'var(--ink-soft)',
-                fontSize: 12,
-                fontWeight: 600,
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {items.length === 0
-                ? '尚未設定工項'
-                : itemsOpen
-                  ? '點此收合工項完成率'
-                  : items.map((w) => w.name).join('、')}
-            </div>
+      {view === 'workItem' ? (
+        <>
+          <div className="home-filters">
+            <GlassSelect
+              label="棟別"
+              value={building?.id ?? ''}
+              options={buildings.map((b) => ({ value: b.id, label: b.name }))}
+              onChange={(id) => useProjectStore.getState().setCurrentBuilding(id)}
+            />
+            <GlassSelect
+              label="工項"
+              value={workItemId ?? ''}
+              options={items.map((w) => ({ value: w.id, label: w.name }))}
+              onChange={(id) => useProjectStore.getState().setCurrentWorkItem(id)}
+            />
           </div>
-          <ChevronDown
-            size={20}
-            style={{
-              flexShrink: 0,
-              color: 'var(--ink-soft)',
-              transform: itemsOpen ? 'rotate(180deg)' : undefined,
-              transition: 'transform 0.2s ease',
-            }}
-          />
-        </button>
-        {itemsOpen && (
-          <div className="fold-list">
-            {items.map((item) => {
-              const r = workItemRollup(state, item)
-              return (
-                <div key={item.id} className="building-fold-row" style={{ alignItems: 'flex-start' }}>
-                  <div style={{ minWidth: 0, flex: 1 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-                      <strong style={{ fontSize: 14 }}>{item.name}</strong>
-                      <span className="nums" style={{ fontWeight: 800 }}>
-                        {r.percent}%
-                      </span>
-                    </div>
-                    <div style={{ marginTop: 2, fontSize: 11, fontWeight: 600, color: 'var(--ink-soft)' }}>
-                      完成 {r.completedCells}/{r.totalCells}
-                      {r.openDefects ? ` · 缺 ${r.openDefects}` : ''}
-                      {r.blockedCells ? ` · 卡關 ${r.blockedCells}` : ''}
-                    </div>
-                    <div
-                      style={{
-                        marginTop: 6,
-                        height: 6,
-                        borderRadius: 99,
-                        background: 'rgba(34,41,31,0.08)',
-                        overflow: 'hidden',
-                      }}
-                    >
-                      <div
-                        style={{
-                          width: `${r.percent}%`,
-                          height: '100%',
-                          background: 'var(--green-deep)',
-                          borderRadius: 99,
-                        }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
-            {items.length === 0 && (
-              <p style={{ margin: 0, padding: 14, color: 'var(--ink-soft)', fontWeight: 600 }}>
-                尚未設定工項。
-              </p>
+          {floorMatrix && (
+            <p style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 700, color: 'var(--ink-soft)' }}>
+              {floorMatrix.workItem.name} · {floorMatrix.building.name} · {floorMatrix.percent}%（
+              {floorMatrix.completedCells}/{floorMatrix.totalCells}）
+            </p>
+          )}
+          <div className="glass matrix-scroll" style={{ padding: 6, marginBottom: 16 }}>
+            {floorMatrix ? (
+              <FloorStageMatrix matrix={floorMatrix} canEdit={false} />
+            ) : (
+              <p style={{ padding: 16, color: 'var(--ink-soft)', fontWeight: 600 }}>請先設定棟別與工項。</p>
             )}
           </div>
-        )}
-      </div>
+        </>
+      ) : (
+        <>
+          {unit ? (
+            <div className="unit-pager">
+              <button
+                type="button"
+                className="icon-btn"
+                aria-label="上一戶"
+                onClick={() => {
+                  const next = stepActiveUnit(useProjectStore.getState(), unit.id, -1)
+                  if (next) useProjectStore.getState().setCurrentUnit(next.id)
+                }}
+              >
+                <ChevronLeft size={20} />
+              </button>
+              <button type="button" className="unit-pager-current" onClick={() => setUnitOpen(true)}>
+                <div style={{ fontWeight: 800, fontSize: 15 }}>
+                  {unit.buildingName} {unit.floor} {unit.code}戶
+                </div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--ink-soft)' }}>點此挑選戶別</div>
+              </button>
+              <button
+                type="button"
+                className="icon-btn"
+                aria-label="下一戶"
+                onClick={() => {
+                  const next = stepActiveUnit(useProjectStore.getState(), unit.id, 1)
+                  if (next) useProjectStore.getState().setCurrentUnit(next.id)
+                }}
+              >
+                <ChevronRight size={20} />
+              </button>
+            </div>
+          ) : (
+            <p style={{ color: 'var(--ink-soft)', fontWeight: 600 }}>請先選一戶。</p>
+          )}
+          {unitRows.map((row) => (
+            <section key={row.workItem.id} className="glass" style={{ padding: 12, marginBottom: 10 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 8 }}>
+                <strong>{row.workItem.name}</strong>
+                <span className="nums" style={{ fontWeight: 800 }}>
+                  {row.percent}%
+                </span>
+              </div>
+              <div style={{ marginBottom: 8, height: 6, borderRadius: 99, background: 'rgba(30,39,51,0.08)' }}>
+                <div
+                  style={{
+                    width: `${row.percent}%`,
+                    height: '100%',
+                    background: 'var(--green-deep)',
+                    borderRadius: 99,
+                  }}
+                />
+              </div>
+              <div style={{ display: 'flex', gap: 8, overflowX: 'auto' }}>
+                {row.cells.map((cell) => (
+                  <div key={cell.stageId} style={{ textAlign: 'center', minWidth: 52 }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--ink-soft)', marginBottom: 4 }}>
+                      {cell.stageName}
+                    </div>
+                    <StageCellButton
+                      status={cell.status}
+                      openDefects={cell.openDefects}
+                      disabled
+                      label={`${cell.stageName} ${stageStatusLabel(cell.status)}`}
+                      onTap={() => undefined}
+                      onLongPress={() => undefined}
+                    />
+                  </div>
+                ))}
+              </div>
+            </section>
+          ))}
+          {unitOpen && <UnitSwitcher onClose={() => setUnitOpen(false)} />}
+        </>
+      )}
 
       <div className="section-row">
         <h2>操作紀錄</h2>

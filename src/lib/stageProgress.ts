@@ -384,3 +384,160 @@ export function openDefectRemarks(state: ProjectState): Defect[] {
     .filter(isOpenDefect)
     .sort((a, b) => a.unitCode.localeCompare(b.unitCode, 'zh-Hant') || a.floor.localeCompare(b.floor))
 }
+
+export function aggregateStageStatus(statuses: StageStatus[]): {
+  status: StageStatus
+  mixed: boolean
+} {
+  if (statuses.length === 0) return { status: 'not_started', mixed: false }
+  const uniq = new Set(statuses)
+  if (uniq.size === 1) return { status: statuses[0], mixed: false }
+  if (statuses.some((s) => s === 'blocked')) return { status: 'blocked', mixed: true }
+  if (statuses.some((s) => s === 'defect_fixing')) return { status: 'defect_fixing', mixed: true }
+  return { status: 'in_progress', mixed: true }
+}
+
+export function activeUnitsOnFloor(
+  state: Pick<ProjectState, 'buildings' | 'units'>,
+  buildingId: string,
+  floor: string,
+): Unit[] {
+  const building = state.buildings.find((b) => b.id === buildingId && b.active)
+  if (!building || !building.floors.includes(floor)) return []
+  const out: Unit[] = []
+  for (const code of building.unitCodes) {
+    if (building.naKeys.includes(naKey(floor, code))) continue
+    const unit = state.units.find(
+      (u) => u.buildingId === buildingId && u.floor === floor && u.code === code && u.active,
+    )
+    if (unit) out.push(unit)
+  }
+  return out
+}
+
+export function orderedActiveUnits(state: Pick<ProjectState, 'buildings' | 'units'>): Unit[] {
+  const buildings = [...state.buildings]
+    .filter((b) => b.active)
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+  const out: Unit[] = []
+  for (const building of buildings) {
+    for (const floor of floorsOfBuilding(building)) {
+      out.push(...activeUnitsOnFloor(state, building.id, floor))
+    }
+  }
+  return out
+}
+
+export function stepActiveUnit(
+  state: Pick<ProjectState, 'buildings' | 'units'>,
+  unitId: string | null | undefined,
+  delta: number,
+): Unit | null {
+  const list = orderedActiveUnits(state)
+  if (list.length === 0) return null
+  const idx = unitId ? list.findIndex((u) => u.id === unitId) : -1
+  const start = idx >= 0 ? idx : 0
+  const next = (start + delta + list.length * 10) % list.length
+  return list[next] ?? null
+}
+
+export interface FloorMatrixCell {
+  stageId: string
+  stageName: string
+  status: StageStatus
+  mixed: boolean
+  openDefects: number
+  unitIds: string[]
+  completedUnits: number
+  totalUnits: number
+}
+
+export interface FloorMatrixRow {
+  floor: string
+  units: Unit[]
+  cells: FloorMatrixCell[]
+  percent: number
+  openDefects: number
+}
+
+export interface WorkItemFloorMatrix {
+  building: BuildingRule
+  workItem: WorkItem
+  stages: { id: string; name: string }[]
+  rows: FloorMatrixRow[]
+  completedCells: number
+  totalCells: number
+  percent: number
+  openDefects: number
+  blockedCells: number
+  defectCells: number
+}
+
+/** 工項視角：樓層 × 工序，不拆戶；格子為該層所有戶的彙總 */
+export function buildWorkItemFloorMatrix(
+  state: ProjectState,
+  buildingId: string,
+  workItemId: string,
+): WorkItemFloorMatrix | null {
+  const building = state.buildings.find((b) => b.id === buildingId && b.active)
+  const workItem = findWorkItem(state, workItemId)
+  if (!building || !workItem) return null
+
+  const stages = sortedStages(workItem)
+  const rows: FloorMatrixRow[] = []
+  let completedCells = 0
+  let totalCells = 0
+  let openDefects = 0
+  let blockedCells = 0
+  let defectCells = 0
+
+  for (const floor of floorsOfBuilding(building)) {
+    const floorMatrix = buildStageMatrix(state, building.id, floor, workItem.id)
+    if (!floorMatrix || floorMatrix.rows.length === 0) continue
+    const units = floorMatrix.rows.map((r) => r.unit)
+    const cells: FloorMatrixCell[] = stages.map((stage) => {
+      const col = floorMatrix.rows
+        .map((r) => r.cells.find((c) => c.stageId === stage.id))
+        .filter((c): c is StageMatrixRow['cells'][number] => Boolean(c))
+      const agg = aggregateStageStatus(col.map((c) => c.status))
+      const open = col.reduce((n, c) => n + c.openDefects, 0)
+      return {
+        stageId: stage.id,
+        stageName: stage.name,
+        status: agg.status,
+        mixed: agg.mixed,
+        openDefects: open,
+        unitIds: units.map((u) => u.id),
+        completedUnits: col.filter((c) => c.status === 'completed').length,
+        totalUnits: col.length,
+      }
+    })
+    for (const cell of cells) {
+      totalCells += 1
+      if (cell.status === 'completed' && !cell.mixed) completedCells += 1
+      if (cell.status === 'blocked') blockedCells += 1
+      if (cell.status === 'defect_fixing') defectCells += 1
+      openDefects += cell.openDefects
+    }
+    rows.push({
+      floor,
+      units,
+      cells,
+      percent: cellPercent(cells.map((c) => (c.mixed ? 'in_progress' : c.status))),
+      openDefects: cells.reduce((n, c) => n + c.openDefects, 0),
+    })
+  }
+
+  return {
+    building,
+    workItem,
+    stages: stages.map((s) => ({ id: s.id, name: s.name })),
+    rows,
+    completedCells,
+    totalCells,
+    percent: totalCells === 0 ? 0 : Math.round((completedCells / totalCells) * 100),
+    openDefects,
+    blockedCells,
+    defectCells,
+  }
+}

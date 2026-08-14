@@ -15,13 +15,18 @@ export function UnitSwitcher({ onClose }: { onClose: () => void }) {
     [buildings],
   )
 
-  const [buildingId, setBuildingId] = useState(activeBuildings[0]?.id ?? '')
+  const currentUnitId = useProjectStore((s) => s.currentUnitId)
+  const currentUnit = units.find((u) => u.id === currentUnitId)
+
+  const [buildingId, setBuildingId] = useState(
+    currentUnit?.buildingId ?? activeBuildings[0]?.id ?? '',
+  )
   const building = activeBuildings.find((b) => b.id === buildingId) ?? activeBuildings[0]
   const floors = useMemo(
     () => (building ? sortFloorsDesc(building.floors) : []),
     [building],
   )
-  const [floor, setFloor] = useState(floors.includes('3F') ? '3F' : floors[0] ?? '')
+  const [floor, setFloor] = useState(currentUnit?.floor ?? '')
   const effectiveFloor = floors.includes(floor) ? floor : floors[0] ?? ''
 
   const floorUnits = useMemo(() => {
@@ -31,7 +36,7 @@ export function UnitSwitcher({ onClose }: { onClose: () => void }) {
     )
   }, [units, building, effectiveFloor])
 
-  const [unitId, setUnitId] = useState('')
+  const [unitId, setUnitId] = useState(currentUnit?.id ?? '')
   const selected = floorUnits.find((u) => u.id === unitId) ?? floorUnits[0] ?? null
 
   const step = !building ? 1 : !effectiveFloor ? 2 : selected ? 3 : 2
