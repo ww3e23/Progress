@@ -194,7 +194,7 @@ export function UnitPlanGallerySheet({ onClose }: { onClose: () => void }) {
           >
             {units.some((u) => u.active)
               ? '此篩選條件下沒有戶別'
-              : '目前沒有可查驗戶別'}
+              : '目前沒有有效戶別'}
           </div>
         ) : (
           <div

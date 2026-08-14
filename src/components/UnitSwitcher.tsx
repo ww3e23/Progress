@@ -133,7 +133,7 @@ export function UnitSwitcher({ onClose }: { onClose: () => void }) {
               </button>
             ))}
             {floorUnits.length === 0 && (
-              <span style={{ color: 'var(--ink-soft)', fontSize: 13 }}>此樓層無可查驗戶別</span>
+              <span style={{ color: 'var(--ink-soft)', fontSize: 13 }}>此樓層無有效戶別</span>
             )}
           </div>
         </div>
@@ -161,7 +161,7 @@ export function UnitSwitcher({ onClose }: { onClose: () => void }) {
             onClose()
           }}
         >
-          開始查驗此戶
+          切換至此戶
         </button>
     </Modal>
   )

@@ -68,7 +68,7 @@ export function UnitAreasEditor({
 
   if (!unit) {
     return (
-      <Modal onClose={onClose} aria-label="查驗區域">
+      <Modal onClose={onClose} aria-label="施工區域">
         <p>找不到此戶別</p>
         <button type="button" className="btn btn-primary" style={{ marginTop: 12 }} onClick={onClose}>
           關閉
@@ -159,7 +159,7 @@ export function UnitAreasEditor({
     }
     const names = rows.map((r) => normalizeAreaName(r.name)).filter(Boolean)
     if (names.length === 0) {
-      setError('至少需要保留一個查驗區域')
+      setError('至少需要保留一個施工區域')
       return
     }
     const unique = new Set(names)
@@ -186,7 +186,7 @@ export function UnitAreasEditor({
         as="h3"
         className="serif"
         style={{ margin: '0 0 6px', fontSize: 20 }}
-        hint="可先為此戶上傳預設位置圖；之後新增缺失會自動帶入，方便直接標註。下方可自訂此戶查驗區域。"
+        hint="可先為此戶上傳預設位置圖；之後新增缺失會自動帶入，方便直接標註。下方可自訂此戶施工區域。"
       >
         {unit.code}戶・設定
       </TitleHint>
@@ -255,7 +255,7 @@ export function UnitAreasEditor({
         )}
       </section>
 
-      <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 8 }}>查驗區域</div>
+      <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 8 }}>施工區域</div>
       <p style={{ margin: '0 0 10px', color: 'var(--ink-soft)', fontSize: 12, fontWeight: 600 }}>
         {isUnitAreasCustomized(unit)
           ? '已手動自訂此戶區域（優先於範本／專案預設）'

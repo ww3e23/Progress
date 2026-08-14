@@ -62,7 +62,7 @@ export function ReportPreview({
       className="report-preview"
       role="dialog"
       aria-modal="true"
-      aria-label="查驗報告預覽"
+      aria-label="進度報告預覽"
       onClick={(e) => e.stopPropagation()}
       onPointerDown={(e) => e.stopPropagation()}
       style={{ zIndex: 200 }}
@@ -71,7 +71,7 @@ export function ReportPreview({
         <div style={{ minWidth: 0 }}>
           <div className="eyebrow" style={{ color: 'rgba(255,255,255,0.7)' }}>REPORT</div>
           <div style={{ fontWeight: 800, fontSize: 16, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {projectName}・查驗報告
+            {projectName}・進度報告
           </div>
         </div>
         <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
@@ -89,7 +89,7 @@ export function ReportPreview({
       <iframe
         ref={iframeRef}
         className="report-preview-frame"
-        title="查驗報告"
+        title="進度報告"
         srcDoc={html}
       />
     </div>,

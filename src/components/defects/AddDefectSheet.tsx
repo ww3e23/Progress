@@ -205,7 +205,7 @@ export function AddDefectSheet({
         setError(
           manualNumberOn
             ? '儲存失敗：編號可能已被使用或無效，請檢查後再試'
-            : '儲存失敗，請確認已選擇可查驗戶別後再試',
+            : '儲存失敗，請確認已選擇有效戶別後再試',
         )
         setSyncMsg('儲存失敗')
         return
@@ -307,7 +307,7 @@ export function AddDefectSheet({
 
         {!canEdit && (
           <div style={{ color: 'var(--terracotta)', fontWeight: 700, fontSize: 13, marginBottom: 10 }}>
-            目前為僅查看權限，無法新增缺失。請切換至查驗／管理角色的專案。
+            目前為僅查看權限，無法新增缺失。請切換至施工／管理角色的專案。
           </div>
         )}
 
@@ -373,7 +373,7 @@ export function AddDefectSheet({
           </div>
           {areas.length === 0 && (
             <p style={{ margin: '8px 0 0', color: 'var(--terracotta)', fontSize: 12, fontWeight: 700 }}>
-              此戶尚無查驗區域，請先編輯新增。
+              此戶尚無施工區域，請先編輯新增。
             </p>
           )}
         </div>

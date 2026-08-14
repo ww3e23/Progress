@@ -1048,7 +1048,7 @@ export const useProjectStore = create<ProjectState & BundleState & ProjectAction
           cleaned.push(name)
         }
         if (cleaned.length === 0) {
-          return { ok: false, error: '至少需要保留一個查驗區域' }
+          return { ok: false, error: '至少需要保留一個施工區域' }
         }
 
         const renameMap = new Map<string, string>()
@@ -1088,7 +1088,7 @@ export const useProjectStore = create<ProjectState & BundleState & ProjectAction
               buildingName: unit.buildingName,
               floor: unit.floor,
               unitCode: unit.code,
-              summary: `更新 ${unit.code}戶 查驗區域（${cleaned.length} 項）`,
+              summary: `更新 ${unit.code}戶 施工區域（${cleaned.length} 項）`,
               ...activityActorFields(),
             },
             ...state.activities,
@@ -1238,7 +1238,7 @@ export const useProjectStore = create<ProjectState & BundleState & ProjectAction
               buildingName: '—',
               floor: '—',
               unitCode: '—',
-              summary: `還原查驗區域為專案預設：${reset} 戶`,
+              summary: `還原施工區域為專案預設：${reset} 戶`,
               ...activityActorFields(),
             },
             ...state.activities,
@@ -1318,7 +1318,7 @@ export const useProjectStore = create<ProjectState & BundleState & ProjectAction
           cleaned.push(name)
         }
         if (cleaned.length === 0) {
-          return { ok: false, error: '至少需要保留一個查驗區域' }
+          return { ok: false, error: '至少需要保留一個施工區域' }
         }
         set({ areas: cleaned })
         afterProjectChange(get, set)
@@ -1328,7 +1328,7 @@ export const useProjectStore = create<ProjectState & BundleState & ProjectAction
       saveAreaTemplate: (input) => {
         const cleaned = sanitizeAreaList(input.areas)
         if (cleaned.length === 0) {
-          return { ok: false, error: '至少需要一個查驗區域' }
+          return { ok: false, error: '至少需要一個施工區域' }
         }
         const name = normalizeAreaName(input.name) || '未命名格局'
         const list = [...(get().areaTemplates ?? [])]
@@ -1469,7 +1469,7 @@ export const useProjectStore = create<ProjectState & BundleState & ProjectAction
               buildingName: unit.buildingName,
               floor: unit.floor,
               unitCode: unit.code,
-              summary: complete ? '標記本戶全部大項查驗完成' : '清除本戶查驗完成標記',
+              summary: complete ? '標記本戶全部大項完成' : '清除本戶完成標記',
               ...activityActorFields(),
             },
             ...state.activities,
@@ -1585,7 +1585,7 @@ export const useProjectStore = create<ProjectState & BundleState & ProjectAction
         const state = get()
         const hasActive = state.categories.some((c) => c.active)
         if (mode === 'fill-if-empty' && hasActive) {
-          return { ok: false, reason: '已有查驗範本，未覆蓋' }
+          return { ok: false, reason: '已有缺失分類範本，未覆蓋' }
         }
         const { categories, checklistItems } = buildDefaultChecklist()
         if (mode === 'replace') {

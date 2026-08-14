@@ -115,7 +115,7 @@ export function AdvancedFilterSheet({
           as="h3"
           className="serif"
           style={{ margin: '0 0 14px', fontSize: 20 }}
-          hint="可組合棟／樓／戶、查驗大項、區域、人員與日期；狀態請用上方快捷 chip。"
+          hint="可組合棟／樓／戶、工項、區域、人員與日期；狀態請用上方快捷 chip。"
         >
           進階篩選
         </TitleHint>
@@ -251,7 +251,7 @@ export function AdvancedFilterSheet({
           </div>
         </Section>
 
-        <Section title="查驗人員">
+        <Section title="操作人員">
           <div className="chip-row">
             {inspectors.map((name) => (
               <button

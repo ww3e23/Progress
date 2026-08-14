@@ -74,7 +74,7 @@ export function SettingsPage({ embedded = false }: { embedded?: boolean }) {
       <div className="section-row" style={{ marginTop: embedded ? 0 : undefined }}>
         <TitleHint
           as="h2"
-          hint={`以規則批次建立：棟別、樓層範圍、各層戶別編號。目前 ${activeBuildings.length} 棟・${totalActiveUnits} 可查驗戶。`}
+          hint={`以規則批次建立：棟別、樓層範圍、各層戶別編號。目前 ${activeBuildings.length} 棟・${totalActiveUnits} 有效戶。`}
         >
           棟別結構
         </TitleHint>
@@ -100,7 +100,7 @@ export function SettingsPage({ embedded = false }: { embedded?: boolean }) {
         >
           <div style={{ minWidth: 0, textAlign: 'left' }}>
             <div style={{ fontWeight: 800, fontSize: 15 }}>
-              {activeBuildings.length} 棟 · {totalActiveUnits} 可查驗戶
+              {activeBuildings.length} 棟 · {totalActiveUnits} 有效戶
             </div>
             <div
               style={{
@@ -270,14 +270,14 @@ export function SettingsPage({ embedded = false }: { embedded?: boolean }) {
           as="h2"
           hint="此戶編輯、專案預設、格局範本（矩陣套用），以及位置圖總覽，都集中在這裡。"
         >
-          查驗區域／位置圖
+          施工區域／位置圖
         </TitleHint>
       </div>
       <article className="glass" style={{ padding: 14, marginBottom: 8 }}>
         <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-soft)', lineHeight: 1.45 }}>
           {currentUnit
             ? `目前戶：${currentUnit.buildingName} ${currentUnit.floor} ${currentUnit.code}戶 · ${getUnitAreas(currentUnit, projectAreas, areaTemplates).join('、')}`
-            : '尚未選擇可查驗戶別'}
+            : '尚未選擇有效戶別'}
           {projectAreas.length > 0 ? (
             <>
               <br />
@@ -332,9 +332,9 @@ export function SettingsPage({ embedded = false }: { embedded?: boolean }) {
       <div className="section-row">
         <TitleHint
           as="h2"
-          hint="新專案已預載標準查驗範本。編輯細項後會套用到所有戶別；已有缺失的項目刪除時會改為停用並保留紀錄。"
+          hint="新專案已預載標準缺失分類。編輯細項後會套用到所有戶別；已有缺失的項目刪除時會改為停用並保留紀錄。"
         >
-          查驗範本
+          缺失分類範本
         </TitleHint>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <button
@@ -347,7 +347,7 @@ export function SettingsPage({ embedded = false }: { embedded?: boolean }) {
               }
               if (
                 confirm(
-                  '要以預設查驗範本覆蓋目前大項嗎？\n（門／窗／天花板／粉刷牆面／地壁磚／木地板）',
+                  '要以預設缺失分類覆蓋目前大項嗎？\n（門／窗／天花板／粉刷牆面／地壁磚／木地板）',
                 )
               ) {
                 applyDefaultChecklist('replace')
@@ -384,7 +384,7 @@ export function SettingsPage({ embedded = false }: { embedded?: boolean }) {
           style={{ width: '100%', marginBottom: 12 }}
           onClick={() => applyDefaultChecklist('fill-if-empty')}
         >
-          載入預設查驗範本
+          載入預設缺失分類
         </button>
       )}
 

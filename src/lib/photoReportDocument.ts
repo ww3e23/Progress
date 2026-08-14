@@ -152,7 +152,7 @@ export function buildPhotoReportHtml(input: PhotoReportInput): string {
               <div class="meta">
                 <h3>${escapeHtml(d.area || '未指定區域')}｜${escapeHtml(itemLabel)}</h3>
                 <p>${escapeHtml(d.categoryName || '')}${remark ? ` · ${escapeHtml(remark)}` : ''}${
-                  inspector ? ` · 查驗 ${escapeHtml(inspector)}` : ''
+                  inspector ? ` · 紀錄人 ${escapeHtml(inspector)}` : ''
                 }</p>
               </div>
               <span class="badge">${escapeHtml(statusLabel(d.status))}</span>
@@ -239,7 +239,7 @@ export function buildPhotoReportHtml(input: PhotoReportInput): string {
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>${escapeHtml(projectName)}｜圖片查驗報告</title>
+  <title>${escapeHtml(projectName)}｜圖片進度報告</title>
   <style>
     :root {
       --ink: #1a211c;
@@ -515,10 +515,10 @@ export function buildPhotoReportHtml(input: PhotoReportInput): string {
   <div class="page">
     <header class="cover">
       <div class="eyebrow">Photo Inspection Report</div>
-      <h1>${escapeHtml(projectName || '查驗專案')}</h1>
-      <p class="sub">純圖片查驗報告 · 每筆含位置圖與現況照片</p>
+      <h1>${escapeHtml(projectName || '施工專案')}</h1>
+      <p class="sub">純圖片進度報告 · 每筆含位置圖與現況照片</p>
       <div class="meta-row">
-        <span>紀錄：${escapeHtml(recorderName || '現場查驗')}</span>
+        <span>紀錄：${escapeHtml(recorderName || '現場紀錄')}</span>
         <span>產出：${escapeHtml(dateLabel)}</span>
         <span>${units.length} 戶 · ${totalDefects} 筆缺失</span>
       </div>
@@ -529,7 +529,7 @@ export function buildPhotoReportHtml(input: PhotoReportInput): string {
       '<div class="empty-all">目前沒有可列入的缺失圖片（請確認已選戶別且有紀錄）</div>'
     }
 
-    <div class="footer">${escapeHtml(projectName)} · 圖片查驗報告 · ${escapeHtml(recorderName || '現場查驗')}</div>
+    <div class="footer">${escapeHtml(projectName)} · 圖片進度報告 · ${escapeHtml(recorderName || '現場紀錄')}</div>
   </div>
 </body>
 </html>`
@@ -542,7 +542,7 @@ export function downloadPhotoReport(input: PhotoReportInput, filename?: string) 
   const a = document.createElement('a')
   const stamp = new Date().toISOString().slice(0, 10)
   a.href = url
-  a.download = filename || `${input.projectName || '查驗專案'}_圖片報告_${stamp}.html`
+  a.download = filename || `${input.projectName || '施工專案'}_圖片報告_${stamp}.html`
   a.rel = 'noopener'
   document.body.appendChild(a)
   a.click()

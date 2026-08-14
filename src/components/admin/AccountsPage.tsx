@@ -9,7 +9,7 @@ import { TitleHint } from '../ui/TitleHint'
 
 const ROLE_SHORT: Record<MemberRole, string> = {
   admin: '管理',
-  inspector: '查驗',
+  inspector: '施工',
   viewer: '查看',
 }
 

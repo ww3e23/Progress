@@ -86,7 +86,7 @@ export function EditDefectSheet({
       return
     }
     if (!cat) {
-      setError('請選擇查驗大項')
+      setError('請選擇缺失大項')
       return
     }
     const text = description.trim()
@@ -127,7 +127,7 @@ export function EditDefectSheet({
         )}
 
         <div className="field">
-          <label>查驗大項</label>
+          <label>缺失大項</label>
           <div className="chip-row">
             {activeCats.map((c) => (
               <button
@@ -150,7 +150,7 @@ export function EditDefectSheet({
         </div>
 
         <div className="field">
-          <label>查驗細項</label>
+          <label>缺失細項</label>
           {catItems.length === 0 ? (
             <p style={{ margin: '8px 0 0', color: 'var(--terracotta)', fontSize: 12, fontWeight: 700 }}>
               此大項尚無啟用中的細項

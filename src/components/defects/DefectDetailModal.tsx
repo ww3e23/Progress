@@ -166,7 +166,7 @@ export function DefectDetailModal({
             {inspector ? (
               <>
                 <br />
-                查驗人員：{inspector}
+                紀錄人：{inspector}
                 {live.updatedByName &&
                 live.updatedByName !== inspector ? (
                   <>（最近修改：{live.updatedByName}）</>

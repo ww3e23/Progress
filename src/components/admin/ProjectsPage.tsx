@@ -21,7 +21,7 @@ import { TitleHint } from '../ui/TitleHint'
 
 const ROLE_SHORT: Record<MemberRole, string> = {
   admin: '管理',
-  inspector: '查驗',
+  inspector: '施工',
   viewer: '查看',
 }
 
@@ -452,7 +452,7 @@ export function ProjectsPage() {
               as="h3"
               className="serif"
               style={{ margin: 0, fontSize: 18 }}
-              hint="以本專案為中心設定誰可進入、以及角色（管理／查驗／查看）。人數多時可先搜尋再加入。"
+              hint="以本專案為中心設定誰可進入、以及角色（管理／施工／查看）。人數多時可先搜尋再加入。"
             >
               成員指派
               <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink-soft)', marginLeft: 8 }}>
@@ -534,7 +534,7 @@ export function ProjectsPage() {
             <TitleHint
               as="div"
               style={{ fontWeight: 800, marginBottom: 10, fontSize: 14 }}
-              hint="點「加入」預設為查驗；加入後可再改角色。"
+              hint="點「加入」預設為施工人員；加入後可再改角色。"
             >
               加入人員
             </TitleHint>
@@ -577,7 +577,7 @@ export function ProjectsPage() {
               as="h3"
               className="serif"
               style={{ margin: '0 0 12px', fontSize: 18, color: 'var(--terracotta)' }}
-              hint="刪除後會移除本專案的查驗資料、成員指派與操作歷程，且無法復原。"
+              hint="刪除後會移除本專案的施工進度資料、成員指派與操作歷程，且無法復原。"
             >
               危險操作
             </TitleHint>
@@ -595,7 +595,7 @@ export function ProjectsPage() {
                 const name = selected.name
                 if (
                   !confirm(
-                    `確定刪除專案「${name}」？\n將一併清除該專案的查驗資料、成員與操作歷程，此操作無法復原。`,
+                    `確定刪除專案「${name}」？\n將一併清除該專案的施工進度資料、成員與操作歷程，此操作無法復原。`,
                   )
                 ) {
                   return

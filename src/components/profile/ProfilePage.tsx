@@ -225,7 +225,7 @@ export function ProfilePage() {
               <TitleHint
                 as="div"
                 style={{ fontWeight: 800 }}
-                hint="查驗時照片先存 Firebase；系統每天批次寫入雲端硬碟。若要立刻上 Drive，再按「立即同步雲端硬碟」。"
+                hint="現場拍照先存 Firebase；系統每天批次寫入雲端硬碟。若要立刻上 Drive，再按「立即同步雲端硬碟」。"
               >
                 雲端硬碟每日同步
               </TitleHint>
@@ -373,7 +373,7 @@ export function ProfilePage() {
           className="btn btn-ghost"
           style={{ width: '100%', marginBottom: 10, textDecoration: 'none' }}
         >
-          開啟驗屋後台（桌面版）
+          開啟專案後台（桌面版）
         </a>
       )}
 

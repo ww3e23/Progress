@@ -186,7 +186,7 @@ export function buildInspectionReportHtml(input: ReportInput): string {
 <html lang="zh-Hant">
 <head>
   <meta charset="utf-8" />
-  <title>${escapeHtml(projectName)}｜查驗報告</title>
+  <title>${escapeHtml(projectName)}｜進度報告</title>
   <style>
     :root {
       --ink: #22291f;
@@ -360,11 +360,11 @@ export function buildInspectionReportHtml(input: ReportInput): string {
   <div class="page">
     <header class="report-head">
       <div>
-        <h1>${escapeHtml(projectName)}｜查驗報告</h1>
+        <h1>${escapeHtml(projectName)}｜進度報告</h1>
         <p class="meta">
           ${projectCode ? escapeHtml(projectCode) + ' · ' : ''}${location ? escapeHtml(location) + ' · ' : ''}
           ${escapeHtml(dateLabel)}
-          <br/>可查驗 ${matrix.activeUnitCount} 戶 · ${matrix.floors.length} 層 · 缺失 ${counts.all} 筆
+          <br/>有效戶 ${matrix.activeUnitCount} 戶 · ${matrix.floors.length} 層 · 缺失 ${counts.all} 筆
         </p>
       </div>
       <div class="pct">${overviewPct}%</div>
@@ -372,7 +372,7 @@ export function buildInspectionReportHtml(input: ReportInput): string {
 
     <section class="section">
       <h2>執行總覽</h2>
-      <p class="lead">查驗進度與缺失狀態摘要。</p>
+      <p class="lead">施工進度與缺失狀態摘要。</p>
       <div class="stats">
         <div class="stat"><div class="n">${overviewPct}%</div><div class="l">${escapeHtml(overviewLabel)}</div></div>
         <div class="stat"><div class="n">${counts.pending_repair}</div><div class="l">待改善</div></div>
@@ -406,7 +406,7 @@ export function buildInspectionReportHtml(input: ReportInput): string {
       ${defectCards || '<div class="panel no-photo">目前沒有缺失紀錄</div>'}
     </section>
 
-    <div class="footer">現場驗屋查驗系統 · ${escapeHtml(projectName)} · 本報告由系統自動產生 · v2</div>
+    <div class="footer">現場施工進度系統 · ${escapeHtml(projectName)} · 本報告由系統自動產生 · v2</div>
   </div>
 </body>
 </html>`
@@ -430,7 +430,7 @@ export function downloadInspectionReport(input: ReportInput, filename?: string) 
   const a = document.createElement('a')
   const stamp = new Date().toISOString().slice(0, 10)
   a.href = url
-  a.download = filename || `${input.projectName}-查驗報告-${stamp}.html`
+  a.download = filename || `${input.projectName}-進度報告-${stamp}.html`
   a.rel = 'noopener'
   document.body.appendChild(a)
   a.click()

@@ -149,7 +149,7 @@ export function BatchAreasApplySheet({ onClose }: { onClose: () => void }) {
     }
     const areas = sanitizeAreaList(rows.map((r) => r.name))
     if (areas.length === 0) {
-      setError('至少需要一個查驗區域')
+      setError('至少需要一個施工區域')
       return
     }
     const result = saveAreaTemplate({

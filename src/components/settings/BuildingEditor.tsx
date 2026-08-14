@@ -197,7 +197,7 @@ export function BuildingEditor({
             </div>
             <div>
               <span className="nums building-editor-preview-num">{preview.activeUnits}</span>
-              <span>可查驗戶</span>
+              <span>有效戶</span>
             </div>
             <div>
               <span className="nums building-editor-preview-num">{preview.naCount}</span>

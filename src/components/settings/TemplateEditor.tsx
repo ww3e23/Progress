@@ -38,12 +38,12 @@ export function TemplateEditor({
   )
 
   return (
-    <Modal onClose={onCancel} aria-label="編輯查驗範本">
+    <Modal onClose={onCancel} aria-label="編輯缺失分類範本">
         <TitleHint
           as="h3"
           className="serif"
           style={{ margin: '0 0 14px', fontSize: 20 }}
-          hint="修改後會同步到各戶查驗清單；已有缺失的細項只能停用、不會刪除歷史。"
+          hint="修改後會同步到各戶缺失分類；已有缺失的細項只能停用、不會刪除歷史。"
         >
           {initial.name ? `編輯「${initial.name}」` : '新增大項'}
         </TitleHint>

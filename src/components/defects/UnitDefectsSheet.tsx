@@ -219,7 +219,7 @@ export function UnitDefectsSheet({
                     }}
                   >
                     {d.categoryName} · {d.area} · {statusLabel(d.status)}
-                    {inspector ? ` · 查驗 ${inspector}` : ''}
+                    {inspector ? ` · 紀錄人 ${inspector}` : ''}
                   </div>
                 </div>
                 <ChevronRight size={18} color="var(--stone)" />

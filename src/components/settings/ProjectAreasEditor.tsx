@@ -59,14 +59,14 @@ export function ProjectAreasEditor({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <Modal onClose={onClose} aria-label="專案預設查驗區域" variant="bottom">
+    <Modal onClose={onClose} aria-label="專案預設施工區域" variant="bottom">
       <TitleHint
         as="h3"
         className="serif"
         style={{ margin: '0 0 8px', fontSize: 20 }}
         hint="這是新戶／尚未自訂戶別時的預設區域清單。各戶可在首頁另行增刪改，互不影響。"
       >
-        專案預設查驗區域
+        專案預設施工區域
       </TitleHint>
 
       <div style={{ display: 'grid', gap: 8, maxHeight: '46vh', overflow: 'auto' }}>

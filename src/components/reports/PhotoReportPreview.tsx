@@ -268,7 +268,7 @@ export function PhotoReportPreview({
       className="report-preview"
       role="dialog"
       aria-modal="true"
-      aria-label="圖片查驗報告預覽"
+      aria-label="圖片進度報告預覽"
       onClick={(e) => e.stopPropagation()}
       onPointerDown={(e) => e.stopPropagation()}
       style={{
@@ -366,7 +366,7 @@ export function PhotoReportPreview({
           key={`photo-report-${html.length}-${unitIds?.join(',') ?? 'all'}`}
           ref={iframeRef}
           className="report-preview-frame"
-          title="圖片查驗報告"
+          title="圖片進度報告"
           srcDoc={html}
         />
       ) : (

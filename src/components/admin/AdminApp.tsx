@@ -46,7 +46,7 @@ export function AdminApp() {
     return (
       <div className="admin-shell">
         <div className="admin-panel" style={{ margin: 'auto', padding: 24, maxWidth: 420 }}>
-          <TitleHint as="h1" className="serif" hint="僅系統管理者可進入驗屋後台。">
+          <TitleHint as="h1" className="serif" hint="僅系統管理者可進入進度後台。">
             無權限
           </TitleHint>
           <a href="#/" className="btn btn-primary" style={{ marginTop: 12, textDecoration: 'none' }}>
@@ -61,10 +61,10 @@ export function AdminApp() {
     <div className="admin-shell">
       <aside className="admin-sidebar">
         <div className="admin-brand">
-          <div className="admin-brand-mark">驗</div>
+          <div className="admin-brand-mark">進</div>
           <div>
             <div className="serif" style={{ fontWeight: 700, fontSize: 17, lineHeight: 1.2 }}>
-              驗屋後台
+              進度後台
             </div>
           </div>
         </div>
