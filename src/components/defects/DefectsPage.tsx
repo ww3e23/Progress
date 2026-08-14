@@ -101,8 +101,22 @@ export function DefectsPage() {
       </header>
 
       {unit && (
-        <div style={{ marginBottom: 12 }}>
-          <PackUnitPhotosButton unitId={unit.id} style={{ width: '100%' }} />
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            gap: 8,
+            marginBottom: 12,
+          }}
+        >
+          <PackUnitPhotosButton unitId={unit.id} />
+          <PackUnitPhotosButton
+            unitId={unit.id}
+            records={filtered}
+            filenameNote={filterZipNote(kind, quickStatus)}
+            buttonLabel="打包已篩選"
+            hint="只打包目前篩選（類型／狀態）底下的照片，不是整戶。"
+          />
         </div>
       )}
 
@@ -232,6 +246,20 @@ export function DefectsPage() {
       )}
     </div>
   )
+}
+
+function filterZipNote(kind: KindFilter, status: QuickStatus): string {
+  const kindLabel =
+    kind === 'progress' ? '進度' : kind === 'defect' ? '缺失' : '全部類型'
+  if (kind === 'progress' || status === 'all') return kindLabel
+  const statusMap: Record<Exclude<QuickStatus, 'all'>, string> = {
+    pending_repair: '待改善',
+    pending_reinspection: '待複驗',
+    returned: '退回',
+    completed: '已改善',
+    voided: '作廢',
+  }
+  return `${kindLabel}_${statusMap[status]}`
 }
 
 function Thumb({ label, src }: { label: string; src?: string }) {

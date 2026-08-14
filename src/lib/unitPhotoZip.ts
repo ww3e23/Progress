@@ -18,15 +18,16 @@ function sanitizePart(value: string, fallback = '未命名'): string {
   return cleaned || fallback
 }
 
-/** 收集該戶所有可下載圖片（圖面位置＋現況） */
+/** 收集可下載圖片（圖面位置＋現況）。可只針對指定紀錄。 */
 export function collectUnitPhotoEntries(
   state: ProjectState,
   unitId: string,
+  records?: Defect[],
 ): Array<{ src: string; filename: string; label: string; defectNumber: number }> {
   const unit = state.units.find((u) => u.id === unitId)
   if (!unit) return []
 
-  const defects = state.defects
+  const defects = (records ?? state.defects.filter((d) => d.unitId === unitId))
     .filter((d) => d.unitId === unitId && d.status !== 'voided')
     .sort((a, b) => a.defectNumber - b.defectNumber)
 
@@ -78,13 +79,18 @@ export function collectUnitPhotoEntries(
   return out
 }
 
-export function unitPhotoZipFilename(unit: Unit, projectName?: string): string {
+export function unitPhotoZipFilename(
+  unit: Unit,
+  projectName?: string,
+  note?: string,
+): string {
   const stamp = new Date().toISOString().slice(0, 10)
-  const project = sanitizePart(projectName || '查驗專案', '查驗專案')
+  const project = sanitizePart(projectName || '進度專案', '進度專案')
   const building = sanitizePart(unit.buildingName || '棟')
   const floor = sanitizePart(unit.floor || '樓')
   const code = sanitizePart(unit.code || '戶')
-  return `${project}_${building}_${floor}_${code}戶_照片_${stamp}.zip`
+  const extra = note ? `_${sanitizePart(note)}` : ''
+  return `${project}_${building}_${floor}_${code}戶_照片${extra}_${stamp}.zip`
 }
 
 /** 限制並行數的簡易工作池 */
@@ -121,13 +127,15 @@ export async function downloadUnitPhotosZip(params: {
   state: ProjectState
   unitId: string
   projectName?: string
+  records?: Defect[]
+  filenameNote?: string
   onProgress?: (p: UnitPhotoZipProgress) => void
 }): Promise<{ ok: number; failed: number; total: number; filename: string }> {
   const unit = params.state.units.find((u) => u.id === params.unitId)
   if (!unit) throw new Error('找不到此戶別')
 
-  const entries = collectUnitPhotoEntries(params.state, params.unitId)
-  if (entries.length === 0) throw new Error('此戶目前沒有可打包的圖片')
+  const entries = collectUnitPhotoEntries(params.state, params.unitId, params.records)
+  if (entries.length === 0) throw new Error('目前沒有可打包的圖片')
 
   const zip = new JSZip()
   const folderName = sanitizePart(
@@ -196,7 +204,7 @@ export async function downloadUnitPhotosZip(params: {
     compression: 'STORE',
     streamFiles: true,
   })
-  const filename = unitPhotoZipFilename(unit, params.projectName)
+  const filename = unitPhotoZipFilename(unit, params.projectName, params.filenameNote)
   const url = URL.createObjectURL(blob)
   try {
     triggerAnchorDownload(url, filename)
@@ -208,8 +216,12 @@ export async function downloadUnitPhotosZip(params: {
 }
 
 /** 統計該戶圖片張數（不含作廢） */
-export function countUnitPhotos(state: ProjectState, unitId: string): number {
-  return collectUnitPhotoEntries(state, unitId).length
+export function countUnitPhotos(
+  state: ProjectState,
+  unitId: string,
+  records?: Defect[],
+): number {
+  return collectUnitPhotoEntries(state, unitId, records).length
 }
 
 export function unitHasPhotos(defects: Defect[], unitId: string): boolean {

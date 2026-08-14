@@ -6,16 +6,25 @@ import {
   countUnitPhotos,
   downloadUnitPhotosZip,
 } from '../../lib/unitPhotoZip'
+import type { Defect } from '../../types'
 import { Modal } from '../ui/Modal'
 import { TitleHint } from '../ui/TitleHint'
 
-/** 打包並下載該戶所有缺失圖片（ZIP） */
+/** 打包並下載該戶圖片（ZIP）；可改為只打指定紀錄 */
 export function PackUnitPhotosButton({
   unitId,
+  records,
+  filenameNote,
+  buttonLabel,
+  hint,
   variant = 'ghost',
   style,
 }: {
   unitId: string
+  records?: Defect[]
+  filenameNote?: string
+  buttonLabel?: string
+  hint?: string
   variant?: 'primary' | 'ghost'
   style?: CSSProperties
 }) {
@@ -27,12 +36,14 @@ export function PackUnitPhotosButton({
   )
   const [resultMsg, setResultMsg] = useState<string | null>(null)
 
-  const photoCount = useProjectStore((s) => countUnitPhotos(s, unitId))
+  const photoCount = useProjectStore((s) => countUnitPhotos(s, unitId, records))
+  const filtered = Boolean(records)
+  const title = buttonLabel ?? (filtered ? '打包已篩選' : '打包本戶圖片')
 
   async function runPack() {
     if (busy) return
     if (photoCount <= 0) {
-      window.alert('此戶目前沒有可打包的圖片')
+      window.alert(filtered ? '目前篩選結果沒有可打包的圖片' : '此戶目前沒有可打包的圖片')
       return
     }
     setOpen(true)
@@ -45,6 +56,8 @@ export function PackUnitPhotosButton({
         state,
         unitId,
         projectName: project?.name ?? state.projectName,
+        records,
+        filenameNote: filenameNote ?? (filtered ? '已篩選' : undefined),
         onProgress: setProgress,
       })
       setResultMsg(
@@ -69,13 +82,15 @@ export function PackUnitPhotosButton({
         disabled={busy || photoCount <= 0}
         title={
           photoCount > 0
-            ? `打包本戶全部圖片（${photoCount} 張）成 ZIP 下載`
-            : '此戶尚無可打包圖片'
+            ? `${title}（${photoCount} 張）`
+            : filtered
+              ? '目前篩選沒有圖片'
+              : '此戶尚無可打包圖片'
         }
         onClick={() => void runPack()}
       >
         <Archive size={16} />
-        {busy ? '打包中…' : `打包本戶圖片${photoCount > 0 ? `（${photoCount}）` : ''}`}
+        {busy ? '打包中…' : `${title}${photoCount > 0 ? `（${photoCount}）` : ''}`}
       </button>
 
       {open && (
@@ -85,7 +100,7 @@ export function PackUnitPhotosButton({
             setOpen(false)
             setResultMsg(null)
           }}
-          aria-label="打包本戶圖片"
+          aria-label={title}
           variant="center"
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'start' }}>
@@ -93,9 +108,14 @@ export function PackUnitPhotosButton({
               as="h3"
               className="serif"
               style={{ margin: 0, fontSize: 20 }}
-              hint="會把此戶所有缺失的圖面位置與現況照片打包成一個 ZIP 檔下載。"
+              hint={
+                hint ??
+                (filtered
+                  ? '只打包目前列表篩選結果裡的圖面與現況照片。'
+                  : '會把此戶所有紀錄的圖面位置與現況照片打包成一個 ZIP 檔下載。')
+              }
             >
-              打包本戶圖片
+              {title}
             </TitleHint>
             {!busy && (
               <button
