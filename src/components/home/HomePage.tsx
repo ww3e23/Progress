@@ -3,6 +3,7 @@ import { ChevronDown } from 'lucide-react'
 import { useProjectStore } from '../../store/useProjectStore'
 import { useCurrentProject, useCurrentRole } from '../../store/useAuthStore'
 import { TitleHint } from '../ui/TitleHint'
+import { GlassSelect } from '../ui/GlassSelect'
 import { UnitSwitcher } from '../UnitSwitcher'
 import { ProjectSwitcher } from './ProjectSwitcher'
 import { StageCellButton } from '../progress/StageCellButton'
@@ -168,51 +169,33 @@ export function HomePage() {
         </div>
       </header>
 
-      {activeBuildings.length > 1 && (
-        <div className="work-chips">
-          {activeBuildings.map((b) => (
-            <button
-              key={b.id}
-              type="button"
-              className={`chip ${building.id === b.id ? 'on' : ''}`}
-              onClick={() => setCurrentBuilding(b.id)}
-            >
-              {b.name}
-            </button>
-          ))}
+      <div className="home-filters">
+        <GlassSelect
+          label="棟別"
+          value={building.id}
+          options={activeBuildings.map((b) => ({ value: b.id, label: b.name }))}
+          onChange={setCurrentBuilding}
+        />
+        <GlassSelect
+          label="樓層"
+          value={floor ?? ''}
+          options={floors.map((f) => ({ value: f, label: f }))}
+          onChange={setCurrentFloor}
+        />
+        <div className="home-filter-wide">
+          <GlassSelect
+            label="工項"
+            value={workItemId ?? ''}
+            options={items.map((w) => ({ value: w.id, label: w.name }))}
+            onChange={setCurrentWorkItem}
+          />
         </div>
-      )}
-
-      <div className="work-chips">
-        {items.map((w) => (
-          <button
-            key={w.id}
-            type="button"
-            className={`chip ${workItemId === w.id ? 'on' : ''}`}
-            onClick={() => setCurrentWorkItem(w.id)}
-          >
-            {w.name}
-          </button>
-        ))}
       </div>
 
       {toast && <div className="toast-banner">{toast}</div>}
 
       {view === 'matrix' ? (
         <>
-          <div className="floor-tabs">
-            {floors.map((f) => (
-              <button
-                key={f}
-                type="button"
-                className={`chip ${floor === f ? 'on' : ''}`}
-                onClick={() => setCurrentFloor(f)}
-              >
-                {f}
-              </button>
-            ))}
-          </div>
-
           <div className="legend-row">
             <span><i className="legend-dot" style={{ background: '#fff', border: '1px solid #e2ddd3' }} />未開始</span>
             <span><i className="legend-dot" style={{ background: 'var(--matrix-progress)' }} />施工中</span>
