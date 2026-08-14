@@ -1275,16 +1275,12 @@ button.status-pill:active {
   border-color: #c5ced8;
 }
 
-.matrix-cell:disabled,
-.report-matrix .matrix-cell {
+.matrix-cell:disabled {
   cursor: default;
-  pointer-events: none;
 }
 
 .matrix-cell:disabled:hover,
-.matrix-cell:disabled:focus-visible,
-.report-matrix .matrix-cell:hover,
-.report-matrix .matrix-cell:focus-visible {
+.matrix-cell:disabled:focus-visible {
   transform: none;
   box-shadow: none;
 }
@@ -1325,96 +1321,64 @@ button.status-pill:active {
   font-weight: 700;
 }
 
-.report-legend {
-  margin: 4px 0 10px;
-}
-
 .report-empty {
   padding: 16px;
   color: var(--ink-soft);
   font-weight: 600;
 }
 
-.report-matrix {
-  padding: 8px 10px;
+.report-bar-list {
+  padding: 4px 14px 8px;
+  margin-bottom: 4px;
 }
 
-.report-matrix-row {
-  display: grid;
-  grid-template-columns: 72px minmax(0, 1fr);
-  gap: 8px;
-  align-items: start;
-  padding: 8px 0;
+.report-bar-item {
+  padding: 12px 0;
   border-bottom: 1px solid rgba(34, 41, 31, 0.08);
 }
 
-.report-matrix-row:last-child {
+.report-bar-item:last-child {
   border-bottom: 0;
-  padding-bottom: 2px;
 }
 
-.report-matrix-name {
+.report-bar-head {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-  padding-top: 14px;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
 }
 
-.report-matrix-name strong {
-  font-size: 13px;
-  line-height: 1.25;
+.report-bar-head strong {
+  font-size: 15px;
 }
 
-.report-matrix-name .nums {
-  font-size: 12px;
+.report-bar-head .nums {
+  font-size: 16px;
   font-weight: 800;
   color: var(--green-deep);
 }
 
-.report-matrix-stages {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 8px;
+.report-bar-track {
+  height: 8px;
+  margin-top: 8px;
+  border-radius: 999px;
+  background: rgba(30, 39, 51, 0.08);
+  overflow: hidden;
 }
 
-.report-stage {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  min-width: 36px;
+.report-bar-track i {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--green-deep), var(--green-deep2));
 }
 
-.report-stage-name {
-  font-size: 10px;
+.report-bar-meta {
+  margin: 7px 0 0;
+  font-size: 12px;
   font-weight: 700;
   color: var(--ink-soft);
-  line-height: 1.2;
-  text-align: center;
-  max-width: 44px;
-}
-
-.report-matrix .matrix-cell {
-  width: 36px;
-  min-width: 36px;
-  height: 26px;
-  font-size: 11px;
-}
-
-.report-copy {
-  padding: 12px 14px;
-}
-
-.report-copy p {
-  margin: 0 0 8px;
-  font-size: 13px;
-  font-weight: 700;
-  line-height: 1.45;
-}
-
-.report-copy p:last-child {
-  margin-bottom: 0;
+  line-height: 1.4;
 }
 
 .stage-matrix {

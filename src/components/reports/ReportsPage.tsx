@@ -36,7 +36,7 @@ export function ReportsPage() {
           as="h1"
           className="serif"
           style={{ margin: '4px 0 0', fontSize: 22 }}
-          hint="全案工種一次看：矩陣不可改，樓層已匯總。下方文字是各工種戶數。"
+          hint="全案工種一次看：每項一條進度條，樓層已匯總。"
         >
           {project?.name ?? state.projectName}
         </TitleHint>
@@ -57,53 +57,7 @@ export function ReportsPage() {
         </div>
       </section>
 
-      <div className="legend-row report-legend">
-        <span>
-          <i className="legend-dot" style={{ background: '#fff', border: '1px solid #e2ddd3' }} />
-          未開始
-        </span>
-        <span>
-          <i className="legend-dot" style={{ background: 'var(--matrix-progress)' }} />
-          施工中
-        </span>
-        <span>
-          <i className="legend-dot" style={{ background: 'var(--matrix-done)' }} />
-          完成
-        </span>
-        <span>
-          <i className="legend-dot" style={{ background: 'var(--matrix-na)', border: '1px solid #c5ced8' }} />
-          不適用
-        </span>
-        <span>
-          <i className="legend-dot" style={{ background: '#c64545' }} />
-          卡關
-        </span>
-        <span>
-          <i className="legend-dot" style={{ background: 'var(--matrix-defect)' }} />
-          缺失
-        </span>
-      </div>
-
       <ReportWorkMatrix rows={rows} />
-
-      <div className="section-row">
-        <h2>各工種戶數</h2>
-      </div>
-      <div className="glass report-copy">
-        {rows.length === 0 ? (
-          <p className="report-empty" style={{ padding: 0 }}>
-            尚無工種可統計。
-          </p>
-        ) : (
-          rows.map((row) => (
-            <p key={row.id}>
-              {row.householdsTotal === 0
-                ? `${row.name}：沒有應施作戶（皆不適用）。`
-                : `${row.name}：已完成 ${row.householdsDone} 戶，未完成 ${row.householdsLeft} 戶，應施作 ${row.householdsTotal} 戶，進度 ${row.percent}%。`}
-            </p>
-          ))
-        )}
-      </div>
 
       <button
         type="button"

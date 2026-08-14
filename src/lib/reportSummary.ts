@@ -185,8 +185,3 @@ export function buildReportWorkRows(state: ProjectState): ReportWorkRow[] {
     }
   })
 }
-
-export function reportStageLabel(cell: ReportStageCell): string {
-  if (cell.tone === 'na' || cell.total === 0) return '×'
-  return String(cell.percent)
-}

@@ -1,5 +1,4 @@
 import type { ReportWorkRow } from '../../lib/reportSummary'
-import { reportStageLabel } from '../../lib/reportSummary'
 
 export function ReportWorkMatrix({ rows }: { rows: ReportWorkRow[] }) {
   if (rows.length === 0) {
@@ -7,28 +6,21 @@ export function ReportWorkMatrix({ rows }: { rows: ReportWorkRow[] }) {
   }
 
   return (
-    <div className="report-matrix glass">
+    <div className="report-bar-list glass">
       {rows.map((row) => (
-        <div key={row.id} className="report-matrix-row">
-          <div className="report-matrix-name">
+        <div key={row.id} className="report-bar-item">
+          <div className="report-bar-head">
             <strong>{row.name}</strong>
             <span className="nums">{row.percent}%</span>
           </div>
-          <div className="report-matrix-stages" role="group" aria-label={`${row.name} 各工序`}>
-            {row.stages.map((stage) => (
-              <div key={stage.id} className="report-stage">
-                <div className="report-stage-name">{stage.name}</div>
-                <span
-                  className={`matrix-cell ${stage.tone}`}
-                  title={`${stage.name} ${reportStageLabel(stage)}${
-                    stage.total > 0 ? `%（${stage.completed}/${stage.total}）` : ' 不適用'
-                  }`}
-                >
-                  {reportStageLabel(stage)}
-                </span>
-              </div>
-            ))}
+          <div className="report-bar-track" aria-hidden>
+            <i style={{ width: `${row.percent}%` }} />
           </div>
+          <p className="report-bar-meta">
+            {row.householdsTotal === 0
+              ? '沒有應施作戶（皆不適用）'
+              : `已完成 ${row.householdsDone} 戶 · 未完成 ${row.householdsLeft} 戶 · 應施作 ${row.householdsTotal} 戶`}
+          </p>
         </div>
       ))}
     </div>
