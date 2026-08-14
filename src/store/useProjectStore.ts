@@ -24,6 +24,7 @@ import {
   cycleStageStatus as nextCycleStatus,
   effectiveStageStatus,
   openDefectsOnCell,
+  stageStatusLabel,
   storedStageStatus,
 } from '../lib/stageProgress'
 import { expandUnitsFromBuildings } from '../lib/units'
@@ -486,13 +487,9 @@ export const useProjectStore = create<ProjectState & BundleState & ProjectAction
               buildingName: unit.buildingName,
               floor: unit.floor,
               unitCode: unit.code,
-              summary: `${workItem?.name ?? '工項'}／${stage?.name ?? '工序'} → ${
-                result.next === 'completed'
-                  ? '已完成'
-                  : result.next === 'in_progress'
-                    ? '施工中'
-                    : '未開始'
-              }`,
+              summary: `${workItem?.name ?? '工項'}／${stage?.name ?? '工序'} → ${stageStatusLabel(
+                result.next,
+              )}`,
               ...activityActorFields(),
             },
             ...state.activities,
@@ -522,7 +519,7 @@ export const useProjectStore = create<ProjectState & BundleState & ProjectAction
         let progress = state.stageProgress
         let applied = 0
         for (const snap of snapshots) {
-          if (result.next === 'completed' && snap.open > 0) continue
+          if ((result.next === 'completed' || result.next === 'na') && snap.open > 0) continue
           progress = patchStageEntry(progress, snap.key, result.next)
           applied += 1
         }
@@ -550,13 +547,9 @@ export const useProjectStore = create<ProjectState & BundleState & ProjectAction
               buildingName: first?.buildingName ?? '—',
               floor,
               unitCode: '整層',
-              summary: `${workItem?.name ?? '工項'}／${stage?.name ?? '工序'} 整層 → ${
-                result.next === 'completed'
-                  ? '已完成'
-                  : result.next === 'in_progress'
-                    ? '施工中'
-                    : '未開始'
-              }（${applied} 戶）`,
+              summary: `${workItem?.name ?? '工項'}／${stage?.name ?? '工序'} 整層 → ${stageStatusLabel(
+                result.next,
+              )}（${applied} 戶）`,
               ...activityActorFields(),
             },
             ...state.activities,
@@ -573,6 +566,9 @@ export const useProjectStore = create<ProjectState & BundleState & ProjectAction
         const open = openDefectsOnCell(state.defects, unitId, workItemId, stageId).length
         if (status === 'completed' && open > 0) {
           return { ok: false, error: '此格尚有未關閉缺失，無法標完成' }
+        }
+        if (status === 'na' && open > 0) {
+          return { ok: false, error: '此格尚有未關閉缺失，無法標不適用' }
         }
         const nextStatus = open > 0 && status !== 'blocked' ? 'defect_fixing' : status
         const key = cellKey(unitId, workItemId, stageId)
@@ -597,9 +593,9 @@ export const useProjectStore = create<ProjectState & BundleState & ProjectAction
               buildingName: unit.buildingName,
               floor: unit.floor,
               unitCode: unit.code,
-              summary: `${workItem?.name ?? '工項'}／${stage?.name ?? '工序'} → ${
-                nextStatus === 'blocked' ? '卡關／待協調' : nextStatus === 'in_progress' ? '施工中' : nextStatus
-              }`,
+              summary: `${workItem?.name ?? '工項'}／${stage?.name ?? '工序'} → ${stageStatusLabel(
+                nextStatus,
+              )}`,
               ...activityActorFields(),
             },
             ...state.activities,
@@ -619,7 +615,7 @@ export const useProjectStore = create<ProjectState & BundleState & ProjectAction
         let applied = 0
         for (const unit of units) {
           const open = openDefectsOnCell(state.defects, unit.id, workItemId, stageId).length
-          if (status === 'completed' && open > 0) continue
+          if ((status === 'completed' || status === 'na') && open > 0) continue
           const nextStatus = open > 0 && status !== 'blocked' ? 'defect_fixing' : status
           progress = patchStageEntry(progress, cellKey(unit.id, workItemId, stageId), nextStatus)
           applied += 1
@@ -645,9 +641,9 @@ export const useProjectStore = create<ProjectState & BundleState & ProjectAction
               buildingName: first?.buildingName ?? '—',
               floor,
               unitCode: '整層',
-              summary: `${workItem?.name ?? '工項'}／${stage?.name ?? '工序'} 整層 → ${
-                status === 'blocked' ? '卡關／待協調' : status === 'in_progress' ? '施工中' : status
-              }（${applied} 戶）`,
+              summary: `${workItem?.name ?? '工項'}／${stage?.name ?? '工序'} 整層 → ${stageStatusLabel(
+                status,
+              )}（${applied} 戶）`,
               ...activityActorFields(),
             },
             ...state.activities,

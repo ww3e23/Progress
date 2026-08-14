@@ -1,4 +1,4 @@
-import { AlertTriangle, Camera, CircleOff, ClipboardPlus, Play } from 'lucide-react'
+import { AlertTriangle, Ban, Camera, CircleOff, ClipboardPlus, Play } from 'lucide-react'
 import { Modal } from '../ui/Modal'
 import type { StageStatus } from '../../types'
 import { stageStatusLabel } from '../../lib/stageProgress'
@@ -14,6 +14,8 @@ export function CellActionSheet({
   onDefect,
   onBlock,
   onUnblock,
+  onMarkNa,
+  onClearNa,
 }: {
   title: string
   subtitle: string
@@ -25,6 +27,8 @@ export function CellActionSheet({
   onDefect: () => void
   onBlock: () => void
   onUnblock: () => void
+  onMarkNa: () => void
+  onClearNa: () => void
 }) {
   return (
     <Modal onClose={onClose} variant="bottom" aria-label="格子操作">
@@ -47,7 +51,7 @@ export function CellActionSheet({
           <button type="button" className="btn btn-ghost" disabled={!canEdit} onClick={onUnblock}>
             <Play size={18} /> 解除卡關，改施工中
           </button>
-        ) : (
+        ) : status !== 'na' ? (
           <button
             type="button"
             className="btn btn-ghost"
@@ -55,6 +59,20 @@ export function CellActionSheet({
             onClick={onBlock}
           >
             <CircleOff size={18} /> 卡關／待協調
+          </button>
+        ) : null}
+        {status === 'na' ? (
+          <button type="button" className="btn btn-ghost" disabled={!canEdit} onClick={onClearNa}>
+            <Play size={18} /> 取消不適用，改未開始
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="btn btn-ghost"
+            disabled={!canEdit || openDefects > 0}
+            onClick={onMarkNa}
+          >
+            <Ban size={18} /> 標為不適用
           </button>
         )}
       </div>
@@ -72,7 +90,7 @@ export function CellActionSheet({
           }}
         >
           <AlertTriangle size={14} />
-          有未關閉缺失時不能標完成，也不能改成卡關。請先改善或作廢缺失。
+          有未關閉缺失時不能標完成、不適用或卡關。請先改善或作廢缺失。
         </p>
       )}
     </Modal>

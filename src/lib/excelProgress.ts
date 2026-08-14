@@ -39,6 +39,12 @@ const DEFECT_FILL: ExcelJS.Fill = {
   fgColor: { argb: 'FFFFC000' },
 }
 
+const NA_FILL: ExcelJS.Fill = {
+  type: 'pattern',
+  pattern: 'solid',
+  fgColor: { argb: 'FFD5DDE6' },
+}
+
 const HEADER_FONT: Partial<ExcelJS.Font> = {
   bold: true,
   color: { argb: 'FFFFFFFF' },
@@ -70,6 +76,7 @@ function fillForStatus(status: string): ExcelJS.Fill | undefined {
   if (status === 'in_progress') return PROGRESS_FILL
   if (status === 'blocked') return BLOCKED_FILL
   if (status === 'defect_fixing') return DEFECT_FILL
+  if (status === 'na') return NA_FILL
   return undefined
 }
 

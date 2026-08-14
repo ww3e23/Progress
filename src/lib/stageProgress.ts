@@ -89,6 +89,8 @@ export function stageStatusLabel(status: StageStatus): string {
       return '卡關／待協調'
     case 'defect_fixing':
       return '缺失改善中'
+    case 'na':
+      return '不適用'
   }
 }
 
@@ -104,6 +106,8 @@ export function stageStatusShort(status: StageStatus): string {
       return '卡'
     case 'defect_fixing':
       return '!'
+    case 'na':
+      return '×'
   }
 }
 
@@ -119,6 +123,8 @@ export function stageStatusClass(status: StageStatus): string {
       return 'blocked'
     case 'defect_fixing':
       return 'defect'
+    case 'na':
+      return 'na'
   }
 }
 
@@ -126,7 +132,7 @@ export type CycleStageResult =
   | { ok: true; next: StageStatus }
   | { ok: false; error: string }
 
-/** 點一下：未開始 → 施工中 → 完成 → 未開始；卡關點一下恢復施工中；有未關缺失禁止完成 */
+/** 點一下：未開始 → 施工中 → 完成 → 不適用 → 未開始；卡關點一下恢復施工中；有未關缺失禁止完成 */
 export function cycleStageStatus(
   stored: StageStatus,
   openDefectCount: number,
@@ -138,6 +144,9 @@ export function cycleStageStatus(
   if (effective === 'blocked') {
     return { ok: true, next: 'in_progress' }
   }
+  if (effective === 'na') {
+    return { ok: true, next: 'not_started' }
+  }
   if (effective === 'not_started') {
     return { ok: true, next: 'in_progress' }
   }
@@ -147,7 +156,7 @@ export function cycleStageStatus(
     }
     return { ok: true, next: 'completed' }
   }
-  return { ok: true, next: 'not_started' }
+  return { ok: true, next: 'na' }
 }
 
 export function activeWorkItems(state: Pick<ProjectState, 'workItems'>): WorkItem[] {
@@ -169,9 +178,18 @@ export function sortedStages(item: WorkItem) {
 }
 
 export function cellPercent(statuses: StageStatus[]): number {
-  if (statuses.length === 0) return 0
-  const done = statuses.filter((s) => s === 'completed').length
-  return Math.round((done / statuses.length) * 100)
+  const applicable = statuses.filter((s) => s !== 'na')
+  return completionPercent(
+    applicable.filter((s) => s === 'completed').length,
+    applicable.length,
+    statuses.length,
+  )
+}
+
+export function completionPercent(completed: number, applicable: number, seen: number): number {
+  if (seen <= 0) return 0
+  if (applicable <= 0) return 100
+  return Math.round((completed / applicable) * 100)
 }
 
 export interface StageMatrixRow {
@@ -216,6 +234,7 @@ export function buildStageMatrix(
   const rows: StageMatrixRow[] = []
   let completedCells = 0
   let totalCells = 0
+  let seenCells = 0
   let openDefects = 0
   let blockedCells = 0
   let defectCells = 0
@@ -242,8 +261,11 @@ export function buildStageMatrix(
         openDefects: open,
         key,
       })
-      totalCells += 1
-      if (status === 'completed') completedCells += 1
+      seenCells += 1
+      if (status !== 'na') {
+        totalCells += 1
+        if (status === 'completed') completedCells += 1
+      }
       if (status === 'blocked') blockedCells += 1
       if (status === 'defect_fixing') defectCells += 1
       openDefects += open
@@ -264,7 +286,7 @@ export function buildStageMatrix(
     rows,
     completedCells,
     totalCells,
-    percent: totalCells === 0 ? 0 : Math.round((completedCells / totalCells) * 100),
+    percent: completionPercent(completedCells, totalCells, seenCells),
     openDefects,
     blockedCells,
     defectCells,
@@ -282,12 +304,14 @@ export function workItemRollup(
 ): {
   percent: number
   totalCells: number
+  seenCells: number
   completedCells: number
   openDefects: number
   blockedCells: number
   defectCells: number
 } {
   let totalCells = 0
+  let seenCells = 0
   let completedCells = 0
   let openDefects = 0
   let blockedCells = 0
@@ -300,16 +324,20 @@ export function workItemRollup(
       const stored = storedStageStatus(state.stageProgress, key)
       const open = openDefectsOnCell(state.defects, unit.id, workItem.id, stage.id).length
       const status = effectiveStageStatus(stored, open)
-      totalCells += 1
-      if (status === 'completed') completedCells += 1
+      seenCells += 1
+      if (status !== 'na') {
+        totalCells += 1
+        if (status === 'completed') completedCells += 1
+      }
       if (status === 'blocked') blockedCells += 1
       if (status === 'defect_fixing') defectCells += 1
       openDefects += open
     }
   }
   return {
-    percent: totalCells === 0 ? 0 : Math.round((completedCells / totalCells) * 100),
+    percent: completionPercent(completedCells, totalCells, seenCells),
     totalCells,
+    seenCells,
     completedCells,
     openDefects,
     blockedCells,
@@ -359,6 +387,7 @@ export function overallProgress(state: ProjectState): {
 } {
   let completedCells = 0
   let totalCells = 0
+  let seenCells = 0
   let openDefects = 0
   let blockedCells = 0
   let defectCells = 0
@@ -366,12 +395,13 @@ export function overallProgress(state: ProjectState): {
     const r = workItemRollup(state, item)
     completedCells += r.completedCells
     totalCells += r.totalCells
+    seenCells += r.seenCells
     openDefects += r.openDefects
     blockedCells += r.blockedCells
     defectCells += r.defectCells
   }
   return {
-    percent: totalCells === 0 ? 0 : Math.round((completedCells / totalCells) * 100),
+    percent: completionPercent(completedCells, totalCells, seenCells),
     completedCells,
     totalCells,
     openDefects,
@@ -393,6 +423,9 @@ export function aggregateStageStatus(statuses: StageStatus[]): {
   if (statuses.length === 0) return { status: 'not_started', mixed: false }
   const uniq = new Set(statuses)
   if (uniq.size === 1) return { status: statuses[0], mixed: false }
+  const withoutNa = statuses.filter((s) => s !== 'na')
+  if (withoutNa.length === 0) return { status: 'na', mixed: false }
+  if (new Set(withoutNa).size === 1) return { status: withoutNa[0], mixed: true }
   if (statuses.some((s) => s === 'blocked')) return { status: 'blocked', mixed: true }
   if (statuses.some((s) => s === 'defect_fixing')) return { status: 'defect_fixing', mixed: true }
   return { status: 'in_progress', mixed: true }
@@ -523,21 +556,24 @@ export function workItemDetailStats(
       const stored = storedStageStatus(state.stageProgress, key)
       const open = openDefectsOnCell(state.defects, unit.id, workItem.id, acc.id).length
       const status = effectiveStageStatus(stored, open)
-      acc.total += 1
-      if (status === 'completed') acc.completed += 1
+      if (status !== 'na') {
+        acc.total += 1
+        if (status === 'completed') acc.completed += 1
+      }
       openDefects += open
     }
   }
   const totalCells = stageAcc.reduce((n, s) => n + s.total, 0)
   const completedCells = stageAcc.reduce((n, s) => n + s.completed, 0)
+  const seenUnits = state.units.some((u) => u.active)
   return {
-    percent: totalCells === 0 ? 0 : Math.round((completedCells / totalCells) * 100),
+    percent: completionPercent(completedCells, totalCells, seenUnits ? 1 : 0),
     completedCells,
     totalCells,
     openDefects,
     stages: stageAcc.map((s) => ({
       ...s,
-      percent: s.total === 0 ? 0 : Math.round((s.completed / s.total) * 100),
+      percent: completionPercent(s.completed, s.total, seenUnits ? 1 : 0),
     })),
   }
 }
@@ -549,6 +585,7 @@ function matrixStageStats(rows: FloorMatrixRow[], stages: { id: string; name: st
     for (const row of rows) {
       const cell = row.cells.find((c) => c.stageId === stage.id)
       if (!cell) continue
+      if (cell.status === 'na' && !cell.mixed) continue
       total += 1
       if (cell.status === 'completed' && !cell.mixed) completed += 1
     }
@@ -557,7 +594,7 @@ function matrixStageStats(rows: FloorMatrixRow[], stages: { id: string; name: st
       name: stage.name,
       completed,
       total,
-      percent: total === 0 ? 0 : Math.round((completed / total) * 100),
+      percent: completionPercent(completed, total, rows.length),
     }
   })
 }
@@ -577,6 +614,7 @@ export function buildWorkItemFloorMatrix(
   const rows: FloorMatrixRow[] = []
   let completedCells = 0
   let totalCells = 0
+  let seenCells = 0
   let openDefects = 0
   let blockedCells = 0
   let defectCells = 0
@@ -607,8 +645,11 @@ export function buildWorkItemFloorMatrix(
       }
     })
     for (const cell of cells) {
-      totalCells += 1
-      if (cell.status === 'completed' && !cell.mixed) completedCells += 1
+      seenCells += 1
+      if (cell.status !== 'na' || cell.mixed) {
+        totalCells += 1
+        if (cell.status === 'completed' && !cell.mixed) completedCells += 1
+      }
       if (cell.status === 'blocked') blockedCells += 1
       if (cell.status === 'defect_fixing') defectCells += 1
       openDefects += cell.openDefects
@@ -636,7 +677,7 @@ export function buildWorkItemFloorMatrix(
     rows,
     completedCells,
     totalCells,
-    percent: totalCells === 0 ? 0 : Math.round((completedCells / totalCells) * 100),
+    percent: completionPercent(completedCells, totalCells, seenCells),
     openDefects,
     blockedCells,
     defectCells,

@@ -14,6 +14,7 @@ export type StageStatus =
   | 'completed'
   | 'blocked'
   | 'defect_fixing'
+  | 'na'
 
 export type SiteRecordKind = 'progress' | 'defect'
 

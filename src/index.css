@@ -1269,6 +1269,11 @@ button.status-pill:active {
     rgba(255, 255, 255, 0.18) 6px
   );
 }
+.matrix-cell.na {
+  background: var(--matrix-na);
+  color: var(--ink-soft);
+  border-color: #c5ced8;
+}
 
 .stage-matrix {
   width: 100%;

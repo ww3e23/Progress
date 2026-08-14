@@ -723,6 +723,7 @@ function parseStageProgress(raw: unknown): Record<string, StageProgressEntry> {
     'completed',
     'blocked',
     'defect_fixing',
+    'na',
   ]
   for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
     if (!value || typeof value !== 'object') continue

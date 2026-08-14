@@ -282,7 +282,7 @@ export function HomePage() {
             ))
           )}
           <p style={{ margin: '8px 0 0', fontSize: 12, fontWeight: 600, color: 'var(--ink-soft)' }}>
-            由上往下滑，依序填每一戶。點格子輪轉：未開始 → 施工中 → 完成。長按可拍照、記缺失或卡關。
+            由上往下滑，依序填每一戶。點格子輪轉：未開始 → 施工中 → 完成 → 不適用。長按可拍照、記缺失、卡關或不適用。
           </p>
         </>
       ) : (
@@ -340,6 +340,29 @@ export function HomePage() {
             })
             setFloorPick(null)
           }}
+          onMarkNaFloor={() => {
+            const r = setFloorStageStatus({
+              buildingId: floorPick.buildingId,
+              floor: floorPick.floor,
+              workItemId: floorPick.workItemId,
+              stageId: floorPick.cell.stageId,
+              status: 'na',
+              unitIds: floorPick.cell.unitIds,
+            })
+            if (!r.ok) setToast(r.error || '無法標不適用')
+            setFloorPick(null)
+          }}
+          onClearNaFloor={() => {
+            setFloorStageStatus({
+              buildingId: floorPick.buildingId,
+              floor: floorPick.floor,
+              workItemId: floorPick.workItemId,
+              stageId: floorPick.cell.stageId,
+              status: 'not_started',
+              unitIds: floorPick.cell.unitIds,
+            })
+            setFloorPick(null)
+          }}
         />
       )}
 
@@ -360,6 +383,15 @@ export function HomePage() {
           }}
           onUnblock={() => {
             setStageCellStatus({ ...longCell, status: 'in_progress' })
+            setLongCell(null)
+          }}
+          onMarkNa={() => {
+            const r = setStageCellStatus({ ...longCell, status: 'na' })
+            if (!r.ok) setToast(r.error || '無法標不適用')
+            setLongCell(null)
+          }}
+          onClearNa={() => {
+            setStageCellStatus({ ...longCell, status: 'not_started' })
             setLongCell(null)
           }}
         />
@@ -387,6 +419,7 @@ function LegendRow() {
       <span><i className="legend-dot" style={{ background: '#fff', border: '1px solid #e2ddd3' }} />未開始</span>
       <span><i className="legend-dot" style={{ background: 'var(--matrix-progress)' }} />施工中</span>
       <span><i className="legend-dot" style={{ background: 'var(--matrix-done)' }} />完成</span>
+      <span><i className="legend-dot" style={{ background: 'var(--matrix-na)', border: '1px solid #c5ced8' }} />不適用</span>
       <span><i className="legend-dot" style={{ background: '#c64545' }} />卡關</span>
       <span><i className="legend-dot" style={{ background: 'var(--matrix-defect)' }} />缺失改善中</span>
     </div>
@@ -403,6 +436,8 @@ function FloorUnitPickSheet({
   onPickUnit,
   onBlockFloor,
   onUnblockFloor,
+  onMarkNaFloor,
+  onClearNaFloor,
 }: {
   floor: string
   cell: FloorMatrixCell
@@ -413,6 +448,8 @@ function FloorUnitPickSheet({
   onPickUnit: (unit: Unit) => void
   onBlockFloor: () => void
   onUnblockFloor: () => void
+  onMarkNaFloor: () => void
+  onClearNaFloor: () => void
 }) {
   return (
     <Modal onClose={onClose} variant="bottom" aria-label="整層格子">
@@ -437,11 +474,12 @@ function FloorUnitPickSheet({
       </div>
       </>
       )}
+      <div style={{ display: 'grid', gap: 8 }}>
       {cell.status === 'blocked' ? (
         <button type="button" className="btn btn-ghost" disabled={!canEdit} onClick={onUnblockFloor}>
           整層解除卡關
         </button>
-      ) : (
+      ) : cell.status !== 'na' ? (
         <button
           type="button"
           className="btn btn-ghost"
@@ -450,7 +488,22 @@ function FloorUnitPickSheet({
         >
           整層卡關／待協調
         </button>
+      ) : null}
+      {cell.status === 'na' ? (
+        <button type="button" className="btn btn-ghost" disabled={!canEdit} onClick={onClearNaFloor}>
+          整層取消不適用
+        </button>
+      ) : (
+        <button
+          type="button"
+          className="btn btn-ghost"
+          disabled={!canEdit || cell.openDefects > 0}
+          onClick={onMarkNaFloor}
+        >
+          整層不適用
+        </button>
       )}
+      </div>
     </Modal>
   )
 }
