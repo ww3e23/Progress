@@ -42,7 +42,7 @@ export async function syncProjectMeta(project: ProjectMeta): Promise<boolean> {
       driveFolderUrl: project.driveFolderUrl ?? null,
       // driveOwner* 由 Cloud Functions 寫入，前端勿覆蓋
       updatedAt: serverTimestamp(),
-      mode: 'site-inspection',
+      mode: 'site-progress',
     },
     { merge: true },
   )

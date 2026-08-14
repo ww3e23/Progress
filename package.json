@@ -8,7 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview --host 0.0.0.0 --port 4173",
-    "deploy:pages": "VITE_BASE_PATH=/CI/ npm run build && gh-pages -d dist"
+    "deploy:pages": "VITE_BASE_PATH=/Progress/ npm run build && gh-pages -d dist"
   },
   "dependencies": {
     "exceljs": "^4.4.0",

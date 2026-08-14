@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
 import { BottomNav, type TabKey } from './components/layout/BottomNav'
 import { HomePage } from './components/home/HomePage'
-import { CategoryPage } from './components/home/CategoryPage'
 import { DefectsPage } from './components/defects/DefectsPage'
 import { ReportsPage } from './components/reports/ReportsPage'
 import { ProfilePage } from './components/profile/ProfilePage'
 import { AddDefectSheet } from './components/defects/AddDefectSheet'
+import { RecordKindChooser } from './components/progress/RecordKindChooser'
 import { LoginPage } from './components/auth/LoginPage'
 import { AdminApp } from './components/admin/AdminApp'
 import { InstallBanner } from './components/pwa/InstallBanner'
@@ -34,8 +34,9 @@ export default function App() {
     (s) => s.users.find((u) => u.id === s.currentUserId)?.systemAdmin === true,
   )
   const [tab, setTab] = useState<TabKey>('home')
-  const [categoryId, setCategoryId] = useState<string | null>(null)
   const [addOpen, setAddOpen] = useState(false)
+  const [addKind, setAddKind] = useState<'progress' | 'defect' | null>(null)
+  const focused = useProjectStore((s) => s.focusedCell)
 
   // 開 App／還原工作階段時，從雲端把棟別／缺失拉回來；並補傳尚未上雲的照片
   useEffect(() => {
@@ -94,7 +95,7 @@ export default function App() {
               window.location.hash = '#/admin'
             }}
           >
-            開啟驗屋後台
+            開啟後台
           </a>
         </div>
         <InstallBanner />
@@ -173,25 +174,36 @@ export default function App() {
       setAddOpen(true)
       return
     }
-    setCategoryId(null)
     setTab(next)
   }
 
   return (
     <div className="app-shell">
       <main className="app-main">
-        {tab === 'home' && !categoryId && (
-          <HomePage onOpenCategory={(id) => setCategoryId(id)} />
-        )}
-        {tab === 'home' && categoryId && (
-          <CategoryPage categoryId={categoryId} onBack={() => setCategoryId(null)} />
-        )}
+        {tab === 'home' && <HomePage />}
         {tab === 'defects' && <DefectsPage />}
         {tab === 'reports' && <ReportsPage />}
         {tab === 'profile' && <ProfilePage />}
       </main>
       <BottomNav active={tab} onChange={handleNav} />
-      {addOpen && <AddDefectSheet onClose={() => setAddOpen(false)} />}
+      {addOpen && !addKind && (
+        <RecordKindChooser
+          onClose={() => setAddOpen(false)}
+          onPick={(kind) => setAddKind(kind)}
+        />
+      )}
+      {addKind && (
+        <AddDefectSheet
+          recordKind={addKind}
+          workItemId={focused?.workItemId}
+          stageId={focused?.stageId}
+          unitId={focused?.unitId}
+          onClose={() => {
+            setAddKind(null)
+            setAddOpen(false)
+          }}
+        />
+      )}
       <UpdateAppBanner />
       <InstallBanner />
     </div>

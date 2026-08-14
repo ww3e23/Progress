@@ -7,11 +7,22 @@ import type {
   ChecklistItem,
   Defect,
   DefectStatus,
+  FocusedStageCell,
   ProjectState,
+  SiteRecordKind,
+  StageStatus,
   SyncState,
+  WorkItem,
 } from '../types'
 import { buildDefaultChecklist } from '../data/defaultChecklist'
-import { createEmptyProjectState, createProjectBundles } from '../data/seed'
+import { buildDefaultWorkItems } from '../data/defaultWorkItems'
+import { createEmptyProjectState, createProjectBundles, ensureProgressFields } from '../data/seed'
+import {
+  cellKey,
+  cycleStageStatus as nextCycleStatus,
+  openDefectsOnCell,
+  storedStageStatus,
+} from '../lib/stageProgress'
 import { expandUnitsFromBuildings } from '../lib/units'
 import { createId } from '../lib/id'
 import { cloudReady, syncDefect, syncProjectStructure } from '../services/cloudSync'
@@ -70,7 +81,28 @@ interface ProjectActions {
     photoDataUrls?: string[]
     /** 自行指定編號（補缺號）；未傳則自動取最大號+1。不改既有缺失編號。 */
     defectNumber?: number
+    recordKind?: SiteRecordKind
+    workItemId?: string
+    stageId?: string
   }) => Promise<Defect | null>
+  cycleStageCell: (input: {
+    unitId: string
+    workItemId: string
+    stageId: string
+  }) => { ok: boolean; error?: string; status?: StageStatus }
+  setStageCellStatus: (input: {
+    unitId: string
+    workItemId: string
+    stageId: string
+    status: StageStatus
+  }) => { ok: boolean; error?: string }
+  setCurrentWorkItem: (workItemId: string | null) => void
+  setCurrentBuilding: (buildingId: string | null) => void
+  setCurrentFloor: (floor: string | null) => void
+  setFocusedCell: (cell: FocusedStageCell | null) => void
+  upsertWorkItem: (item: WorkItem) => void
+  removeWorkItem: (workItemId: string) => { ok: boolean; reason?: string }
+  applyDefaultWorkItems: (mode?: 'fill-if-empty' | 'replace') => { ok: boolean; reason?: string }
   updateDefectStatus: (defectId: string, status: DefectStatus) => void
   /** 修改缺失內容（區域／說明／大項／照片） */
   updateDefect: (
@@ -286,21 +318,65 @@ function mergePhotoLists(a: string[] = [], b: string[] = []): string[] {
   return out
 }
 
-function snapshotProject(state: ProjectState): ProjectState {
+function patchStageEntry(
+  progress: ProjectState['stageProgress'],
+  key: string,
+  status: StageStatus,
+): ProjectState['stageProgress'] {
+  const { name, account } = currentActorLabel()
   return {
-    projectName: state.projectName,
-    buildings: state.buildings,
-    units: state.units,
-    categories: state.categories,
-    checklistItems: state.checklistItems,
-    defects: state.defects,
-    unitCheckedCount: state.unitCheckedCount,
-    unitCategoryDone: state.unitCategoryDone ?? {},
-    activities: state.activities,
-    currentUnitId: state.currentUnitId,
-    recentUnitIds: state.recentUnitIds,
-    areas: state.areas,
-    areaTemplates: state.areaTemplates ?? [],
+    ...progress,
+    [key]: {
+      status,
+      updatedAt: new Date().toISOString(),
+      updatedByName: name,
+      updatedByAccount: account || undefined,
+    },
+  }
+}
+
+function reconcileCellProgress(
+  progress: ProjectState['stageProgress'],
+  defects: Defect[],
+  unitId: string,
+  workItemId?: string,
+  stageId?: string,
+): ProjectState['stageProgress'] {
+  if (!workItemId || !stageId) return progress
+  const key = cellKey(unitId, workItemId, stageId)
+  const open = openDefectsOnCell(defects, unitId, workItemId, stageId).length
+  const stored = storedStageStatus(progress, key)
+  if (open > 0) {
+    return stored === 'defect_fixing' ? progress : patchStageEntry(progress, key, 'defect_fixing')
+  }
+  if (stored === 'defect_fixing') {
+    return patchStageEntry(progress, key, 'in_progress')
+  }
+  return progress
+}
+
+function snapshotProject(state: ProjectState): ProjectState {
+  const ensured = ensureProgressFields(state)
+  return {
+    projectName: ensured.projectName,
+    buildings: ensured.buildings,
+    units: ensured.units,
+    categories: ensured.categories,
+    checklistItems: ensured.checklistItems,
+    defects: ensured.defects,
+    unitCheckedCount: ensured.unitCheckedCount,
+    unitCategoryDone: ensured.unitCategoryDone ?? {},
+    activities: ensured.activities,
+    currentUnitId: ensured.currentUnitId,
+    recentUnitIds: ensured.recentUnitIds,
+    areas: ensured.areas,
+    areaTemplates: ensured.areaTemplates ?? [],
+    workItems: ensured.workItems,
+    stageProgress: ensured.stageProgress,
+    currentWorkItemId: ensured.currentWorkItemId,
+    currentBuildingId: ensured.currentBuildingId,
+    currentFloor: ensured.currentFloor,
+    focusedCell: ensured.focusedCell,
   }
 }
 
@@ -316,8 +392,195 @@ export const useProjectStore = create<ProjectState & BundleState & ProjectAction
 
       setCurrentUnit: (unitId) => {
         const recent = [unitId, ...get().recentUnitIds.filter((id) => id !== unitId)].slice(0, 8)
-        set({ currentUnitId: unitId, recentUnitIds: recent })
+        const unit = get().units.find((u) => u.id === unitId)
+        set({
+          currentUnitId: unitId,
+          recentUnitIds: recent,
+          currentBuildingId: unit?.buildingId ?? get().currentBuildingId,
+          currentFloor: unit?.floor ?? get().currentFloor,
+        })
         afterProjectChange(get, set)
+      },
+
+      setCurrentWorkItem: (workItemId) => {
+        set({ currentWorkItemId: workItemId })
+        afterProjectChange(get, set, { syncCloud: false })
+      },
+
+      setCurrentBuilding: (buildingId) => {
+        const building = get().buildings.find((b) => b.id === buildingId)
+        const floor =
+          get().currentFloor && building?.floors.includes(get().currentFloor ?? '')
+            ? get().currentFloor
+            : (building?.floors[0] ?? null)
+        set({ currentBuildingId: buildingId, currentFloor: floor })
+        afterProjectChange(get, set, { syncCloud: false })
+      },
+
+      setCurrentFloor: (floor) => {
+        set({ currentFloor: floor })
+        afterProjectChange(get, set, { syncCloud: false })
+      },
+
+      setFocusedCell: (cell) => {
+        set({ focusedCell: cell })
+        if (cell?.unitId) {
+          const recent = [cell.unitId, ...get().recentUnitIds.filter((id) => id !== cell.unitId)].slice(
+            0,
+            8,
+          )
+          set({ currentUnitId: cell.unitId, recentUnitIds: recent, focusedCell: cell })
+        }
+      },
+
+      cycleStageCell: ({ unitId, workItemId, stageId }) => {
+        const state = get()
+        const unit = state.units.find((u) => u.id === unitId)
+        if (!unit) return { ok: false, error: '找不到此戶' }
+        const key = cellKey(unitId, workItemId, stageId)
+        const stored = storedStageStatus(state.stageProgress, key)
+        const open = openDefectsOnCell(state.defects, unitId, workItemId, stageId).length
+        const result = nextCycleStatus(stored, open)
+        if (!result.ok) return { ok: false, error: result.error }
+        const workItem = state.workItems.find((w) => w.id === workItemId)
+        const stage = workItem?.stages.find((s) => s.id === stageId)
+        set({
+          stageProgress: patchStageEntry(state.stageProgress, key, result.next),
+          currentUnitId: unitId,
+          currentWorkItemId: workItemId,
+          currentBuildingId: unit.buildingId,
+          currentFloor: unit.floor,
+          focusedCell: { unitId, workItemId, stageId },
+          recentUnitIds: [unitId, ...state.recentUnitIds.filter((id) => id !== unitId)].slice(0, 8),
+          activities: [
+            {
+              id: createId('act'),
+              at: new Date().toLocaleString('zh-TW', {
+                month: 'numeric',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+              }),
+              buildingName: unit.buildingName,
+              floor: unit.floor,
+              unitCode: unit.code,
+              summary: `${workItem?.name ?? '工項'}／${stage?.name ?? '工序'} → ${
+                result.next === 'completed'
+                  ? '已完成'
+                  : result.next === 'in_progress'
+                    ? '施工中'
+                    : '未開始'
+              }`,
+              ...activityActorFields(),
+            },
+            ...state.activities,
+          ].slice(0, 40),
+        })
+        afterProjectChange(get, set)
+        return { ok: true, status: result.next }
+      },
+
+      setStageCellStatus: ({ unitId, workItemId, stageId, status }) => {
+        const state = get()
+        const unit = state.units.find((u) => u.id === unitId)
+        if (!unit) return { ok: false, error: '找不到此戶' }
+        const open = openDefectsOnCell(state.defects, unitId, workItemId, stageId).length
+        if (status === 'completed' && open > 0) {
+          return { ok: false, error: '此格尚有未關閉缺失，無法標完成' }
+        }
+        const nextStatus = open > 0 && status !== 'blocked' ? 'defect_fixing' : status
+        const key = cellKey(unitId, workItemId, stageId)
+        const workItem = state.workItems.find((w) => w.id === workItemId)
+        const stage = workItem?.stages.find((s) => s.id === stageId)
+        set({
+          stageProgress: patchStageEntry(state.stageProgress, key, nextStatus),
+          currentUnitId: unitId,
+          currentWorkItemId: workItemId,
+          currentBuildingId: unit.buildingId,
+          currentFloor: unit.floor,
+          focusedCell: { unitId, workItemId, stageId },
+          activities: [
+            {
+              id: createId('act'),
+              at: new Date().toLocaleString('zh-TW', {
+                month: 'numeric',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+              }),
+              buildingName: unit.buildingName,
+              floor: unit.floor,
+              unitCode: unit.code,
+              summary: `${workItem?.name ?? '工項'}／${stage?.name ?? '工序'} → ${
+                nextStatus === 'blocked' ? '卡關／待協調' : nextStatus === 'in_progress' ? '施工中' : nextStatus
+              }`,
+              ...activityActorFields(),
+            },
+            ...state.activities,
+          ].slice(0, 40),
+        })
+        afterProjectChange(get, set)
+        return { ok: true }
+      },
+
+      upsertWorkItem: (item) => {
+        const list = [...(get().workItems ?? [])]
+        const idx = list.findIndex((w) => w.id === item.id)
+        const stages = item.stages
+          .map((s, i) => ({ ...s, name: s.name.trim(), sortOrder: i }))
+          .filter((s) => s.name)
+        if (stages.length === 0) return
+        const next: WorkItem = {
+          ...item,
+          name: item.name.trim() || '未命名工項',
+          stages,
+          sortOrder: idx >= 0 ? list[idx].sortOrder : list.length,
+        }
+        if (idx >= 0) list[idx] = next
+        else list.push(next)
+        set({
+          workItems: list,
+          currentWorkItemId: get().currentWorkItemId ?? next.id,
+        })
+        afterProjectChange(get, set)
+      },
+
+      removeWorkItem: (workItemId) => {
+        const state = get()
+        const used = state.defects.some((d) => d.workItemId === workItemId && d.status !== 'voided')
+        if (used) {
+          set({
+            workItems: state.workItems.map((w) =>
+              w.id === workItemId ? { ...w, active: false } : w,
+            ),
+          })
+          afterProjectChange(get, set)
+          return { ok: true, reason: '已有紀錄，改為停用' }
+        }
+        const next = state.workItems.filter((w) => w.id !== workItemId)
+        set({
+          workItems: next,
+          currentWorkItemId:
+            state.currentWorkItemId === workItemId
+              ? (next.find((w) => w.active)?.id ?? null)
+              : state.currentWorkItemId,
+        })
+        afterProjectChange(get, set)
+        return { ok: true }
+      },
+
+      applyDefaultWorkItems: (mode = 'fill-if-empty') => {
+        const state = get()
+        if (mode === 'fill-if-empty' && state.workItems.some((w) => w.active)) {
+          return { ok: true, reason: 'already' }
+        }
+        const workItems = buildDefaultWorkItems()
+        set({
+          workItems,
+          currentWorkItemId: workItems[0]?.id ?? null,
+        })
+        afterProjectChange(get, set)
+        return { ok: true }
       },
 
       upsertBuilding: (building) => {
@@ -350,6 +613,9 @@ export const useProjectStore = create<ProjectState & BundleState & ProjectAction
         planPhotoDataUrl,
         photoDataUrls = [],
         defectNumber: requestedNumber,
+        recordKind = 'defect',
+        workItemId,
+        stageId,
       }) => {
         const state = get()
         const unit = state.units.find((u) => u.id === unitId)
@@ -378,20 +644,37 @@ export const useProjectStore = create<ProjectState & BundleState & ProjectAction
           checklistItemId,
           area,
           description,
-          status: 'pending_repair',
+          status: recordKind === 'progress' ? 'completed' : 'pending_repair',
           planPhotoDataUrl,
           photoDataUrls,
           syncState,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
+          recordKind,
+          workItemId,
+          stageId,
           ...defectActorCreateFields(),
         }
 
         const nextDefects = [defect, ...state.defects]
         // 自動下一號永遠跟「未作廢最大號 + 1」，補缺號不影響後續自動編號
         const nextCounter = recomputeUnitNextDefectNumber(unitId, nextDefects)
+        const kindLabel = recordKind === 'progress' ? '施工紀錄' : `缺失 #${defect.defectNumber}`
         set({
           defects: nextDefects,
+          stageProgress: reconcileCellProgress(
+            state.stageProgress,
+            nextDefects,
+            unitId,
+            workItemId,
+            stageId,
+          ),
+          currentUnitId: unitId,
+          currentWorkItemId: workItemId ?? state.currentWorkItemId,
+          currentBuildingId: unit.buildingId,
+          currentFloor: unit.floor,
+          focusedCell:
+            workItemId && stageId ? { unitId, workItemId, stageId } : state.focusedCell,
           units: state.units.map((u) =>
             u.id === unitId ? { ...u, nextDefectNumber: nextCounter } : u,
           ),
@@ -407,7 +690,7 @@ export const useProjectStore = create<ProjectState & BundleState & ProjectAction
               buildingName: unit.buildingName,
               floor: unit.floor,
               unitCode: unit.code,
-              summary: `新增缺失 #${defect.defectNumber}｜${description}`,
+              summary: `新增${kindLabel}｜${description || categoryName}`,
               ...activityActorFields(),
             },
             ...state.activities,
@@ -526,6 +809,13 @@ export const useProjectStore = create<ProjectState & BundleState & ProjectAction
         const nextCounter = recomputeUnitNextDefectNumber(defect.unitId, nextDefects)
         set({
           defects: nextDefects,
+          stageProgress: reconcileCellProgress(
+            state.stageProgress,
+            nextDefects,
+            defect.unitId,
+            defect.workItemId,
+            defect.stageId,
+          ),
           units: state.units.map((u) =>
             u.id === defect.unitId ? { ...u, nextDefectNumber: nextCounter } : u,
           ),
@@ -590,16 +880,24 @@ export const useProjectStore = create<ProjectState & BundleState & ProjectAction
         const defect = state.defects.find((d) => d.id === defectId)
         if (!defect || defect.status === 'voided') return
         if (defect.status === status) return
+        const nextDefects = state.defects.map((d) =>
+          d.id === defectId
+            ? {
+                ...d,
+                status,
+                updatedAt: new Date().toISOString(),
+                ...defectActorUpdateFields(),
+              }
+            : d,
+        )
         set({
-          defects: state.defects.map((d) =>
-            d.id === defectId
-              ? {
-                  ...d,
-                  status,
-                  updatedAt: new Date().toISOString(),
-                  ...defectActorUpdateFields(),
-                }
-              : d,
+          defects: nextDefects,
+          stageProgress: reconcileCellProgress(
+            state.stageProgress,
+            nextDefects,
+            defect.unitId,
+            defect.workItemId,
+            defect.stageId,
           ),
           activities: [
             {
@@ -1197,10 +1495,11 @@ export const useProjectStore = create<ProjectState & BundleState & ProjectAction
       },
 
       loadProjectBundle: (projectId) => {
-        let bundle = get().bundles[projectId] ?? createEmptyProjectState(projectId)
-        if (!bundle.categories.some((c) => c.active)) {
-          const { categories, checklistItems } = buildDefaultChecklist()
-          bundle = { ...bundle, categories, checklistItems }
+        let bundle = ensureProgressFields(
+          get().bundles[projectId] ?? createEmptyProjectState(projectId),
+        )
+        if (!bundle.workItems.some((w) => w.active)) {
+          bundle = { ...bundle, workItems: buildDefaultWorkItems() }
           set({
             bundles: { ...get().bundles, [projectId]: structuredClone(bundle) },
           })
@@ -1225,15 +1524,20 @@ export const useProjectStore = create<ProjectState & BundleState & ProjectAction
       ensureProjectBundle: (projectId, name) => {
         const existing = get().bundles[projectId]
         if (existing) {
-          // 舊空白專案自動補上預設查驗範本
-          if (!existing.categories.some((c) => c.active)) {
-            const { categories, checklistItems } = buildDefaultChecklist()
-            const filled = { ...existing, categories, checklistItems, projectName: existing.projectName || name }
+          const filled = ensureProgressFields({
+            ...existing,
+            projectName: existing.projectName || name,
+          })
+          if (!existing.workItems?.some((w) => w.active)) {
             set({
               bundles: { ...get().bundles, [projectId]: filled },
             })
             if (get().activeProjectId === projectId) {
-              set({ categories, checklistItems })
+              set({
+                workItems: filled.workItems,
+                stageProgress: filled.stageProgress,
+                currentWorkItemId: filled.currentWorkItemId,
+              })
             }
           }
           return
@@ -1370,7 +1674,7 @@ export const useProjectStore = create<ProjectState & BundleState & ProjectAction
               ? snapshotProject(get())
               : (get().bundles[projectId] ?? createEmptyProjectState(projectId))
 
-          const merged = mergeProjectStates(local, remote)
+          const merged = ensureProgressFields(mergeProjectStates(local, remote))
 
           set({
             bundles: { ...get().bundles, [projectId]: structuredClone(merged) },
@@ -1725,7 +2029,7 @@ export const useProjectStore = create<ProjectState & BundleState & ProjectAction
     }),
     {
       name: 'site-inspection-v5',
-      version: 8,
+      version: 9,
       // 大圖 base64 不寫入 localStorage，避免配額爆掉（QuotaExceededError）
       partialize: (state) => ({
         ...lightenProjectState(state),
@@ -1740,20 +2044,25 @@ export const useProjectStore = create<ProjectState & BundleState & ProjectAction
       migrate: (persisted) => {
         const s = persisted as (ProjectState & BundleState) | null
         if (!s || typeof s !== 'object') return s as never
-        const withCategoryDone = {
+        const withProgress = ensureProgressFields({
           ...s,
           unitCategoryDone: s.unitCategoryDone ?? {},
           areaTemplates: s.areaTemplates ?? [],
-          bundles: Object.fromEntries(
-            Object.entries(s.bundles ?? {}).map(([id, bundle]) => [
-              id,
-              {
-                ...bundle,
-                unitCategoryDone: bundle.unitCategoryDone ?? {},
-                areaTemplates: bundle.areaTemplates ?? [],
-              },
-            ]),
-          ),
+        } as ProjectState)
+        const bundles = Object.fromEntries(
+          Object.entries(s.bundles ?? {}).map(([id, bundle]) => [
+            id,
+            ensureProgressFields({
+              ...bundle,
+              unitCategoryDone: bundle.unitCategoryDone ?? {},
+              areaTemplates: bundle.areaTemplates ?? [],
+            }),
+          ]),
+        )
+        const withCategoryDone = {
+          ...s,
+          ...withProgress,
+          bundles,
         }
         return {
           ...withCategoryDone,

@@ -38,6 +38,12 @@ function pickProjectState(s: {
     recentUnitIds: s.recentUnitIds,
     areas: s.areas,
     areaTemplates: s.areaTemplates,
+    workItems: [],
+    stageProgress: {},
+    currentWorkItemId: null,
+    currentBuildingId: null,
+    currentFloor: null,
+    focusedCell: null,
   }
 }
 

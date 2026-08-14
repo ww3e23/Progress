@@ -7,7 +7,46 @@ export type DefectStatus =
 
 export type CellStatus = 'na' | 'not_started' | 'in_progress' | 'has_defects' | 'completed'
 
+/** 工項格子狀態（對應現場 Excel 圖例） */
+export type StageStatus =
+  | 'not_started'
+  | 'in_progress'
+  | 'completed'
+  | 'blocked'
+  | 'defect_fixing'
+
+export type SiteRecordKind = 'progress' | 'defect'
+
 export type SyncState = 'synced' | 'pending' | 'syncing' | 'failed' | 'demo'
+
+export interface WorkStage {
+  id: string
+  name: string
+  sortOrder: number
+}
+
+/** 一張 Excel 表＝一個工項，欄位是該工項自己的工序 */
+export interface WorkItem {
+  id: string
+  name: string
+  stages: WorkStage[]
+  sortOrder: number
+  active: boolean
+}
+
+export interface StageProgressEntry {
+  status: StageStatus
+  updatedAt: string
+  updatedByName?: string
+  updatedByAccount?: string
+}
+
+/** 目前點選的格子（新增紀錄／缺失時帶入） */
+export interface FocusedStageCell {
+  unitId: string
+  workItemId: string
+  stageId: string
+}
 
 export interface BuildingRule {
   id: string
@@ -71,6 +110,11 @@ export interface Defect {
   categoryId: string
   categoryName: string
   checklistItemId?: string
+  /** progress＝施工紀錄（不算未關缺失）；defect 或缺省＝缺失 */
+  recordKind?: SiteRecordKind
+  /** 掛在哪個工項格子；缺省時僅依戶／舊查驗大項 */
+  workItemId?: string
+  stageId?: string
   area: string
   description: string
   status: DefectStatus
@@ -143,4 +187,12 @@ export interface ProjectState {
   areas: string[]
   /** 格局區域範本清單 */
   areaTemplates: AreaTemplate[]
+  /** 施工工項（止水墩、室內泥作…） */
+  workItems: WorkItem[]
+  /** key = unitId|workItemId|stageId */
+  stageProgress: Record<string, StageProgressEntry>
+  currentWorkItemId: string | null
+  currentBuildingId: string | null
+  currentFloor: string | null
+  focusedCell: FocusedStageCell | null
 }

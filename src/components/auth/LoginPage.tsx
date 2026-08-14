@@ -27,9 +27,9 @@ export function LoginPage() {
           >
             <Building2 size={28} />
           </div>
-          <div className="eyebrow">SITE INSPECTION</div>
+          <div className="eyebrow">SITE PROGRESS</div>
           <h1 className="serif" style={{ margin: '6px 0 0', fontSize: 26, fontWeight: 700 }}>
-            現場驗屋查驗
+            現場施工進度
           </h1>
         </div>
 

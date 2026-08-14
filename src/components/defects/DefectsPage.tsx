@@ -7,20 +7,24 @@ import {
   resolveDefectRemark,
 } from '../../lib/defectDisplay'
 import { defectsByStatus, statusLabel } from '../../lib/progress'
+import { isProgressRecord } from '../../lib/stageProgress'
 import type { Defect, DefectStatus } from '../../types'
 import { UnitSwitcher } from '../UnitSwitcher'
 import { DefectDetailModal } from './DefectDetailModal'
 import { PackUnitPhotosButton } from './PackUnitPhotosButton'
 
+type KindFilter = 'all' | 'progress' | 'defect'
 type QuickStatus = 'all' | DefectStatus
 
 export function DefectsPage() {
   const defects = useProjectStore((s) => s.defects)
   const units = useProjectStore((s) => s.units)
   const items = useProjectStore((s) => s.checklistItems)
+  const workItems = useProjectStore((s) => s.workItems)
   const currentUnitId = useProjectStore((s) => s.currentUnitId)
   const backfillActorNames = useProjectStore((s) => s.backfillActorNames)
 
+  const [kind, setKind] = useState<KindFilter>('all')
   const [quickStatus, setQuickStatus] = useState<QuickStatus>('all')
   const [unitOpen, setUnitOpen] = useState(false)
   const [selectedDefect, setSelectedDefect] = useState<Defect | null>(null)
@@ -37,15 +41,22 @@ export function DefectsPage() {
     return defects.filter((d) => d.unitId === unit.id && d.status !== 'voided')
   }, [defects, unit])
 
+  const byKind = useMemo(() => {
+    if (kind === 'progress') return unitDefects.filter(isProgressRecord)
+    if (kind === 'defect') return unitDefects.filter((d) => !isProgressRecord(d))
+    return unitDefects
+  }, [unitDefects, kind])
+
   const filtered = useMemo(() => {
     const list =
-      quickStatus === 'all'
-        ? unitDefects
-        : unitDefects.filter((d) => d.status === quickStatus)
-    return [...list].sort((a, b) => a.defectNumber - b.defectNumber)
-  }, [unitDefects, quickStatus])
+      kind === 'progress' || quickStatus === 'all'
+        ? byKind
+        : byKind.filter((d) => d.status === quickStatus)
+    return [...list].sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+  }, [byKind, quickStatus, kind])
 
-  const counts = defectsByStatus(unitDefects)
+  const counts = defectsByStatus(unitDefects.filter((d) => !isProgressRecord(d)))
+  const progressCount = unitDefects.filter(isProgressRecord).length
 
   const tabs: { key: QuickStatus; label: string; count: number; cls?: string }[] = [
     { key: 'all', label: '全部', count: counts.all },
@@ -63,8 +74,8 @@ export function DefectsPage() {
     <div className="rise">
       <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, gap: 10 }}>
         <div style={{ minWidth: 0 }}>
-          <div className="eyebrow">DEFECT LOG</div>
-          <div className="serif" style={{ fontWeight: 700, fontSize: 22 }}>缺失紀錄</div>
+          <div className="eyebrow">SITE LOG</div>
+          <div className="serif" style={{ fontWeight: 700, fontSize: 22 }}>現場紀錄</div>
           <div
             style={{
               marginTop: 4,
@@ -95,27 +106,53 @@ export function DefectsPage() {
         </div>
       )}
 
-      <div className="status-chip-row" role="tablist" aria-label="本戶狀態快捷篩選">
-        {tabs.map((t) => (
+      <div className="status-chip-row" role="tablist" aria-label="紀錄類型">
+        {([
+          ['all', '全部', unitDefects.length],
+          ['progress', '進度', progressCount],
+          ['defect', '缺失', counts.all],
+        ] as const).map(([key, label, count]) => (
           <button
-            key={t.key}
+            key={key}
             type="button"
-            role="tab"
-            aria-selected={quickStatus === t.key}
-            className={`chip ${t.cls ?? ''} ${quickStatus === t.key ? 'on' : ''}`}
-            onClick={() => setQuickStatus(t.key)}
+            className={`chip ${kind === key ? 'on' : ''}`}
+            onClick={() => setKind(key)}
           >
-            {t.label}
-            <span className="nums" style={{ opacity: 0.85 }}>（{t.count}）</span>
+            {label}
+            <span className="nums" style={{ opacity: 0.85 }}>（{count}）</span>
           </button>
         ))}
       </div>
 
+      {kind !== 'progress' && (
+        <div className="status-chip-row" role="tablist" aria-label="本戶狀態快捷篩選">
+          {tabs.map((t) => (
+            <button
+              key={t.key}
+              type="button"
+              role="tab"
+              aria-selected={quickStatus === t.key}
+              className={`chip ${t.cls ?? ''} ${quickStatus === t.key ? 'on' : ''}`}
+              onClick={() => setQuickStatus(t.key)}
+            >
+              {t.label}
+              <span className="nums" style={{ opacity: 0.85 }}>（{t.count}）</span>
+            </button>
+          ))}
+        </div>
+      )}
+
       <div style={{ display: 'grid', gap: 10 }}>
         {filtered.map((d) => {
           const improved = d.status === 'completed'
-          const title = defectListTitle(d, items)
-          const remark = resolveDefectRemark(d, items)
+          const wi = workItems.find((w) => w.id === d.workItemId)
+          const st = wi?.stages.find((s) => s.id === d.stageId)
+          const title = isProgressRecord(d)
+            ? [st?.name || d.area, d.description].filter(Boolean).join(' · ') || '施工紀錄'
+            : st
+              ? `#${d.defectNumber} ${st.name}`
+              : defectListTitle(d, items)
+          const remark = isProgressRecord(d) ? '' : resolveDefectRemark(d, items)
           const inspector = defectInspectorLabel(d)
           return (
             <button
@@ -168,8 +205,9 @@ export function DefectsPage() {
                   </div>
                 ) : null}
                 <div style={{ marginTop: 4, color: 'var(--ink-soft)', fontSize: 11, fontWeight: 600 }}>
-                  {d.categoryName} · {d.area} · {statusLabel(d.status)}
-                  {inspector ? ` · 查驗 ${inspector}` : ''}
+                  {d.categoryName}{st ? `／${st.name}` : d.area ? ` · ${d.area}` : ''}
+                  {isProgressRecord(d) ? ' · 進度' : ` · ${statusLabel(d.status)}`}
+                  {inspector ? ` · ${inspector}` : ''}
                 </div>
               </div>
               <ChevronRight size={18} color="var(--stone)" />
@@ -181,8 +219,8 @@ export function DefectsPage() {
             {!unit
               ? '請先切換戶別'
               : quickStatus === 'all'
-                ? '此戶尚無缺失紀錄'
-                : '此狀態沒有缺失'}
+                ? '此戶尚無紀錄'
+                : '此狀態沒有紀錄'}
           </div>
         )}
       </div>

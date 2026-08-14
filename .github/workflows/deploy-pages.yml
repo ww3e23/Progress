@@ -27,7 +27,7 @@ jobs:
         run: npm ci
       - name: Build
         env:
-          VITE_BASE_PATH: /CI/
+          VITE_BASE_PATH: /Progress/
           VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
           VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
           VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}

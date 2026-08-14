@@ -20,7 +20,11 @@ import type {
   Defect,
   DefectStatus,
   ProjectState,
+  StageProgressEntry,
+  StageStatus,
   SyncState,
+  WorkItem,
+  WorkStage,
 } from '../types'
 import type { ProjectMeta } from '../types/auth'
 import {
@@ -154,6 +158,9 @@ function parseDefect(id: string, data: Record<string, unknown>): Defect {
     area: String(data.area ?? ''),
     description: String(data.description ?? ''),
     status,
+    recordKind: data.recordKind === 'progress' ? 'progress' : 'defect',
+    workItemId: data.workItemId ? String(data.workItemId) : undefined,
+    stageId: data.stageId ? String(data.stageId) : undefined,
     planPhotoDataUrl:
       typeof plan === 'string' && plan.startsWith('http') ? plan : undefined,
     photoDataUrls: photos.filter((p) => p.startsWith('http')),
@@ -299,7 +306,7 @@ export async function pushProjectState(
       driveFolderId: meta?.driveFolderId ?? null,
       driveFolderUrl: meta?.driveFolderUrl ?? null,
       updatedAt: serverTimestamp(),
-      mode: 'site-inspection',
+      mode: 'site-progress',
       hasSiteData: true,
     },
     { merge: true },
@@ -384,6 +391,11 @@ export async function pushProjectState(
       unitPlanPhotos: unitPlanPhotosMap(state.units),
       currentUnitId: state.currentUnitId,
       recentUnitIds: state.recentUnitIds,
+      workItems: state.workItems ?? [],
+      stageProgress: state.stageProgress ?? {},
+      currentWorkItemId: state.currentWorkItemId,
+      currentBuildingId: state.currentBuildingId,
+      currentFloor: state.currentFloor,
       updatedAt: serverTimestamp(),
       clientUpdatedAt: new Date().toISOString(),
     },
@@ -483,6 +495,12 @@ export async function pullProjectState(projectId: string): Promise<PulledProject
         : [],
       areas: Array.isArray(meta.areas) ? meta.areas.map(String) : [...DEFAULT_AREAS],
       areaTemplates: parseAreaTemplates(meta.areaTemplates),
+      workItems: parseWorkItems(meta.workItems),
+      stageProgress: parseStageProgress(meta.stageProgress),
+      currentWorkItemId: meta.currentWorkItemId ? String(meta.currentWorkItemId) : null,
+      currentBuildingId: meta.currentBuildingId ? String(meta.currentBuildingId) : null,
+      currentFloor: meta.currentFloor ? String(meta.currentFloor) : null,
+      focusedCell: null,
       cloudUpdatedAt: meta.clientUpdatedAt ? String(meta.clientUpdatedAt) : undefined,
     }
   } catch (err) {
@@ -649,7 +667,111 @@ export function mergeProjectStates(local: ProjectState, remote: PulledProject): 
       : remote.recentUnitIds,
     areas: local.areas.length ? local.areas : remote.areas,
     areaTemplates: mergeAreaTemplates(local.areaTemplates, remote.areaTemplates),
+    workItems: mergeWorkItems(local.workItems, remote.workItems),
+    stageProgress: mergeStageProgress(local.stageProgress, remote.stageProgress),
+    currentWorkItemId: local.currentWorkItemId || remote.currentWorkItemId,
+    currentBuildingId: local.currentBuildingId || remote.currentBuildingId,
+    currentFloor: local.currentFloor || remote.currentFloor,
+    focusedCell: local.focusedCell ?? remote.focusedCell ?? null,
   }
+}
+
+function parseWorkItems(raw: unknown): WorkItem[] {
+  if (!Array.isArray(raw)) return []
+  const out: WorkItem[] = []
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue
+    const o = item as Record<string, unknown>
+    const id = String(o.id ?? '').trim()
+    const name = String(o.name ?? '').trim()
+    if (!id || !name) continue
+    const stages: WorkStage[] = Array.isArray(o.stages)
+      ? o.stages
+          .map((s, index) => {
+            if (!s || typeof s !== 'object') return null
+            const st = s as Record<string, unknown>
+            const sid = String(st.id ?? '').trim()
+            const sname = String(st.name ?? '').trim()
+            if (!sid || !sname) return null
+            return {
+              id: sid,
+              name: sname,
+              sortOrder: Number(st.sortOrder ?? index),
+            }
+          })
+          .filter((s): s is WorkStage => Boolean(s))
+      : []
+    out.push({
+      id,
+      name,
+      stages,
+      sortOrder: Number(o.sortOrder ?? out.length),
+      active: o.active !== false,
+    })
+  }
+  return out.sort((a, b) => a.sortOrder - b.sortOrder)
+}
+
+function parseStageProgress(raw: unknown): Record<string, StageProgressEntry> {
+  if (!raw || typeof raw !== 'object') return {}
+  const out: Record<string, StageProgressEntry> = {}
+  const allowed: StageStatus[] = [
+    'not_started',
+    'in_progress',
+    'completed',
+    'blocked',
+    'defect_fixing',
+  ]
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (!value || typeof value !== 'object') continue
+    const o = value as Record<string, unknown>
+    const status = String(o.status ?? 'not_started') as StageStatus
+    if (!allowed.includes(status)) continue
+    out[key] = {
+      status,
+      updatedAt: String(o.updatedAt ?? ''),
+      updatedByName: o.updatedByName ? String(o.updatedByName) : undefined,
+      updatedByAccount: o.updatedByAccount ? String(o.updatedByAccount) : undefined,
+    }
+  }
+  return out
+}
+
+function mergeWorkItems(local?: WorkItem[], remote?: WorkItem[]): WorkItem[] {
+  const map = new Map<string, WorkItem>()
+  for (const w of remote ?? []) map.set(w.id, w)
+  for (const w of local ?? []) {
+    const prev = map.get(w.id)
+    if (!prev) {
+      map.set(w.id, w)
+      continue
+    }
+    map.set(w.id, w.stages.length >= prev.stages.length ? w : prev)
+  }
+  const list = [...map.values()].sort((a, b) => a.sortOrder - b.sortOrder)
+  return list
+}
+
+function mergeStageProgress(
+  local?: Record<string, StageProgressEntry>,
+  remote?: Record<string, StageProgressEntry>,
+): Record<string, StageProgressEntry> {
+  const out: Record<string, StageProgressEntry> = { ...(remote ?? {}) }
+  for (const [key, entry] of Object.entries(local ?? {})) {
+    const prev = out[key]
+    if (!prev) {
+      out[key] = entry
+      continue
+    }
+    const localMs = Date.parse(entry.updatedAt)
+    const remoteMs = Date.parse(prev.updatedAt)
+    if (Number.isFinite(localMs) && Number.isFinite(remoteMs)) {
+      out[key] = localMs >= remoteMs ? entry : prev
+    } else {
+      out[key] = entry
+    }
+  }
+  return out
 }
 
 function parseAreaTemplates(raw: unknown): AreaTemplate[] {

@@ -5,13 +5,15 @@ import { countActiveUnits, newBuildingDraft, summarizeBuilding } from '../../lib
 import { getUnitAreas } from '../../lib/areas'
 import { BuildingEditor } from './BuildingEditor'
 import { TemplateEditor } from './TemplateEditor'
+import { WorkItemEditor } from './WorkItemEditor'
 import { UnitAreasEditor } from './UnitAreasEditor'
 import { ProjectAreasEditor } from './ProjectAreasEditor'
 import { BatchAreasApplySheet } from './BatchAreasApplySheet'
 import { UnitPlanGallerySheet } from './UnitPlanGallerySheet'
 import { createId } from '../../lib/id'
-import type { BuildingRule, ChecklistCategory } from '../../types'
+import type { BuildingRule, ChecklistCategory, WorkItem } from '../../types'
 import { TitleHint } from '../ui/TitleHint'
+import { newWorkItemDraft } from '../../data/defaultWorkItems'
 
 export function SettingsPage({ embedded = false }: { embedded?: boolean }) {
   const buildings = useProjectStore((s) => s.buildings)
@@ -27,8 +29,14 @@ export function SettingsPage({ embedded = false }: { embedded?: boolean }) {
   const removeCategory = useProjectStore((s) => s.removeCategory)
   const resetDemoData = useProjectStore((s) => s.resetDemoData)
   const applyDefaultChecklist = useProjectStore((s) => s.applyDefaultChecklist)
+  const workItems = useProjectStore((s) => s.workItems)
+  const upsertWorkItem = useProjectStore((s) => s.upsertWorkItem)
+  const removeWorkItem = useProjectStore((s) => s.removeWorkItem)
+  const applyDefaultWorkItems = useProjectStore((s) => s.applyDefaultWorkItems)
 
   const [editing, setEditing] = useState<BuildingRule | null>(null)
+  const [editingWork, setEditingWork] = useState<WorkItem | null>(null)
+  const [isNewWork, setIsNewWork] = useState(false)
   const [editingCat, setEditingCat] = useState<ChecklistCategory | null>(null)
   const [isNewCat, setIsNewCat] = useState(false)
   const [unitAreasOpen, setUnitAreasOpen] = useState(false)
@@ -210,6 +218,51 @@ export function SettingsPage({ embedded = false }: { embedded?: boolean }) {
             </button>
           </div>
         )}
+      </div>
+
+      <div className="section-row" style={{ marginTop: 22 }}>
+        <TitleHint as="h2" hint="對應 Excel 的一張表：工項名稱 + 由左到右的工序欄。">
+          工項與工序
+        </TitleHint>
+        <button
+          type="button"
+          className="link"
+          onClick={() => applyDefaultWorkItems('fill-if-empty')}
+        >
+          填入預設
+        </button>
+      </div>
+      <div style={{ display: 'grid', gap: 8 }}>
+        {workItems
+          .filter((w) => w.active)
+          .sort((a, b) => a.sortOrder - b.sortOrder)
+          .map((w) => (
+            <button
+              key={w.id}
+              type="button"
+              className="glass"
+              style={{ padding: 12, textAlign: 'left' }}
+              onClick={() => {
+                setIsNewWork(false)
+                setEditingWork(w)
+              }}
+            >
+              <div style={{ fontWeight: 800 }}>{w.name}</div>
+              <div style={{ marginTop: 4, fontSize: 12, fontWeight: 600, color: 'var(--ink-soft)' }}>
+                {w.stages.map((s) => s.name).join(' → ')}
+              </div>
+            </button>
+          ))}
+        <button
+          type="button"
+          className="btn-dashed"
+          onClick={() => {
+            setIsNewWork(true)
+            setEditingWork(newWorkItemDraft({ sortOrder: workItems.length }))
+          }}
+        >
+          + 新增工項
+        </button>
       </div>
 
       <div className="section-row" style={{ marginTop: 22 }}>
@@ -411,6 +464,29 @@ export function SettingsPage({ embedded = false }: { embedded?: boolean }) {
                   setEditing(null)
                 }
               : undefined
+          }
+        />
+      )}
+
+      {editingWork && (
+        <WorkItemEditor
+          initial={editingWork}
+          onCancel={() => {
+            setEditingWork(null)
+            setIsNewWork(false)
+          }}
+          onSave={(item) => {
+            upsertWorkItem(item)
+            setEditingWork(null)
+            setIsNewWork(false)
+          }}
+          onDelete={
+            isNewWork
+              ? undefined
+              : () => {
+                  removeWorkItem(editingWork.id)
+                  setEditingWork(null)
+                }
           }
         />
       )}

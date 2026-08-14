@@ -1,16 +1,32 @@
 import type { ProjectState } from '../types'
-import { buildDefaultChecklist } from './defaultChecklist'
 import { DEFAULT_AREAS } from '../lib/areas'
+import { buildDefaultWorkItems } from './defaultWorkItems'
 
-/** 新專案預設狀態：含標準查驗範本，無棟別／缺失／歷程 */
+export function ensureProgressFields(state: ProjectState): ProjectState {
+  const workItems = state.workItems?.length ? state.workItems : buildDefaultWorkItems()
+  return {
+    ...state,
+    workItems,
+    stageProgress: state.stageProgress ?? {},
+    currentWorkItemId:
+      state.currentWorkItemId && workItems.some((w) => w.id === state.currentWorkItemId)
+        ? state.currentWorkItemId
+        : (workItems.find((w) => w.active)?.id ?? null),
+    currentBuildingId: state.currentBuildingId ?? state.buildings.find((b) => b.active)?.id ?? null,
+    currentFloor: state.currentFloor ?? null,
+    focusedCell: state.focusedCell ?? null,
+  }
+}
+
+/** 新專案預設狀態：含工項範本，無棟別／缺失／歷程 */
 export function createEmptyProjectState(name = '未命名專案'): ProjectState {
-  const { categories, checklistItems } = buildDefaultChecklist()
+  const workItems = buildDefaultWorkItems()
   return {
     projectName: name,
     buildings: [],
     units: [],
-    categories,
-    checklistItems,
+    categories: [],
+    checklistItems: [],
     defects: [],
     unitCheckedCount: {},
     unitCategoryDone: {},
@@ -19,6 +35,12 @@ export function createEmptyProjectState(name = '未命名專案'): ProjectState 
     recentUnitIds: [],
     areas: [...DEFAULT_AREAS],
     areaTemplates: [],
+    workItems,
+    stageProgress: {},
+    currentWorkItemId: workItems[0]?.id ?? null,
+    currentBuildingId: null,
+    currentFloor: null,
+    focusedCell: null,
   }
 }
 

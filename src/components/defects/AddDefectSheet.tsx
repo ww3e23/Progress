@@ -11,18 +11,29 @@ import { TitleHint } from '../ui/TitleHint'
 import { AnnotatePlanModal } from './AnnotatePlanModal'
 import { UnitAreasEditor } from '../settings/UnitAreasEditor'
 
+import type { SiteRecordKind } from '../../types'
+import { activeWorkItems, sortedStages } from '../../lib/stageProgress'
+
 export function AddDefectSheet({
   onClose,
-  categoryId,
-  checklistItemId,
+  recordKind = 'defect',
+  workItemId,
+  stageId,
+  unitId: unitIdProp,
 }: {
   onClose: () => void
+  recordKind?: SiteRecordKind
+  workItemId?: string
+  stageId?: string
+  unitId?: string
+  /** 舊查驗頁相容，忽略 */
   categoryId?: string
   checklistItemId?: string
 }) {
+  const isProgress = recordKind === 'progress'
   const units = useProjectStore((s) => s.units)
   const defects = useProjectStore((s) => s.defects)
-  const categories = useProjectStore((s) => s.categories)
+  const workItems = useProjectStore((s) => s.workItems)
   const projectAreas = useProjectStore((s) => s.areas)
   const areaTemplates = useProjectStore((s) => s.areaTemplates) ?? []
   const currentUnitId = useProjectStore((s) => s.currentUnitId)
@@ -30,15 +41,19 @@ export function AddDefectSheet({
   const role = useCurrentRole()
   const user = useCurrentUser()
 
-  const unit = units.find((u) => u.id === currentUnitId) ?? units.find((u) => u.active)
+  const unit =
+    units.find((u) => u.id === (unitIdProp || currentUnitId)) ?? units.find((u) => u.active)
   const areas = useMemo(
     () => getUnitAreas(unit, projectAreas, areaTemplates),
     [unit, projectAreas, areaTemplates],
   )
-  const activeCats = categories.filter((c) => c.active)
-  const [catId, setCatId] = useState(categoryId ?? activeCats[0]?.id ?? '')
-  const cat = activeCats.find((c) => c.id === catId) ?? activeCats[0]
-  const [area, setArea] = useState(() => areas[1] ?? areas[0] ?? '客廳')
+  const items = activeWorkItems({ workItems })
+  const [wiId, setWiId] = useState(workItemId ?? items[0]?.id ?? '')
+  const workItem = items.find((w) => w.id === wiId) ?? items[0]
+  const stages = workItem ? sortedStages(workItem) : []
+  const [stId, setStId] = useState(stageId ?? stages[0]?.id ?? '')
+  const stage = stages.find((s) => s.id === stId) ?? stages[0]
+  const [area, setArea] = useState(() => areas[0] ?? '')
   const [description, setDescription] = useState('')
   const defaultPlan = unit?.defaultPlanPhotoUrl
   const [planPhoto, setPlanPhoto] = useState<string | undefined>(() => defaultPlan)
@@ -54,6 +69,12 @@ export function AddDefectSheet({
   )
 
   const unitId = unit?.id
+
+  useEffect(() => {
+    if (stageId) return
+    const next = workItem ? sortedStages(workItem)[0]?.id ?? '' : ''
+    setStId(next)
+  }, [wiId, workItem, stageId])
 
   // 換戶時重新帶入該戶預設位置圖
   useEffect(() => {
@@ -98,20 +119,15 @@ export function AddDefectSheet({
       ? manualNumber
       : autoNumber
 
-  const itemHint = useMemo(() => {
-    if (!checklistItemId) return null
-    return useProjectStore.getState().checklistItems.find((i) => i.id === checklistItemId)
-  }, [checklistItemId])
-
   // 自動下一號變了且未開手動時，同步顯示用（手動輸入框不強制覆寫）
   useEffect(() => {
     if (!manualNumberOn) setManualNumberText(String(autoNumber))
   }, [autoNumber, manualNumberOn])
 
-  if (!unit || !cat) {
+  if (!unit || !workItem) {
     return (
-      <Modal onClose={onClose} aria-label="新增缺失">
-        <p>請先設定可查驗戶別。</p>
+      <Modal onClose={onClose} aria-label={isProgress ? '記進度' : '記缺失'}>
+        <p>請先設定戶別與工項。</p>
         <button type="button" className="btn btn-primary" style={{ width: '100%', marginTop: 12 }} onClick={onClose}>
           關閉
         </button>
@@ -141,11 +157,11 @@ export function AddDefectSheet({
 
   async function handleSave() {
     if (!canEdit) {
-      setError('目前角色為僅查看，無法新增缺失')
+      setError(isProgress ? '目前角色為僅查看，無法新增紀錄' : '目前角色為僅查看，無法新增缺失')
       return
     }
-    if (!unit || !cat) {
-      setError('找不到目前戶別或大項')
+    if (!unit || !workItem || !stage) {
+      setError('請選擇戶別、工項與工序')
       return
     }
 
@@ -172,14 +188,17 @@ export function AddDefectSheet({
       const n = manualNumberOn ? Math.floor(Number(manualNumberText)) : undefined
       const d = await addDefect({
         unitId: unit.id,
-        categoryId: cat.id,
-        categoryName: cat.name,
-        checklistItemId,
-        area,
+        categoryId: workItem.id,
+        categoryName: workItem.name,
+        checklistItemId: stage.id,
+        area: area || stage.name,
         description: text,
-        planPhotoDataUrl: planPhoto,
+        planPhotoDataUrl: isProgress ? undefined : planPhoto,
         photoDataUrls: photos,
         defectNumber: n,
+        recordKind,
+        workItemId: workItem.id,
+        stageId: stage.id,
       })
       setSaving(false)
       if (!d) {
@@ -209,16 +228,17 @@ export function AddDefectSheet({
 
   return (
     <>
-      <Modal onClose={onClose} aria-label="新增缺失">
+      <Modal onClose={onClose} aria-label={isProgress ? '記進度' : '記缺失'}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
-          <h3 className="serif" style={{ margin: 0, fontSize: 20 }}>新增缺失</h3>
+          <h3 className="serif" style={{ margin: 0, fontSize: 20 }}>{isProgress ? '記進度' : '記缺失'}</h3>
           <span className="chip on" style={{ minHeight: 34 }}>
             <Lock size={14} /> 編號 #{displayNumber}
           </span>
         </div>
         <p style={{ margin: '8px 0 12px', color: 'var(--ink-soft)', fontSize: 13 }}>
           {unit.buildingName}・{unit.floor}・{unit.code}戶
-          {itemHint ? `｜${itemHint.description}` : ''}
+          {workItem ? `｜${workItem.name}` : ''}
+          {stage ? `／${stage.name}` : ''}
         </p>
 
         <div className="field" style={{ marginBottom: 12 }}>
@@ -292,16 +312,32 @@ export function AddDefectSheet({
         )}
 
         <div className="field">
-          <label>查驗大項</label>
+          <label>工項</label>
           <div className="chip-row">
-            {activeCats.map((c) => (
+            {items.map((w) => (
               <button
-                key={c.id}
+                key={w.id}
                 type="button"
-                className={`chip ${cat.id === c.id ? 'on' : ''}`}
-                onClick={() => setCatId(c.id)}
+                className={`chip ${workItem?.id === w.id ? 'on' : ''}`}
+                onClick={() => setWiId(w.id)}
               >
-                {c.name}
+                {w.name}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="field">
+          <label>工序</label>
+          <div className="chip-row">
+            {stages.map((s) => (
+              <button
+                key={s.id}
+                type="button"
+                className={`chip ${stage?.id === s.id ? 'on' : ''}`}
+                onClick={() => setStId(s.id)}
+              >
+                {s.name}
               </button>
             ))}
           </div>

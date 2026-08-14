@@ -1,93 +1,124 @@
-import { useEffect, useMemo, useState, type ComponentType } from 'react'
-import {
-  AppWindow,
-  ChevronDown,
-  DoorOpen,
-  Grid3x3,
-  Layers,
-  Paintbrush,
-  PanelTop,
-  Square,
-  type LucideProps,
-} from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { ChevronDown } from 'lucide-react'
 import { useProjectStore } from '../../store/useProjectStore'
-import { useCurrentProject } from '../../store/useAuthStore'
-import { unitCategoryProgress, unitIsInspectionComplete, unitProgress } from '../../lib/progress'
+import { useCurrentProject, useCurrentRole } from '../../store/useAuthStore'
+import { TitleHint } from '../ui/TitleHint'
 import { UnitSwitcher } from '../UnitSwitcher'
 import { ProjectSwitcher } from './ProjectSwitcher'
-import { TitleHint } from '../ui/TitleHint'
-import { UnitAreasEditor } from '../settings/UnitAreasEditor'
-import { UnitDefectsSheet } from '../defects/UnitDefectsSheet'
-import { getUnitAreas } from '../../lib/areas'
-import type { ChecklistCategory } from '../../types'
+import { StageCellButton } from '../progress/StageCellButton'
+import { CellActionSheet } from '../progress/CellActionSheet'
+import { AddDefectSheet } from '../defects/AddDefectSheet'
+import {
+  activeWorkItems,
+  buildStageMatrix,
+  floorsOfBuilding,
+  overallProgress,
+  stageStatusLabel,
+  unitWorkItemRows,
+} from '../../lib/stageProgress'
+import type { FocusedStageCell, StageStatus } from '../../types'
 
-const CATEGORY_ICONS: Record<string, ComponentType<LucideProps>> = {
-  門: DoorOpen,
-  窗: AppWindow,
-  天花板: PanelTop,
-  粉刷牆面: Paintbrush,
-  地壁磚: Grid3x3,
-  地磚: Grid3x3,
-  木地板: Layers,
-}
+type HomeView = 'matrix' | 'unit'
 
-export function HomePage({
-  onOpenCategory,
-}: {
-  onOpenCategory: (categoryId: string) => void
-}) {
-  const [switchOpen, setSwitchOpen] = useState(false)
+export function HomePage() {
+  const [view, setView] = useState<HomeView>('matrix')
   const [projectOpen, setProjectOpen] = useState(false)
-  const [areasOpen, setAreasOpen] = useState(false)
-  const [previewCategoryId, setPreviewCategoryId] = useState<string | null>(null)
+  const [unitOpen, setUnitOpen] = useState(false)
+  const [toast, setToast] = useState('')
+  const [longCell, setLongCell] = useState<FocusedStageCell | null>(null)
+  const [sheetKind, setSheetKind] = useState<'progress' | 'defect' | null>(null)
+
   const projectName = useProjectStore((s) => s.projectName)
   const currentProject = useCurrentProject()
+  const role = useCurrentRole()
+  const canEdit = role === 'admin' || role === 'inspector'
+  const buildings = useProjectStore((s) => s.buildings)
   const units = useProjectStore((s) => s.units)
-  const categories = useProjectStore((s) => s.categories)
+  const workItems = useProjectStore((s) => s.workItems)
   const defects = useProjectStore((s) => s.defects)
-  const projectAreas = useProjectStore((s) => s.areas)
-  const areaTemplates = useProjectStore((s) => s.areaTemplates) ?? []
-  const currentUnitId = useProjectStore((s) => s.currentUnitId)
-  const unitCategoryDone = useProjectStore((s) => s.unitCategoryDone)
-  const unitCheckedCount = useProjectStore((s) => s.unitCheckedCount)
-  const setUnitInspectionComplete = useProjectStore((s) => s.setUnitInspectionComplete)
+  const stageProgress = useProjectStore((s) => s.stageProgress)
+  const currentWorkItemId = useProjectStore((s) => s.currentWorkItemId)
+  const currentBuildingId = useProjectStore((s) => s.currentBuildingId)
+  const currentFloor = useProjectStore((s) => s.currentFloor)
+  const applyDefaultWorkItems = useProjectStore((s) => s.applyDefaultWorkItems)
+  const setCurrentWorkItem = useProjectStore((s) => s.setCurrentWorkItem)
+  const setCurrentBuilding = useProjectStore((s) => s.setCurrentBuilding)
+  const setCurrentFloor = useProjectStore((s) => s.setCurrentFloor)
+  const cycleStageCell = useProjectStore((s) => s.cycleStageCell)
+  const setStageCellStatus = useProjectStore((s) => s.setStageCellStatus)
+  const setFocusedCell = useProjectStore((s) => s.setFocusedCell)
 
-  const unit = units.find((u) => u.id === currentUnitId) ?? units.find((u) => u.active)
   const state = useProjectStore.getState()
-  const progress = unit ? unitProgress(unit, state) : null
-  const catProg = unit ? unitCategoryProgress(unit.id, state) : null
-  const unitComplete = unit ? unitIsInspectionComplete(state, unit.id) : false
-  void unitCategoryDone
-  void unitCheckedCount
+  const items = activeWorkItems(state)
+  const activeBuildings = [...buildings]
+    .filter((b) => b.active)
+    .sort((a, b) => a.sortOrder - b.sortOrder)
 
   useEffect(() => {
-    if (!categories.some((c) => c.active)) {
-      useProjectStore.getState().applyDefaultChecklist('fill-if-empty')
-    }
-  }, [categories])
+    if (!items.length) applyDefaultWorkItems('fill-if-empty')
+  }, [items.length, applyDefaultWorkItems])
 
-  const unitDefects = useMemo(
-    () => defects.filter((d) => d.unitId === unit?.id && d.status !== 'voided'),
-    [defects, unit?.id],
-  )
+  useEffect(() => {
+    if (!currentWorkItemId && items[0]) setCurrentWorkItem(items[0].id)
+  }, [currentWorkItemId, items, setCurrentWorkItem])
 
-  const stats = {
-    repair: unitDefects.filter((d) => d.status === 'pending_repair').length,
-    reinspect: unitDefects.filter((d) => d.status === 'pending_reinspection').length,
-    returned: unitDefects.filter((d) => d.status === 'returned').length,
-    done: unitDefects.filter((d) => d.status === 'completed').length,
+  useEffect(() => {
+    if (!currentBuildingId && activeBuildings[0]) setCurrentBuilding(activeBuildings[0].id)
+  }, [currentBuildingId, activeBuildings, setCurrentBuilding])
+
+  const building = activeBuildings.find((b) => b.id === currentBuildingId) ?? activeBuildings[0]
+  const floors = floorsOfBuilding(building)
+  const floor = currentFloor && floors.includes(currentFloor) ? currentFloor : floors[0]
+  const workItemId = currentWorkItemId && items.some((w) => w.id === currentWorkItemId)
+    ? currentWorkItemId
+    : items[0]?.id
+
+  const matrix = useMemo(() => {
+    if (!building || !floor || !workItemId) return null
+    return buildStageMatrix(
+      { ...useProjectStore.getState(), defects, stageProgress, workItems, units, buildings },
+      building.id,
+      floor,
+      workItemId,
+    )
+  }, [building, floor, workItemId, defects, stageProgress, workItems, units, buildings])
+
+  const overview = overallProgress(useProjectStore.getState())
+
+  function handleTap(cell: FocusedStageCell) {
+    setFocusedCell(cell)
+    const result = cycleStageCell(cell)
+    if (!result.ok) setToast(result.error || '無法更新')
+    else setToast('')
   }
 
-  if (!unit || !progress) {
+  function handleLong(cell: FocusedStageCell) {
+    setFocusedCell(cell)
+    setLongCell(cell)
+  }
+
+  const longUnit = longCell ? units.find((u) => u.id === longCell.unitId) : null
+  const longItem = longCell ? items.find((w) => w.id === longCell.workItemId) : null
+  const longStage = longItem?.stages.find((s) => s.id === longCell?.stageId)
+  const longStatus: StageStatus =
+    matrix?.rows
+      .find((r) => r.unit.id === longCell?.unitId)
+      ?.cells.find((c) => c.stageId === longCell?.stageId)?.status ?? 'not_started'
+  const longOpen =
+    matrix?.rows
+      .find((r) => r.unit.id === longCell?.unitId)
+      ?.cells.find((c) => c.stageId === longCell?.stageId)?.openDefects ?? 0
+
+  if (!building) {
     return (
       <div className="rise">
         <header style={{ marginBottom: 12 }}>
-          <div className="eyebrow">SITE INSPECTION</div>
+          <div className="eyebrow">SITE PROGRESS</div>
           <TitleHint
             as="h1"
             className="serif"
             style={{ margin: '4px 0 0', fontSize: 22 }}
-            hint="此專案尚未建立棟樓戶結構。請到「我的」設定棟別與查驗範本後再開始查驗。"
+            hint="請到「我的」先建立棟別與戶別，再開始點格子記進度。"
           >
             {currentProject?.name ?? projectName}
           </TitleHint>
@@ -96,14 +127,11 @@ export function HomePage({
     )
   }
 
-  const ring = 2 * Math.PI * 34
-  const offset = ring - (progress.percent / 100) * ring
-
   return (
     <div className="rise">
       <header style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start' }}>
         <div style={{ minWidth: 0 }}>
-          <div className="eyebrow">SITE INSPECTION</div>
+          <div className="eyebrow">SITE PROGRESS</div>
           <button
             type="button"
             className="glass"
@@ -122,257 +150,277 @@ export function HomePage({
             }}
           >
             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {currentProject ? `${currentProject.name}` : projectName}
+              {currentProject ? currentProject.name : projectName}
             </span>
             <ChevronDown size={16} />
           </button>
           <div style={{ color: 'var(--ink-soft)', fontSize: 13, fontWeight: 600, marginTop: 6 }}>
-            {unit.buildingName}・{unit.floor}・{unit.code}戶
+            全案 {overview.percent}% · 缺 {overview.openDefects} · 卡關 {overview.blockedCells}
           </div>
         </div>
-        <button type="button" className="btn btn-ghost" style={{ minHeight: 40, borderRadius: 999, flexShrink: 0 }} onClick={() => setSwitchOpen(true)}>
-          切換戶別
-        </button>
+        <div className="view-toggle" role="tablist" aria-label="視角">
+          <button type="button" className={view === 'matrix' ? 'on' : ''} onClick={() => setView('matrix')}>
+            工項矩陣
+          </button>
+          <button type="button" className={view === 'unit' ? 'on' : ''} onClick={() => setView('unit')}>
+            按戶
+          </button>
+        </div>
       </header>
 
-      <div className="hero-stack hero-stack-compact">
-        <div className="hero-layer hero-layer-b" aria-hidden />
-        <div className="hero-layer hero-layer-a" aria-hidden />
-        <section className="glass-green hero-card">
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center' }}>
-            <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 11, opacity: 0.85, fontWeight: 700 }}>目前查驗戶別</div>
-              <div className="serif" style={{ fontSize: 28, fontWeight: 700, lineHeight: 1.1, marginTop: 2 }}>
-                {unit.code} 戶
-              </div>
-              <div style={{ marginTop: 2, opacity: 0.9, fontWeight: 600, fontSize: 13 }}>
-                {unit.buildingName} {unit.floor}
-              </div>
-            </div>
-            <div style={{ position: 'relative', width: 84, height: 84, flexShrink: 0 }}>
-              <svg width="84" height="84" viewBox="0 0 84 84">
-                <circle cx="42" cy="42" r="34" fill="none" stroke="rgba(255,255,255,0.22)" strokeWidth="7" />
-                <circle
-                  cx="42"
-                  cy="42"
-                  r="34"
-                  fill="none"
-                  stroke="#fff"
-                  strokeWidth="7"
-                  strokeLinecap="round"
-                  strokeDasharray={ring}
-                  strokeDashoffset={offset}
-                  transform="rotate(-90 42 42)"
-                  style={{ transition: 'stroke-dashoffset 0.4s ease' }}
-                />
-              </svg>
-              <div
-                style={{
-                  position: 'absolute',
-                  inset: 0,
-                  display: 'grid',
-                  placeItems: 'center',
-                  textAlign: 'center',
-                }}
-              >
-                <div>
-                  <div className="nums" style={{ fontSize: 18, fontWeight: 800, lineHeight: 1 }}>
-                    {progress.percent}%
-                  </div>
-                  <div style={{ fontSize: 9, opacity: 0.85, fontWeight: 700 }}>完成率</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6, marginTop: 10 }}>
-            <div className="status-pill status-pill-amber status-pill-compact">
-              <span className="n nums">{stats.repair}</span>
-              <span className="l">待改善</span>
-            </div>
-            <div className="status-pill status-pill-slate status-pill-compact">
-              <span className="n nums">{stats.reinspect}</span>
-              <span className="l">待複驗</span>
-            </div>
-            <div className="status-pill status-pill-terra status-pill-compact">
-              <span className="n nums">{stats.returned}</span>
-              <span className="l">退回</span>
-            </div>
-            <div className="status-pill status-pill-done status-pill-compact">
-              <span className="n nums">{stats.done}</span>
-              <span className="l">已改善</span>
-            </div>
-          </div>
-
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
-              gap: 8,
-              marginTop: 10,
-            }}
-          >
+      {activeBuildings.length > 1 && (
+        <div className="work-chips">
+          {activeBuildings.map((b) => (
             <button
+              key={b.id}
               type="button"
-              className="btn btn-ghost"
-              style={{
-                minHeight: 36,
-                fontSize: 12,
-                padding: '0 8px',
-                background: 'rgba(255,255,255,0.14)',
-                color: '#fff',
-                borderColor: 'rgba(255,255,255,0.28)',
-              }}
-              onClick={() => setAreasOpen(true)}
+              className={`chip ${building.id === b.id ? 'on' : ''}`}
+              onClick={() => setCurrentBuilding(b.id)}
             >
-              區域／位置圖 {getUnitAreas(unit, projectAreas, areaTemplates).length}
+              {b.name}
             </button>
-            <button
-              type="button"
-              className="btn btn-ghost"
-              style={{
-                minHeight: 36,
-                fontSize: 12,
-                padding: '0 8px',
-                background: unitComplete ? 'rgba(198,239,206,0.95)' : 'rgba(255,255,255,0.14)',
-                color: unitComplete ? '#006100' : '#fff',
-                borderColor: unitComplete ? 'rgba(0,97,0,0.35)' : 'rgba(255,255,255,0.28)',
-                fontWeight: 800,
-              }}
-              onClick={() => {
-                const next = !unitComplete
-                const msg = next
-                  ? `確認標記「${unit.code}戶」全部大項查驗完成？完成後報表會以綠底標示，避免重複查驗。`
-                  : `確認清除「${unit.code}戶」的查驗完成標記？`
-                if (!window.confirm(msg)) return
-                setUnitInspectionComplete(unit.id, next)
-              }}
-            >
-              {unitComplete ? '✓ 已完成' : `完成 ${catProg?.done ?? 0}/${catProg?.total ?? 0}`}
-            </button>
-          </div>
-        </section>
-      </div>
-
-      <div className="section-row">
-        <h2>查驗大項</h2>
-        <span className="link">
-          {catProg
-            ? `已查 ${catProg.started}/${catProg.total}・查畢 ${catProg.done}`
-            : '查看全部'}
-        </span>
-      </div>
-
-      <div className="grid-2">
-        {categories
-          .filter((c) => c.active)
-          .sort((a, b) => a.sortOrder - b.sortOrder)
-          .map((cat) => (
-            <CategoryCard
-              key={cat.id}
-              cat={cat}
-              defectCount={unitDefects.filter((d) => d.categoryId === cat.id).length}
-              done={Boolean(catProg?.doneIds.includes(cat.id))}
-              started={Boolean(catProg?.startedIds.includes(cat.id))}
-              onClick={() => onOpenCategory(cat.id)}
-              onPreviewDefects={
-                unitDefects.some((d) => d.categoryId === cat.id)
-                  ? () => setPreviewCategoryId(cat.id)
-                  : undefined
-              }
-            />
           ))}
+        </div>
+      )}
+
+      <div className="work-chips">
+        {items.map((w) => (
+          <button
+            key={w.id}
+            type="button"
+            className={`chip ${workItemId === w.id ? 'on' : ''}`}
+            onClick={() => setCurrentWorkItem(w.id)}
+          >
+            {w.name}
+          </button>
+        ))}
       </div>
 
-      {switchOpen && <UnitSwitcher onClose={() => setSwitchOpen(false)} />}
-      {projectOpen && <ProjectSwitcher onClose={() => setProjectOpen(false)} />}
-      {areasOpen && unit && (
-        <UnitAreasEditor unitId={unit.id} onClose={() => setAreasOpen(false)} />
+      {toast && <div className="toast-banner">{toast}</div>}
+
+      {view === 'matrix' ? (
+        <>
+          <div className="floor-tabs">
+            {floors.map((f) => (
+              <button
+                key={f}
+                type="button"
+                className={`chip ${floor === f ? 'on' : ''}`}
+                onClick={() => setCurrentFloor(f)}
+              >
+                {f}
+              </button>
+            ))}
+          </div>
+
+          <div className="legend-row">
+            <span><i className="legend-dot" style={{ background: '#fff', border: '1px solid #e2ddd3' }} />未開始</span>
+            <span><i className="legend-dot" style={{ background: 'var(--matrix-progress)' }} />施工中</span>
+            <span><i className="legend-dot" style={{ background: 'var(--matrix-done)' }} />完成</span>
+            <span><i className="legend-dot" style={{ background: '#c64545' }} />卡關</span>
+            <span><i className="legend-dot" style={{ background: 'var(--matrix-defect)' }} />缺失改善中</span>
+          </div>
+
+          {matrix && (
+            <p style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 700, color: 'var(--ink-soft)' }}>
+              {matrix.workItem.name} · {matrix.floor} · {matrix.percent}%（{matrix.completedCells}/{matrix.totalCells}）
+              {matrix.openDefects > 0 ? ` · 缺 ${matrix.openDefects}` : ''}
+            </p>
+          )}
+
+          <div className="glass matrix-scroll" style={{ padding: 6 }}>
+            {matrix && matrix.rows.length > 0 ? (
+              <table className="stage-matrix">
+                <thead>
+                  <tr>
+                    <th className="unit-cell">戶</th>
+                    {matrix.stages.map((s) => (
+                      <th key={s.id} className="stage-head">
+                        {s.name}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {matrix.rows.map((row) => (
+                    <tr key={row.unit.id}>
+                      <td className="unit-cell">
+                        <button
+                          type="button"
+                          style={{ fontWeight: 800 }}
+                          onClick={() => {
+                            useProjectStore.getState().setCurrentUnit(row.unit.id)
+                            setView('unit')
+                          }}
+                        >
+                          {row.unit.code}
+                        </button>
+                      </td>
+                      {row.cells.map((cell) => (
+                        <td key={cell.stageId}>
+                          <StageCellButton
+                            status={cell.status}
+                            openDefects={cell.openDefects}
+                            disabled={!canEdit}
+                            label={`${row.unit.code} ${cell.stageName} ${stageStatusLabel(cell.status)}`}
+                            onTap={() =>
+                              handleTap({
+                                unitId: row.unit.id,
+                                workItemId: matrix.workItem.id,
+                                stageId: cell.stageId,
+                              })
+                            }
+                            onLongPress={() =>
+                              handleLong({
+                                unitId: row.unit.id,
+                                workItemId: matrix.workItem.id,
+                                stageId: cell.stageId,
+                              })
+                            }
+                          />
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <p style={{ padding: 16, color: 'var(--ink-soft)', fontWeight: 600 }}>
+                此樓層沒有可施工戶別。
+              </p>
+            )}
+          </div>
+          <p style={{ margin: '8px 0 0', fontSize: 12, fontWeight: 600, color: 'var(--ink-soft)' }}>
+            點一下輪轉：未開始 → 施工中 → 完成。長按可拍照、記缺失或卡關。
+          </p>
+        </>
+      ) : (
+        <UnitView
+          canEdit={canEdit}
+          onOpenSwitcher={() => setUnitOpen(true)}
+          onTap={handleTap}
+          onLong={handleLong}
+        />
       )}
-      {previewCategoryId && unit && (
-        <UnitDefectsSheet
-          unitId={unit.id}
-          categoryId={previewCategoryId}
-          onClose={() => setPreviewCategoryId(null)}
+
+      {projectOpen && <ProjectSwitcher onClose={() => setProjectOpen(false)} />}
+      {unitOpen && <UnitSwitcher onClose={() => setUnitOpen(false)} />}
+
+      {longCell && longUnit && longItem && longStage && !sheetKind && (
+        <CellActionSheet
+          title={`${longUnit.code}　${longStage.name}`}
+          subtitle={`${longUnit.buildingName} ${longUnit.floor} · ${longItem.name}`}
+          status={longStatus}
+          openDefects={longOpen}
+          canEdit={canEdit}
+          onClose={() => setLongCell(null)}
+          onProgress={() => setSheetKind('progress')}
+          onDefect={() => setSheetKind('defect')}
+          onBlock={() => {
+            const r = setStageCellStatus({ ...longCell, status: 'blocked' })
+            if (!r.ok) setToast(r.error || '無法卡關')
+            setLongCell(null)
+          }}
+          onUnblock={() => {
+            setStageCellStatus({ ...longCell, status: 'in_progress' })
+            setLongCell(null)
+          }}
+        />
+      )}
+
+      {sheetKind && longCell && (
+        <AddDefectSheet
+          recordKind={sheetKind}
+          workItemId={longCell.workItemId}
+          stageId={longCell.stageId}
+          unitId={longCell.unitId}
+          onClose={() => {
+            setSheetKind(null)
+            setLongCell(null)
+          }}
         />
       )}
     </div>
   )
 }
 
-function CategoryCard({
-  cat,
-  defectCount,
-  done,
-  started,
-  onClick,
-  onPreviewDefects,
+function UnitView({
+  canEdit,
+  onOpenSwitcher,
+  onTap,
+  onLong,
 }: {
-  cat: ChecklistCategory
-  defectCount: number
-  done: boolean
-  started: boolean
-  onClick: () => void
-  onPreviewDefects?: () => void
+  canEdit: boolean
+  onOpenSwitcher: () => void
+  onTap: (cell: FocusedStageCell) => void
+  onLong: (cell: FocusedStageCell) => void
 }) {
-  const Icon = CATEGORY_ICONS[cat.name] ?? Square
+  const units = useProjectStore((s) => s.units)
+  const currentUnitId = useProjectStore((s) => s.currentUnitId)
+  const defects = useProjectStore((s) => s.defects)
+  const stageProgress = useProjectStore((s) => s.stageProgress)
+  const workItems = useProjectStore((s) => s.workItems)
+  const unit = units.find((u) => u.id === currentUnitId) ?? units.find((u) => u.active)
+  const rows = unit
+    ? unitWorkItemRows(
+        { ...useProjectStore.getState(), defects, stageProgress, workItems, units },
+        unit,
+      )
+    : []
+
+  if (!unit) {
+    return <p style={{ color: 'var(--ink-soft)', fontWeight: 600 }}>請先選一戶。</p>
+  }
+
   return (
-    <button
-      type="button"
-      className="glass cat-card"
-      onClick={onClick}
-      style={
-        done
-          ? {
-              background: 'linear-gradient(180deg, #e8f8ec 0%, #d7f0de 100%)',
-              boxShadow: 'inset 0 0 0 1px rgba(0,97,0,0.18)',
-            }
-          : started
-            ? {
-                background: 'linear-gradient(180deg, #fff8e8 0%, #f3e7c8 100%)',
-                boxShadow: 'inset 0 0 0 1px rgba(140,100,20,0.18)',
-              }
-            : undefined
-      }
-    >
-      {onPreviewDefects ? (
-        <span
-          role="button"
-          tabIndex={0}
-          className={`badge warn`}
-          title="預覽此大項缺失"
-          onClick={(e) => {
-            e.preventDefault()
-            e.stopPropagation()
-            onPreviewDefects()
-          }}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault()
-              e.stopPropagation()
-              onPreviewDefects()
-            }
-          }}
-        >
-          {defectCount}
-        </span>
-      ) : (
-        <span className={`badge ${defectCount > 0 ? 'warn' : 'zero'}`}>{defectCount}</span>
-      )}
-      <div className="cat-icon" aria-hidden>
-        <Icon size={20} strokeWidth={1.8} />
-      </div>
-      <div className="serif" style={{ fontSize: 18, fontWeight: 700 }}>{cat.name}</div>
-      <div
-        style={{
-          marginTop: 4,
-          color: done ? '#006100' : started ? '#8a5a00' : 'var(--ink-soft)',
-          fontSize: 12,
-          fontWeight: 700,
-        }}
+    <div>
+      <button
+        type="button"
+        className="btn btn-ghost"
+        style={{ marginBottom: 12 }}
+        onClick={onOpenSwitcher}
       >
-        {done ? '已查畢' : started ? '已查（有缺失）' : `${cat.itemCount} 細項`}
-      </div>
-    </button>
+        {unit.buildingName} · {unit.floor} · {unit.code}戶（切換）
+      </button>
+      {rows.map((row) => (
+        <section key={row.workItem.id} className="glass" style={{ padding: 12, marginBottom: 10 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 8 }}>
+            <strong>{row.workItem.name}</strong>
+            <span style={{ color: 'var(--ink-soft)', fontSize: 12, fontWeight: 700 }}>
+              {row.percent}%{row.openDefects > 0 ? ` · 缺 ${row.openDefects}` : ''}
+            </span>
+          </div>
+          <div style={{ display: 'flex', gap: 8, overflowX: 'auto' }}>
+            {row.cells.map((cell) => (
+              <div key={cell.stageId} style={{ textAlign: 'center', minWidth: 52 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--ink-soft)', marginBottom: 4 }}>
+                  {cell.stageName}
+                </div>
+                <StageCellButton
+                  status={cell.status}
+                  openDefects={cell.openDefects}
+                  disabled={!canEdit}
+                  label={`${cell.stageName} ${stageStatusLabel(cell.status)}`}
+                  onTap={() =>
+                    onTap({
+                      unitId: unit.id,
+                      workItemId: row.workItem.id,
+                      stageId: cell.stageId,
+                    })
+                  }
+                  onLongPress={() =>
+                    onLong({
+                      unitId: unit.id,
+                      workItemId: row.workItem.id,
+                      stageId: cell.stageId,
+                    })
+                  }
+                />
+              </div>
+            ))}
+          </div>
+        </section>
+      ))}
+    </div>
   )
 }

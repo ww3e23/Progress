@@ -42,7 +42,7 @@ export interface ProjectMember {
 
 export const ROLE_LABEL: Record<MemberRole, string> = {
   admin: '管理者',
-  inspector: '查驗人員',
+  inspector: '施工人員',
   viewer: '僅查看',
 }
 

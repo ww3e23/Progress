@@ -9,7 +9,7 @@ export type TabKey = 'home' | 'defects' | 'add' | 'reports' | 'profile'
 
 const items: { key: TabKey; label: string; icon: typeof Home }[] = [
   { key: 'home', label: '首頁', icon: Home },
-  { key: 'defects', label: '缺失', icon: ClipboardList },
+  { key: 'defects', label: '紀錄', icon: ClipboardList },
   { key: 'add', label: '新增', icon: Plus },
   { key: 'reports', label: '報表', icon: BarChart3 },
   { key: 'profile', label: '我的', icon: UserRound },
@@ -47,7 +47,7 @@ export function BottomNav({
                 if (locked) return
                 onChange(key)
               }}
-              aria-label="新增缺失"
+              aria-label="新增紀錄"
             >
               <span className="add-fab">
                 <Plus size={22} strokeWidth={2.4} />

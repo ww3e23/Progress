@@ -4,7 +4,7 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 const base = process.env.VITE_BASE_PATH || '/'
 
-// GitHub Pages: https://ww3e23.github.io/CI/
+// GitHub Pages: https://ww3e23.github.io/Progress/
 export default defineConfig({
   plugins: [
     react(),
@@ -12,9 +12,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'apple-touch-icon.png', 'pwa-192.png', 'pwa-512.png'],
       manifest: {
-        name: '現場查驗｜SITE INSPECTION',
-        short_name: '現場查驗',
-        description: '手機優先現場驗屋查驗系統',
+        name: '現場施工進度',
+        short_name: '施工進度',
+        description: '現場施工與進度紀錄',
         theme_color: '#2F5D4C',
         background_color: '#EFEBE1',
         display: 'standalone',
