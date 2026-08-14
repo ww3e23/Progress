@@ -195,6 +195,8 @@ export interface ProjectState {
   areaTemplates: AreaTemplate[]
   /** 施工工項（泥作、輕隔間、鋁窗…） */
   workItems: WorkItem[]
+  /** 報表隱藏的工序；key = workItemId|stageId */
+  hiddenReportStageKeys: string[]
   /** key = unitId|workItemId|stageId */
   stageProgress: Record<string, StageProgressEntry>
   currentWorkItemId: string | null

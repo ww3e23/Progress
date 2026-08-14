@@ -1327,61 +1327,47 @@ button.status-pill:active {
   font-weight: 600;
 }
 
-.report-bar-list {
-  padding: 4px 14px 8px;
-  margin-bottom: 4px;
+.report-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin: 0 0 8px;
 }
 
-.report-bar-item {
+.report-toolbar .btn {
+  width: auto;
+  min-height: 36px;
+  padding: 0 12px;
+  font-size: 13px;
+}
+
+.report-copy-list {
+  padding: 8px 14px 10px;
+}
+
+.report-copy-item {
   padding: 12px 0;
   border-bottom: 1px solid rgba(34, 41, 31, 0.08);
 }
 
-.report-bar-item:last-child {
+.report-copy-item:last-child {
   border-bottom: 0;
 }
 
-.report-bar-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.report-bar-head strong {
-  font-size: 15px;
-}
-
-.report-bar-head .nums {
-  font-size: 16px;
-  font-weight: 800;
-  color: var(--green-deep);
-}
-
-.report-bar-track {
-  height: 8px;
-  margin-top: 8px;
-  border-radius: 999px;
-  background: rgba(30, 39, 51, 0.08);
-  overflow: hidden;
-}
-
-.report-bar-track i {
+.report-copy-title {
   display: block;
-  height: 100%;
-  border-radius: 999px;
-  background: linear-gradient(90deg, var(--green-deep), var(--green-deep2));
+  font-size: 16px;
+  margin-bottom: 6px;
 }
 
 .report-stage-copy {
-  margin: 8px 0 0;
+  margin: 0;
   padding: 0;
   list-style: none;
 }
 
 .report-stage-copy li {
   margin: 0 0 4px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
   color: var(--ink-soft);
   line-height: 1.45;
@@ -1389,6 +1375,19 @@ button.status-pill:active {
 
 .report-stage-copy li:last-child {
   margin-bottom: 0;
+}
+
+.report-hide-list {
+  display: grid;
+  gap: 12px;
+  max-height: min(52dvh, 420px);
+  overflow: auto;
+}
+
+.report-hide-group-title {
+  font-size: 13px;
+  font-weight: 800;
+  margin-bottom: 8px;
 }
 
 .stage-matrix {

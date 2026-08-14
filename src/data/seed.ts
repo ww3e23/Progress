@@ -8,6 +8,9 @@ export function ensureProgressFields(state: ProjectState): ProjectState {
     ...state,
     workItems,
     stageProgress: state.stageProgress ?? {},
+    hiddenReportStageKeys: Array.isArray(state.hiddenReportStageKeys)
+      ? state.hiddenReportStageKeys.map(String).filter(Boolean)
+      : [],
     currentWorkItemId:
       state.currentWorkItemId && workItems.some((w) => w.id === state.currentWorkItemId)
         ? state.currentWorkItemId
@@ -36,6 +39,7 @@ export function createEmptyProjectState(name = '未命名專案'): ProjectState 
     areas: [...DEFAULT_AREAS],
     areaTemplates: [],
     workItems,
+    hiddenReportStageKeys: [],
     stageProgress: {},
     currentWorkItemId: workItems[0]?.id ?? null,
     currentBuildingId: null,

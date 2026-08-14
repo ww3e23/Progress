@@ -17,6 +17,8 @@ export function ReportsPage() {
   const overview = useMemo(() => overallProgress(state), [state])
   const rows = useMemo(() => buildReportWorkRows(state), [state])
   const activities = state.activities ?? []
+  const hiddenKeys = state.hiddenReportStageKeys ?? []
+  const setHiddenReportStageKeys = useProjectStore((s) => s.setHiddenReportStageKeys)
 
   async function exportExcel() {
     if (busy) return
@@ -36,7 +38,7 @@ export function ReportsPage() {
           as="h1"
           className="serif"
           style={{ margin: '4px 0 0', fontSize: 22 }}
-          hint="全案工種一次看：每項一條進度條，下方是各工序戶數。"
+          hint="全案工種一次看。可用「隱藏工序」把已結案的工序從報表拿掉。"
         >
           {project?.name ?? state.projectName}
         </TitleHint>
@@ -57,7 +59,12 @@ export function ReportsPage() {
         </div>
       </section>
 
-      <ReportWorkMatrix rows={rows} />
+      <ReportWorkMatrix
+        rows={rows}
+        hiddenKeys={hiddenKeys}
+        workItems={state.workItems}
+        onChangeHidden={setHiddenReportStageKeys}
+      />
 
       <button
         type="button"

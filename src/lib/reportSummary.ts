@@ -10,6 +10,10 @@ import {
   storedStageStatus,
 } from './stageProgress'
 
+export function reportStageKey(workItemId: string, stageId: string): string {
+  return `${workItemId}|${stageId}`
+}
+
 export type ReportStageTone = 'na' | 'done' | 'empty' | 'progress' | 'blocked' | 'defect'
 
 export type ReportStageCell = {

@@ -394,6 +394,7 @@ export async function pushProjectState(
       currentUnitId: state.currentUnitId,
       recentUnitIds: state.recentUnitIds,
       workItems: state.workItems ?? [],
+      hiddenReportStageKeys: state.hiddenReportStageKeys ?? [],
       stageProgress: state.stageProgress ?? {},
       currentWorkItemId: state.currentWorkItemId,
       currentBuildingId: state.currentBuildingId,
@@ -498,6 +499,7 @@ export async function pullProjectState(projectId: string): Promise<PulledProject
       areas: Array.isArray(meta.areas) ? meta.areas.map(String) : [...DEFAULT_AREAS],
       areaTemplates: parseAreaTemplates(meta.areaTemplates),
       workItems: parseWorkItems(meta.workItems),
+      hiddenReportStageKeys: parseStringList(meta.hiddenReportStageKeys),
       stageProgress: parseStageProgress(meta.stageProgress),
       currentWorkItemId: meta.currentWorkItemId ? String(meta.currentWorkItemId) : null,
       currentBuildingId: meta.currentBuildingId ? String(meta.currentBuildingId) : null,
@@ -670,12 +672,20 @@ export function mergeProjectStates(local: ProjectState, remote: PulledProject): 
     areas: local.areas.length ? local.areas : remote.areas,
     areaTemplates: mergeAreaTemplates(local.areaTemplates, remote.areaTemplates),
     workItems: mergeWorkItems(local.workItems, remote.workItems),
+    hiddenReportStageKeys: Array.isArray(local.hiddenReportStageKeys)
+      ? local.hiddenReportStageKeys
+      : remote.hiddenReportStageKeys ?? [],
     stageProgress: mergeStageProgress(local.stageProgress, remote.stageProgress),
     currentWorkItemId: local.currentWorkItemId || remote.currentWorkItemId,
     currentBuildingId: local.currentBuildingId || remote.currentBuildingId,
     currentFloor: local.currentFloor || remote.currentFloor,
     focusedCell: local.focusedCell ?? remote.focusedCell ?? null,
   }
+}
+
+function parseStringList(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return []
+  return [...new Set(raw.map((v) => String(v).trim()).filter(Boolean))]
 }
 
 function parseWorkItems(raw: unknown): WorkItem[] {

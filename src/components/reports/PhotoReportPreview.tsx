@@ -39,6 +39,7 @@ function pickProjectState(s: {
     areas: s.areas,
     areaTemplates: s.areaTemplates,
     workItems: [],
+    hiddenReportStageKeys: [],
     stageProgress: {},
     currentWorkItemId: null,
     currentBuildingId: null,

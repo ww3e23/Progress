@@ -121,6 +121,7 @@ interface ProjectActions {
   setCurrentBuilding: (buildingId: string | null) => void
   setCurrentFloor: (floor: string | null) => void
   setFocusedCell: (cell: FocusedStageCell | null) => void
+  setHiddenReportStageKeys: (keys: string[]) => void
   upsertWorkItem: (item: WorkItem) => void
   removeWorkItem: (workItemId: string) => { ok: boolean; reason?: string }
   applyDefaultWorkItems: (
@@ -395,6 +396,7 @@ function snapshotProject(state: ProjectState): ProjectState {
     areas: ensured.areas,
     areaTemplates: ensured.areaTemplates ?? [],
     workItems: ensured.workItems,
+    hiddenReportStageKeys: ensured.hiddenReportStageKeys ?? [],
     stageProgress: ensured.stageProgress,
     currentWorkItemId: ensured.currentWorkItemId,
     currentBuildingId: ensured.currentBuildingId,
@@ -454,6 +456,12 @@ export const useProjectStore = create<ProjectState & BundleState & ProjectAction
           )
           set({ currentUnitId: cell.unitId, recentUnitIds: recent, focusedCell: cell })
         }
+      },
+
+      setHiddenReportStageKeys: (keys) => {
+        const cleaned = [...new Set(keys.map(String).filter(Boolean))]
+        set({ hiddenReportStageKeys: cleaned })
+        afterProjectChange(get, set)
       },
 
       cycleStageCell: ({ unitId, workItemId, stageId }) => {
