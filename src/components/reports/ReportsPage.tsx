@@ -4,9 +4,10 @@ import { useProjectStore } from '../../store/useProjectStore'
 import { useCurrentProject } from '../../store/useAuthStore'
 import { TitleHint } from '../ui/TitleHint'
 import { exportProgressExcel } from '../../lib/excelProgress'
+import { formatActivity } from '../../lib/progress'
+import { formatActorLabel } from '../../lib/currentActor'
 import {
   activeWorkItems,
-  openDefectRemarks,
   overallProgress,
   workItemRollup,
 } from '../../lib/stageProgress'
@@ -17,7 +18,7 @@ export function ReportsPage() {
   const [busy, setBusy] = useState(false)
   const overview = useMemo(() => overallProgress(state), [state])
   const items = activeWorkItems(state)
-  const remarks = useMemo(() => openDefectRemarks(state), [state])
+  const activities = state.activities ?? []
 
   async function exportExcel() {
     if (busy) return
@@ -37,7 +38,7 @@ export function ReportsPage() {
           as="h1"
           className="serif"
           style={{ margin: '4px 0 0', fontSize: 22 }}
-          hint="完成率由各工項格子自動加總。備註來自未關閉缺失，不必再手抄到表下。"
+          hint="完成率由各工項格子自動加總。下方為現場操作紀錄。"
         >
           {project?.name ?? state.projectName}
         </TitleHint>
@@ -119,25 +120,44 @@ export function ReportsPage() {
       </div>
 
       <div className="section-row">
-        <h2>備註（未關缺失）</h2>
+        <h2>操作紀錄</h2>
       </div>
-      <div className="glass" style={{ padding: 14 }}>
-        {remarks.length === 0 ? (
-          <p style={{ margin: 0, color: 'var(--ink-soft)', fontWeight: 600 }}>目前沒有未關閉缺失。</p>
-        ) : (
-          <ul style={{ margin: 0, paddingLeft: 18, display: 'grid', gap: 8 }}>
-            {remarks.map((d) => {
-              const wi = items.find((w) => w.id === d.workItemId)
-              const st = wi?.stages.find((s) => s.id === d.stageId)
-              return (
-                <li key={d.id} style={{ color: 'var(--terracotta)', fontWeight: 700, fontSize: 13 }}>
-                  {d.unitCode}-{d.floor}
-                  {wi ? ` ${wi.name}` : ''}
-                  {st ? `／${st.name}` : ''}：{d.description || `缺失 #${d.defectNumber}`}
-                </li>
-              )
-            })}
-          </ul>
+      <div className="glass" style={{ padding: '4px 14px' }}>
+        {activities.map((a) => (
+          <div
+            key={a.id}
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '56px minmax(0, 1fr)',
+              gap: 8,
+              padding: '12px 0',
+              borderBottom: '1px solid rgba(34,41,31,0.08)',
+              fontSize: 13,
+            }}
+          >
+            <span style={{ color: 'var(--ink-soft)', fontWeight: 600 }}>{a.at}</span>
+            <div style={{ minWidth: 0 }}>
+              <div>
+                <strong>{formatActivity(a)}</strong>
+                <span style={{ color: 'var(--ink-soft)' }}> · {a.summary}</span>
+              </div>
+              <div
+                style={{
+                  marginTop: 4,
+                  color: 'var(--green-deep)',
+                  fontWeight: 800,
+                  fontSize: 12,
+                }}
+              >
+                操作人：{formatActorLabel(a.actorName, a.actorAccount)}
+              </div>
+            </div>
+          </div>
+        ))}
+        {activities.length === 0 && (
+          <div style={{ padding: '14px 0', color: 'var(--ink-soft)', fontWeight: 600 }}>
+            尚無操作紀錄
+          </div>
         )}
       </div>
     </div>
