@@ -30,11 +30,9 @@ export function expandUnitsFromBuildings(buildings: BuildingRule[]): Unit[] {
 }
 
 export function buildingLayout(b: Pick<BuildingRule, 'layout' | 'unitCodes'>): BuildingLayout {
-  if (b.layout === 'villa') return 'villa'
-  // 只有一個戶號＝整棟一戶。舊資料若標成大樓，也不能把每層再算一戶。
-  if ((b.unitCodes?.length ?? 0) <= 1) return 'villa'
-  if (b.layout === 'apartment') return 'apartment'
-  return 'apartment'
+  // 以登記的結構類型為準：大樓即使每層只有一個戶號，也不能改走別墅邏輯。
+  if (b.layout === 'villa' || b.layout === 'apartment') return b.layout
+  return (b.unitCodes?.length ?? 0) <= 1 ? 'villa' : 'apartment'
 }
 
 export function isVillaLayout(b: Pick<BuildingRule, 'layout' | 'unitCodes'>): boolean {

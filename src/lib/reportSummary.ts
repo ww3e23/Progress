@@ -46,12 +46,14 @@ function listHouseholdGroups(state: ProjectState): HouseholdGroup[] {
   for (const building of buildings) {
     const units = state.units.filter((u) => u.buildingId === building.id && u.active)
     if (isVillaLayout(building)) {
+      // 別墅：同一戶號跨樓層合成一戶
       const codes = householdCodes(building, units)
       for (const code of codes) {
         const us = units.filter((u) => u.code === code)
         if (us.length) groups.push({ key: `${building.id}:${code}`, units: us })
       }
     } else {
+      // 大樓：每一層的每一戶號各算一戶（一層會有多戶）
       const order = unitOrder(building)
       const sorted = [...units].sort((a, b) => {
         const ia = order.get(`${a.floor}|${a.code}`) ?? 9999
