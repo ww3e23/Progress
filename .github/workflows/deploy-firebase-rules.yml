@@ -14,10 +14,18 @@ on:
 jobs:
   deploy-rules:
     runs-on: ubuntu-latest
-    # 需在 repo Secrets 設定 FIREBASE_TOKEN（firebase login:ci）
-    if: ${{ secrets.FIREBASE_TOKEN != '' }}
     steps:
       - uses: actions/checkout@v4
+      - name: Require FIREBASE_TOKEN
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        run: |
+          if [ -z "$FIREBASE_TOKEN" ]; then
+            echo "::error::Progress 仓库缺少 FIREBASE_TOKEN，无法把规则发布到 site-progress-app-8d6c2。"
+            echo "请把 ww3e23/CI 同一个 FIREBASE_TOKEN 复制到 https://github.com/ww3e23/Progress/settings/secrets/actions"
+            echo "或本机执行 firebase login:ci 后把 token 加进去，再重新跑此 workflow。"
+            exit 1
+          fi
       - uses: actions/setup-node@v4
         with:
           node-version: 22
