@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight, FileSpreadsheet } from 'lucide-react'
 import { useProjectStore } from '../../store/useProjectStore'
 import { useCurrentProject } from '../../store/useAuthStore'
 import { TitleHint } from '../ui/TitleHint'
+import { GlassSelect } from '../ui/GlassSelect'
 import { UnitSwitcher } from '../UnitSwitcher'
 import { FloorStageMatrix } from '../progress/FloorStageMatrix'
 import { StageCellButton } from '../progress/StageCellButton'
@@ -122,17 +123,16 @@ export function ReportsPage() {
 
       {view === 'workItem' ? (
         <>
-          <div className="chip-row work-item-chips" style={{ marginBottom: 8 }}>
-            {items.map((w) => (
-              <button
-                key={w.id}
-                type="button"
-                className={`chip ${w.id === workItemId ? 'on' : ''}`}
-                onClick={() => useProjectStore.getState().setCurrentWorkItem(w.id)}
-              >
-                {w.name}
-              </button>
-            ))}
+          <div className="home-filters" style={{ margin: '0 0 8px' }}>
+            <div className="home-filter-wide">
+              <GlassSelect
+                label="工種"
+                value={workItemId ?? ''}
+                options={items.map((w) => ({ value: w.id, label: w.name }))}
+                onChange={(id) => useProjectStore.getState().setCurrentWorkItem(id)}
+                searchable
+              />
+            </div>
           </div>
           {workStats && workItem && (
             <div className="work-stat-card" style={{ marginBottom: 10 }}>

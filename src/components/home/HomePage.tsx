@@ -3,6 +3,7 @@ import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useProjectStore } from '../../store/useProjectStore'
 import { useCurrentProject, useCurrentRole } from '../../store/useAuthStore'
 import { TitleHint } from '../ui/TitleHint'
+import { GlassSelect } from '../ui/GlassSelect'
 import { Modal } from '../ui/Modal'
 import { UnitSwitcher } from '../UnitSwitcher'
 import { ProjectSwitcher } from './ProjectSwitcher'
@@ -220,17 +221,16 @@ export function HomePage() {
 
       {view === 'matrix' && workItemId && (
         <div className="work-matrix-sticky">
-          <div className="chip-row work-item-chips">
-            {items.map((w) => (
-              <button
-                key={w.id}
-                type="button"
-                className={`chip ${w.id === workItemId ? 'on' : ''}`}
-                onClick={() => setCurrentWorkItem(w.id)}
-              >
-                {w.name}
-              </button>
-            ))}
+          <div className="home-filters" style={{ margin: '0 0 8px' }}>
+            <div className="home-filter-wide">
+              <GlassSelect
+                label="工種"
+                value={workItemId}
+                options={items.map((w) => ({ value: w.id, label: w.name }))}
+                onChange={setCurrentWorkItem}
+                searchable
+              />
+            </div>
           </div>
           {workStats && workItem && (
             <div className="work-stat-card">
