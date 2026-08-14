@@ -1373,12 +1373,22 @@ button.status-pill:active {
   background: linear-gradient(90deg, var(--green-deep), var(--green-deep2));
 }
 
-.report-bar-meta {
-  margin: 7px 0 0;
+.report-stage-copy {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.report-stage-copy li {
+  margin: 0 0 4px;
   font-size: 12px;
   font-weight: 700;
   color: var(--ink-soft);
-  line-height: 1.4;
+  line-height: 1.45;
+}
+
+.report-stage-copy li:last-child {
+  margin-bottom: 0;
 }
 
 .stage-matrix {

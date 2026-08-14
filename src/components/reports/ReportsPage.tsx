@@ -36,7 +36,7 @@ export function ReportsPage() {
           as="h1"
           className="serif"
           style={{ margin: '4px 0 0', fontSize: 22 }}
-          hint="全案工種一次看：每項一條進度條，樓層已匯總。"
+          hint="全案工種一次看：每項一條進度條，下方是各工序戶數。"
         >
           {project?.name ?? state.projectName}
         </TitleHint>

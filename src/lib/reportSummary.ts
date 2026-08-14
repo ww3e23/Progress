@@ -1,4 +1,4 @@
-import type { BuildingRule, ProjectState, StageStatus, Unit, WorkItem } from '../types'
+import type { BuildingRule, ProjectState, StageStatus, Unit } from '../types'
 import { isVillaLayout } from './units'
 import {
   activeWorkItems,
@@ -16,8 +16,9 @@ export type ReportStageCell = {
   id: string
   name: string
   percent: number
-  completed: number
-  total: number
+  householdsTotal: number
+  householdsDone: number
+  householdsLeft: number
   tone: ReportStageTone
 }
 
@@ -25,9 +26,6 @@ export type ReportWorkRow = {
   id: string
   name: string
   percent: number
-  householdsTotal: number
-  householdsDone: number
-  householdsLeft: number
   stages: ReportStageCell[]
 }
 
@@ -87,26 +85,21 @@ function toneForStage(input: {
   return 'progress'
 }
 
-function householdWorkResult(
+function householdStageResult(
   state: ProjectState,
-  workItem: WorkItem,
+  workItemId: string,
+  stageId: string,
   units: Unit[],
 ): { applicable: boolean; done: boolean } {
-  const stages = sortedStages(workItem)
   let applicable = 0
   let completed = 0
   for (const unit of units) {
-    for (const stage of stages) {
-      const stored = storedStageStatus(
-        state.stageProgress,
-        cellKey(unit.id, workItem.id, stage.id),
-      )
-      const open = openDefectsOnCell(state.defects, unit.id, workItem.id, stage.id).length
-      const status = effectiveStageStatus(stored, open)
-      if (status === 'na') continue
-      applicable += 1
-      if (status === 'completed') completed += 1
-    }
+    const stored = storedStageStatus(state.stageProgress, cellKey(unit.id, workItemId, stageId))
+    const open = openDefectsOnCell(state.defects, unit.id, workItemId, stageId).length
+    const status = effectiveStageStatus(stored, open)
+    if (status === 'na') continue
+    applicable += 1
+    if (status === 'completed') completed += 1
   }
   if (applicable === 0) return { applicable: false, done: false }
   return { applicable: true, done: completed === applicable }
@@ -123,18 +116,20 @@ export function buildReportWorkRows(state: ProjectState): ReportWorkRow[] {
       total: 0,
       blocked: 0,
       defect: 0,
+      householdsTotal: 0,
+      householdsDone: 0,
     }))
     let cellCompleted = 0
     let cellTotal = 0
     let cellSeen = 0
-    let householdsTotal = 0
-    let householdsDone = 0
 
     for (const group of households) {
-      const house = householdWorkResult(state, workItem, group.units)
-      if (house.applicable) {
-        householdsTotal += 1
-        if (house.done) householdsDone += 1
+      for (const acc of stageAcc) {
+        const house = householdStageResult(state, workItem.id, acc.id, group.units)
+        if (house.applicable) {
+          acc.householdsTotal += 1
+          if (house.done) acc.householdsDone += 1
+        }
       }
       for (const unit of group.units) {
         for (const acc of stageAcc) {
@@ -162,9 +157,6 @@ export function buildReportWorkRows(state: ProjectState): ReportWorkRow[] {
       id: workItem.id,
       name: workItem.name,
       percent: completionPercent(cellCompleted, cellTotal, cellSeen),
-      householdsTotal,
-      householdsDone,
-      householdsLeft: Math.max(0, householdsTotal - householdsDone),
       stages: stageAcc.map((s) => {
         const percent = s.total === 0 ? 0 : Math.round((s.completed / s.total) * 100)
         const tone = toneForStage({
@@ -177,8 +169,9 @@ export function buildReportWorkRows(state: ProjectState): ReportWorkRow[] {
           id: s.id,
           name: s.name,
           percent,
-          completed: s.completed,
-          total: s.total,
+          householdsTotal: s.householdsTotal,
+          householdsDone: s.householdsDone,
+          householdsLeft: Math.max(0, s.householdsTotal - s.householdsDone),
           tone,
         }
       }),

@@ -16,11 +16,15 @@ export function ReportWorkMatrix({ rows }: { rows: ReportWorkRow[] }) {
           <div className="report-bar-track" aria-hidden>
             <i style={{ width: `${row.percent}%` }} />
           </div>
-          <p className="report-bar-meta">
-            {row.householdsTotal === 0
-              ? '沒有應施作戶（皆不適用）'
-              : `已完成 ${row.householdsDone} 戶 · 未完成 ${row.householdsLeft} 戶 · 應施作 ${row.householdsTotal} 戶`}
-          </p>
+          <ul className="report-stage-copy">
+            {row.stages.map((stage) => (
+              <li key={stage.id}>
+                {stage.householdsTotal === 0
+                  ? `${stage.name}：皆不適用。`
+                  : `${stage.name}：完成${stage.householdsDone}戶，未完成${stage.householdsLeft}戶，總共${stage.householdsTotal}戶。`}
+              </li>
+            ))}
+          </ul>
         </div>
       ))}
     </div>
