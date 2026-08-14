@@ -17,6 +17,8 @@ type Props = {
   searchable?: boolean
   disabled?: boolean
   hideLabel?: boolean
+  /** 膠囊形：標籤收進按鈕內，圓角更柔和 */
+  variant?: 'field' | 'pill'
 }
 
 type MenuPos = { top: number; left: number; width: number; maxHeight: number }
@@ -30,6 +32,7 @@ export function GlassSelect({
   searchable,
   disabled,
   hideLabel,
+  variant = 'field',
 }: Props) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
@@ -60,10 +63,15 @@ export function GlassSelect({
     const maxHeight = Math.min(280, Math.max(spaceBelow, spaceAbove, 120))
     const openUp = spaceBelow < 160 && spaceAbove > spaceBelow
     const top = openUp ? Math.max(8, rect.top - gap - maxHeight) : rect.bottom + gap
+    const width =
+      variant === 'pill'
+        ? Math.min(window.innerWidth - 16, Math.max(rect.width, 220))
+        : rect.width
+    const left = Math.min(rect.left, Math.max(8, window.innerWidth - width - 8))
     setPos({
       top,
-      left: rect.left,
-      width: rect.width,
+      left,
+      width,
       maxHeight,
     })
   }
@@ -107,7 +115,7 @@ export function GlassSelect({
     ? createPortal(
         <div
           ref={menuRef}
-          className="glass-select-menu glass-select-menu-portal"
+          className={`glass-select-menu glass-select-menu-portal${variant === 'pill' ? ' glass-select-menu-pill' : ''}`}
           id={listId}
           style={{
             top: pos.top,
@@ -158,8 +166,11 @@ export function GlassSelect({
     : null
 
   return (
-    <div className={`filter-select glass-select ${open ? 'open' : ''}`} ref={rootRef}>
-      {!hideLabel && <span className="filter-select-label">{label}</span>}
+    <div
+      className={`filter-select glass-select${open ? ' open' : ''}${variant === 'pill' ? ' glass-select-pill' : ''}`}
+      ref={rootRef}
+    >
+      {!hideLabel && variant !== 'pill' && <span className="filter-select-label">{label}</span>}
       <button
         type="button"
         ref={triggerRef}
@@ -174,6 +185,9 @@ export function GlassSelect({
           setOpen((v) => !v)
         }}
       >
+        {variant === 'pill' && !hideLabel && (
+          <span className="glass-select-kicker">{label}</span>
+        )}
         <span className="glass-select-value">{selected?.label ?? '請選擇'}</span>
         <ChevronDown size={16} className="glass-select-chevron" aria-hidden />
       </button>
