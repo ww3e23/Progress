@@ -176,33 +176,33 @@ export function SettingsPage({ embedded = false }: { embedded?: boolean }) {
               </div>
             ))}
 
-            <button
-              type="button"
-              className="btn-dashed"
-              style={{ margin: 12, marginTop: 8 }}
-              onClick={() => {
-                const nextIndex = activeBuildings.length
-                const letter = String.fromCharCode(65 + (nextIndex % 26))
-                setEditing(
-                  newBuildingDraft({
-                    name: `${letter}棟`,
-                    unitCodes: [`${letter}1`, `${letter}2`, `${letter}3`],
-                    sortOrder: nextIndex,
-                  }),
-                )
-              }}
-            >
-              + 新增棟別
-            </button>
+            <div className="btn-dashed-wrap">
+              <button
+                type="button"
+                className="btn-dashed"
+                onClick={() => {
+                  const nextIndex = activeBuildings.length
+                  const letter = String.fromCharCode(65 + (nextIndex % 26))
+                  setEditing(
+                    newBuildingDraft({
+                      name: `${letter}棟`,
+                      unitCodes: [`${letter}1`, `${letter}2`, `${letter}3`],
+                      sortOrder: nextIndex,
+                    }),
+                  )
+                }}
+              >
+                + 新增棟別
+              </button>
+            </div>
           </div>
         )}
 
         {!buildingsOpen && (
-          <div style={{ padding: '0 12px 12px' }}>
+          <div className="btn-dashed-wrap" style={{ paddingTop: 0 }}>
             <button
               type="button"
               className="btn-dashed"
-              style={{ width: '100%' }}
               onClick={() => {
                 setBuildingsOpen(true)
                 const nextIndex = activeBuildings.length
@@ -353,26 +353,26 @@ export function SettingsPage({ embedded = false }: { embedded?: boolean }) {
                 </div>
               )}
             </div>
-            <button
-              type="button"
-              className="btn-dashed"
-              style={{ margin: 12, marginTop: 8 }}
-              onClick={() => {
-                setIsNewWork(true)
-                setEditingWork(newWorkItemDraft({ sortOrder: workItems.length }))
-              }}
-            >
-              + 新增工項
-            </button>
+            <div className="btn-dashed-wrap">
+              <button
+                type="button"
+                className="btn-dashed"
+                onClick={() => {
+                  setIsNewWork(true)
+                  setEditingWork(newWorkItemDraft({ sortOrder: workItems.length }))
+                }}
+              >
+                + 新增工項
+              </button>
+            </div>
           </>
         )}
 
         {!workItemsOpen && (
-          <div style={{ padding: '0 12px 12px' }}>
+          <div className="btn-dashed-wrap" style={{ paddingTop: 0 }}>
             <button
               type="button"
               className="btn-dashed"
-              style={{ width: '100%' }}
               onClick={() => {
                 setWorkItemsOpen(true)
                 setIsNewWork(true)

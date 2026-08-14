@@ -629,13 +629,21 @@ button.status-pill:active {
 }
 
 .btn-dashed {
+  display: block;
+  box-sizing: border-box;
   width: 100%;
+  max-width: 100%;
+  margin: 0;
   border: 1.5px dashed rgba(36, 90, 140, 0.35);
   color: var(--green-deep);
   background: rgba(255, 255, 255, 0.35);
   border-radius: 16px;
   min-height: 48px;
   font-weight: 700;
+}
+
+.btn-dashed-wrap {
+  padding: 8px 12px 12px;
 }
 
 .field {
