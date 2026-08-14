@@ -1295,8 +1295,8 @@ button.status-pill:active {
 
 .stage-head {
   writing-mode: horizontal-tb;
-  max-width: 52px;
-  min-width: 44px;
+  max-width: 72px;
+  min-width: 48px;
   white-space: normal;
   line-height: 1.15;
   color: var(--ink-soft);
@@ -1345,6 +1345,99 @@ button.status-pill:active {
   border-radius: 16px;
   background: rgba(255, 255, 255, 0.55);
   border: 1px solid var(--border-glass);
+}
+
+.stage-head-pct {
+  margin-top: 3px;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--green-deep);
+  font-variant-numeric: tabular-nums;
+}
+
+.work-matrix-sticky {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  margin: 10px 0 8px;
+  padding: 8px 0 10px;
+  background: linear-gradient(180deg, var(--bg-base) 70%, transparent);
+}
+
+.work-item-chips {
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.work-stat-card {
+  border-radius: 16px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.62);
+  border: 1px solid var(--border-glass);
+}
+
+.work-stat-hero {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.work-stat-name {
+  font-weight: 800;
+  font-size: 15px;
+}
+
+.work-stat-pct {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--green-deep);
+}
+
+.work-stat-stages {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 10px;
+}
+
+.work-stat-stage {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.work-stat-stage-name {
+  color: var(--ink-soft);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.work-stat-stage-pct {
+  flex-shrink: 0;
+  color: var(--green-deep);
+}
+
+.house-matrix {
+  margin-top: 12px;
+}
+
+.house-matrix-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 0 2px 6px;
+  font-size: 14px;
+}
+
+.house-matrix-head .nums {
+  font-weight: 800;
+  color: var(--green-deep);
 }
 
 .home-filters {

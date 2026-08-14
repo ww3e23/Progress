@@ -1,9 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useProjectStore } from '../../store/useProjectStore'
 import { useCurrentProject, useCurrentRole } from '../../store/useAuthStore'
 import { TitleHint } from '../ui/TitleHint'
-import { GlassSelect } from '../ui/GlassSelect'
 import { Modal } from '../ui/Modal'
 import { UnitSwitcher } from '../UnitSwitcher'
 import { ProjectSwitcher } from './ProjectSwitcher'
@@ -13,16 +12,18 @@ import { CellActionSheet } from '../progress/CellActionSheet'
 import { AddDefectSheet } from '../defects/AddDefectSheet'
 import {
   activeWorkItems,
-  buildWorkItemFloorMatrix,
   cellKey,
   effectiveStageStatus,
+  listWorkItemFloorMatrices,
   openDefectsOnCell,
   overallProgress,
   stageStatusLabel,
   stepActiveUnit,
   storedStageStatus,
   unitWorkItemRows,
+  workItemDetailStats,
   type FloorMatrixCell,
+  type WorkItemFloorMatrix,
 } from '../../lib/stageProgress'
 import type { FocusedStageCell, StageStatus, Unit } from '../../types'
 import { formatUnitTitle, layoutForUnit } from '../../lib/units'
@@ -35,7 +36,12 @@ export function HomePage() {
   const [unitOpen, setUnitOpen] = useState(false)
   const [toast, setToast] = useState('')
   const [longCell, setLongCell] = useState<FocusedStageCell | null>(null)
-  const [floorPick, setFloorPick] = useState<{ floor: string; cell: FloorMatrixCell } | null>(null)
+  const [floorPick, setFloorPick] = useState<{
+    buildingId: string
+    workItemId: string
+    floor: string
+    cell: FloorMatrixCell
+  } | null>(null)
   const [sheetKind, setSheetKind] = useState<'progress' | 'defect' | null>(null)
 
   const projectName = useProjectStore((s) => s.projectName)
@@ -77,21 +83,22 @@ export function HomePage() {
     if (!currentBuildingId && activeBuildings[0]) setCurrentBuilding(activeBuildings[0].id)
   }, [currentBuildingId, activeBuildings, setCurrentBuilding])
 
-  const building = activeBuildings.find((b) => b.id === currentBuildingId) ?? activeBuildings[0]
   const workItemId = currentWorkItemId && items.some((w) => w.id === currentWorkItemId)
     ? currentWorkItemId
     : items[0]?.id
+  const workItem = items.find((w) => w.id === workItemId)
 
-  const matrix = useMemo(() => {
-    if (!building || !workItemId) return null
-    return buildWorkItemFloorMatrix(
-      { ...useProjectStore.getState(), defects, stageProgress, workItems, units, buildings },
-      building.id,
-      workItemId,
-    )
-  }, [building, workItemId, defects, stageProgress, workItems, units, buildings])
-
-  const overview = overallProgress(useProjectStore.getState())
+  const snapshot = {
+    ...useProjectStore.getState(),
+    defects,
+    stageProgress,
+    workItems,
+    units,
+    buildings,
+  }
+  const matrices = workItemId ? listWorkItemFloorMatrices(snapshot, workItemId) : []
+  const workStats = workItem ? workItemDetailStats(snapshot, workItem) : null
+  const overview = overallProgress(snapshot)
 
   function handleUnitTap(cell: FocusedStageCell) {
     setFocusedCell(cell)
@@ -105,28 +112,30 @@ export function HomePage() {
     setLongCell(cell)
   }
 
-  function handleFloorTap(floor: string, cell: FloorMatrixCell) {
-    if (!building || !workItemId) return
+  function handleFloorTap(matrix: WorkItemFloorMatrix, floor: string, cell: FloorMatrixCell) {
+    if (!workItemId) return
     const result = cycleFloorStage({
-      buildingId: building.id,
+      buildingId: matrix.building.id,
       floor,
       workItemId,
       stageId: cell.stageId,
+      unitIds: cell.unitIds,
     })
     if (!result.ok) setToast(result.error || '無法更新')
     else setToast('')
   }
 
-  function handleFloorLong(floor: string, cell: FloorMatrixCell) {
+  function handleFloorLong(matrix: WorkItemFloorMatrix, floor: string, cell: FloorMatrixCell) {
+    if (!workItemId) return
     if (cell.unitIds.length === 1) {
       handleUnitLong({
         unitId: cell.unitIds[0],
-        workItemId: workItemId!,
+        workItemId,
         stageId: cell.stageId,
       })
       return
     }
-    setFloorPick({ floor, cell })
+    setFloorPick({ buildingId: matrix.building.id, workItemId, floor, cell })
   }
 
   const longUnit = longCell ? units.find((u) => u.id === longCell.unitId) : null
@@ -150,7 +159,7 @@ export function HomePage() {
   const longStatus = longLive.status
   const longOpen = longLive.open
 
-  if (!building) {
+  if (!activeBuildings.length) {
     return (
       <div className="rise">
         <header style={{ marginBottom: 12 }}>
@@ -209,20 +218,36 @@ export function HomePage() {
         </div>
       </header>
 
-      {view === 'matrix' && (
-        <div className="home-filters">
-          <GlassSelect
-            label="棟別"
-            value={building.id}
-            options={activeBuildings.map((b) => ({ value: b.id, label: b.name }))}
-            onChange={setCurrentBuilding}
-          />
-          <GlassSelect
-            label="工項"
-            value={workItemId ?? ''}
-            options={items.map((w) => ({ value: w.id, label: w.name }))}
-            onChange={setCurrentWorkItem}
-          />
+      {view === 'matrix' && workItemId && (
+        <div className="work-matrix-sticky">
+          <div className="chip-row work-item-chips">
+            {items.map((w) => (
+              <button
+                key={w.id}
+                type="button"
+                className={`chip ${w.id === workItemId ? 'on' : ''}`}
+                onClick={() => setCurrentWorkItem(w.id)}
+              >
+                {w.name}
+              </button>
+            ))}
+          </div>
+          {workStats && workItem && (
+            <div className="work-stat-card">
+              <div className="work-stat-hero">
+                <span className="work-stat-name">{workItem.name}</span>
+                <span className="nums work-stat-pct">{workStats.percent}%</span>
+              </div>
+              <div className="work-stat-stages">
+                {workStats.stages.map((s) => (
+                  <div key={s.id} className="work-stat-stage">
+                    <span className="work-stat-stage-name">{s.name}</span>
+                    <span className="nums work-stat-stage-pct">{s.percent}%</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -231,27 +256,33 @@ export function HomePage() {
       {view === 'matrix' ? (
         <>
           <LegendRow />
-          {matrix && (
-            <p style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 700, color: 'var(--ink-soft)' }}>
-              {matrix.workItem.name} · {matrix.building.name} · {matrix.percent}%（{matrix.completedCells}/
-              {matrix.totalCells} 層序）
-              {matrix.openDefects > 0 ? ` · 缺 ${matrix.openDefects}` : ''}
+          {matrices.length === 0 ? (
+            <p style={{ padding: 16, color: 'var(--ink-soft)', fontWeight: 600 }}>
+              請先在「我的」設定棟別／別墅，再回來填進度。
             </p>
+          ) : (
+            matrices.map((matrix) => (
+              <section key={`${matrix.building.id}:${matrix.unitCode ?? ''}`} className="house-matrix">
+                <div className="house-matrix-head">
+                  <strong>{matrix.title}</strong>
+                  <span className="nums">
+                    {matrix.percent}%
+                    {matrix.openDefects > 0 ? ` · 缺 ${matrix.openDefects}` : ''}
+                  </span>
+                </div>
+                <div className="glass matrix-scroll" style={{ padding: 6 }}>
+                  <FloorStageMatrix
+                    matrix={matrix}
+                    canEdit={canEdit}
+                    onTap={(floor, cell) => handleFloorTap(matrix, floor, cell)}
+                    onLong={(floor, cell) => handleFloorLong(matrix, floor, cell)}
+                  />
+                </div>
+              </section>
+            ))
           )}
-          <div className="glass matrix-scroll" style={{ padding: 6 }}>
-            {matrix ? (
-              <FloorStageMatrix
-                matrix={matrix}
-                canEdit={canEdit}
-                onTap={handleFloorTap}
-                onLong={handleFloorLong}
-              />
-            ) : (
-              <p style={{ padding: 16, color: 'var(--ink-soft)', fontWeight: 600 }}>請先選擇工項。</p>
-            )}
-          </div>
           <p style={{ margin: '8px 0 0', fontSize: 12, fontWeight: 600, color: 'var(--ink-soft)' }}>
-            一格是該層的工序。點一下輪轉：未開始 → 施工中 → 完成。長按可拍照、記缺失或卡關。
+            由上往下滑，依序填每一戶。點格子輪轉：未開始 → 施工中 → 完成。長按可拍照、記缺失或卡關。
           </p>
         </>
       ) : (
@@ -270,11 +301,11 @@ export function HomePage() {
       {projectOpen && <ProjectSwitcher onClose={() => setProjectOpen(false)} />}
       {unitOpen && <UnitSwitcher onClose={() => setUnitOpen(false)} />}
 
-      {floorPick && building && workItemId && !longCell && !sheetKind && (
+      {floorPick && !longCell && !sheetKind && (
         <FloorUnitPickSheet
           floor={floorPick.floor}
           cell={floorPick.cell}
-          workItemName={items.find((w) => w.id === workItemId)?.name ?? '工項'}
+          workItemName={items.find((w) => w.id === floorPick.workItemId)?.name ?? '工項'}
           units={units.filter((u) => floorPick.cell.unitIds.includes(u.id))}
           canEdit={canEdit}
           onClose={() => setFloorPick(null)}
@@ -282,28 +313,30 @@ export function HomePage() {
             setFloorPick(null)
             handleUnitLong({
               unitId: unit.id,
-              workItemId,
+              workItemId: floorPick.workItemId,
               stageId: floorPick.cell.stageId,
             })
           }}
           onBlockFloor={() => {
             const r = setFloorStageStatus({
-              buildingId: building.id,
+              buildingId: floorPick.buildingId,
               floor: floorPick.floor,
-              workItemId,
+              workItemId: floorPick.workItemId,
               stageId: floorPick.cell.stageId,
               status: 'blocked',
+              unitIds: floorPick.cell.unitIds,
             })
             if (!r.ok) setToast(r.error || '無法卡關')
             setFloorPick(null)
           }}
           onUnblockFloor={() => {
             setFloorStageStatus({
-              buildingId: building.id,
+              buildingId: floorPick.buildingId,
               floor: floorPick.floor,
-              workItemId,
+              workItemId: floorPick.workItemId,
               stageId: floorPick.cell.stageId,
               status: 'in_progress',
+              unitIds: floorPick.cell.unitIds,
             })
             setFloorPick(null)
           }}

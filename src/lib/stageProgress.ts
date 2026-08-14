@@ -477,7 +477,10 @@ export interface FloorMatrixRow {
 export interface WorkItemFloorMatrix {
   building: BuildingRule
   workItem: WorkItem
-  stages: { id: string; name: string }[]
+  /** 區塊標題：棟名，或別墅「棟名 戶號」 */
+  title: string
+  unitCode?: string
+  stages: { id: string; name: string; percent: number; completed: number; total: number }[]
   rows: FloorMatrixRow[]
   completedCells: number
   totalCells: number
@@ -487,11 +490,84 @@ export interface WorkItemFloorMatrix {
   defectCells: number
 }
 
-/** 工項視角：樓層 × 工序，不拆戶；格子為該層所有戶的彙總 */
+export type StageStat = {
+  id: string
+  name: string
+  percent: number
+  completed: number
+  total: number
+}
+
+export function workItemDetailStats(
+  state: ProjectState,
+  workItem: WorkItem,
+): {
+  percent: number
+  completedCells: number
+  totalCells: number
+  openDefects: number
+  stages: StageStat[]
+} {
+  const stages = sortedStages(workItem)
+  const stageAcc = stages.map((s) => ({
+    id: s.id,
+    name: s.name,
+    completed: 0,
+    total: 0,
+  }))
+  let openDefects = 0
+  for (const unit of state.units) {
+    if (!unit.active) continue
+    for (const acc of stageAcc) {
+      const key = cellKey(unit.id, workItem.id, acc.id)
+      const stored = storedStageStatus(state.stageProgress, key)
+      const open = openDefectsOnCell(state.defects, unit.id, workItem.id, acc.id).length
+      const status = effectiveStageStatus(stored, open)
+      acc.total += 1
+      if (status === 'completed') acc.completed += 1
+      openDefects += open
+    }
+  }
+  const totalCells = stageAcc.reduce((n, s) => n + s.total, 0)
+  const completedCells = stageAcc.reduce((n, s) => n + s.completed, 0)
+  return {
+    percent: totalCells === 0 ? 0 : Math.round((completedCells / totalCells) * 100),
+    completedCells,
+    totalCells,
+    openDefects,
+    stages: stageAcc.map((s) => ({
+      ...s,
+      percent: s.total === 0 ? 0 : Math.round((s.completed / s.total) * 100),
+    })),
+  }
+}
+
+function matrixStageStats(rows: FloorMatrixRow[], stages: { id: string; name: string }[]): StageStat[] {
+  return stages.map((stage) => {
+    let completed = 0
+    let total = 0
+    for (const row of rows) {
+      const cell = row.cells.find((c) => c.stageId === stage.id)
+      if (!cell) continue
+      total += 1
+      if (cell.status === 'completed' && !cell.mixed) completed += 1
+    }
+    return {
+      id: stage.id,
+      name: stage.name,
+      completed,
+      total,
+      percent: total === 0 ? 0 : Math.round((completed / total) * 100),
+    }
+  })
+}
+
+/** 工項視角：樓層 × 工序；可限單一戶號（別墅整棟列出每一戶） */
 export function buildWorkItemFloorMatrix(
   state: ProjectState,
   buildingId: string,
   workItemId: string,
+  unitCode?: string,
 ): WorkItemFloorMatrix | null {
   const building = state.buildings.find((b) => b.id === buildingId && b.active)
   const workItem = findWorkItem(state, workItemId)
@@ -508,9 +584,13 @@ export function buildWorkItemFloorMatrix(
   for (const floor of floorsOfBuilding(building)) {
     const floorMatrix = buildStageMatrix(state, building.id, floor, workItem.id)
     if (!floorMatrix || floorMatrix.rows.length === 0) continue
-    const units = floorMatrix.rows.map((r) => r.unit)
+    const floorRows = unitCode
+      ? floorMatrix.rows.filter((r) => r.unit.code === unitCode)
+      : floorMatrix.rows
+    if (floorRows.length === 0) continue
+    const units = floorRows.map((r) => r.unit)
     const cells: FloorMatrixCell[] = stages.map((stage) => {
-      const col = floorMatrix.rows
+      const col = floorRows
         .map((r) => r.cells.find((c) => c.stageId === stage.id))
         .filter((c): c is StageMatrixRow['cells'][number] => Boolean(c))
       const agg = aggregateStageStatus(col.map((c) => c.status))
@@ -542,10 +622,17 @@ export function buildWorkItemFloorMatrix(
     })
   }
 
+  const houseLabel =
+    unitCode && unitCode !== '整棟' && unitCode !== building.name
+      ? `${building.name} ${unitCode}`
+      : building.name
+
   return {
     building,
     workItem,
-    stages: stages.map((s) => ({ id: s.id, name: s.name })),
+    title: houseLabel,
+    unitCode,
+    stages: matrixStageStats(rows, stages),
     rows,
     completedCells,
     totalCells,
@@ -554,4 +641,29 @@ export function buildWorkItemFloorMatrix(
     blockedCells,
     defectCells,
   }
+}
+
+/** 列出所有棟／戶的工項矩陣，由上往下填 */
+export function listWorkItemFloorMatrices(
+  state: ProjectState,
+  workItemId: string,
+): WorkItemFloorMatrix[] {
+  const buildings = [...state.buildings]
+    .filter((b) => b.active)
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+  const out: WorkItemFloorMatrix[] = []
+  for (const building of buildings) {
+    const codes = building.unitCodes.filter(Boolean)
+    const splitHouseholds = isVillaLayout(building) && codes.length > 1
+    if (splitHouseholds) {
+      for (const code of codes) {
+        const matrix = buildWorkItemFloorMatrix(state, building.id, workItemId, code)
+        if (matrix && matrix.rows.length > 0) out.push(matrix)
+      }
+    } else {
+      const matrix = buildWorkItemFloorMatrix(state, building.id, workItemId)
+      if (matrix && matrix.rows.length > 0) out.push(matrix)
+    }
+  }
+  return out
 }

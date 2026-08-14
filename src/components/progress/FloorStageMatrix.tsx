@@ -4,7 +4,6 @@ import {
   type FloorMatrixCell,
   type WorkItemFloorMatrix,
 } from '../../lib/stageProgress'
-import { isVillaLayout } from '../../lib/units'
 
 export function FloorStageMatrix({
   matrix,
@@ -32,7 +31,8 @@ export function FloorStageMatrix({
           <th className="unit-cell">樓層</th>
           {matrix.stages.map((s) => (
             <th key={s.id} className="stage-head">
-              {s.name}
+              <div>{s.name}</div>
+              <div className="stage-head-pct">{s.percent}%</div>
             </th>
           ))}
         </tr>
@@ -42,17 +42,14 @@ export function FloorStageMatrix({
           <tr key={row.floor}>
             <td className="unit-cell">
               <div style={{ fontWeight: 800 }}>{row.floor}</div>
-              {isVillaLayout(matrix.building) ? (
-                row.units.length > 1 ? (
-                  <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--ink-soft)' }}>
-                    {row.units.length} 戶
-                  </div>
-                ) : null
-              ) : (
+              <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--green-deep)' }}>
+                {row.percent}%
+              </div>
+              {row.units.length > 1 ? (
                 <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--ink-soft)' }}>
                   {row.units.length} 戶
                 </div>
-              )}
+              ) : null}
             </td>
             {row.cells.map((cell) => (
               <td key={cell.stageId}>

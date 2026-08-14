@@ -3,7 +3,6 @@ import { ChevronLeft, ChevronRight, FileSpreadsheet } from 'lucide-react'
 import { useProjectStore } from '../../store/useProjectStore'
 import { useCurrentProject } from '../../store/useAuthStore'
 import { TitleHint } from '../ui/TitleHint'
-import { GlassSelect } from '../ui/GlassSelect'
 import { UnitSwitcher } from '../UnitSwitcher'
 import { FloorStageMatrix } from '../progress/FloorStageMatrix'
 import { StageCellButton } from '../progress/StageCellButton'
@@ -13,11 +12,12 @@ import { formatActorLabel } from '../../lib/currentActor'
 import { formatUnitTitle, layoutForUnit } from '../../lib/units'
 import {
   activeWorkItems,
-  buildWorkItemFloorMatrix,
+  listWorkItemFloorMatrices,
   overallProgress,
   stageStatusLabel,
   stepActiveUnit,
   unitWorkItemRows,
+  workItemDetailStats,
 } from '../../lib/stageProgress'
 
 type ReportView = 'workItem' | 'unit'
@@ -32,20 +32,21 @@ export function ReportsPage() {
   const items = activeWorkItems(state)
   const activities = state.activities ?? []
 
-  const buildings = [...state.buildings]
-    .filter((b) => b.active)
-    .sort((a, b) => a.sortOrder - b.sortOrder)
-  const building =
-    buildings.find((b) => b.id === state.currentBuildingId) ?? buildings[0]
   const workItemId =
     state.currentWorkItemId && items.some((w) => w.id === state.currentWorkItemId)
       ? state.currentWorkItemId
       : items[0]?.id
+  const workItem = items.find((w) => w.id === workItemId)
 
-  const floorMatrix = useMemo(() => {
-    if (!building || !workItemId) return null
-    return buildWorkItemFloorMatrix(state, building.id, workItemId)
-  }, [state, building, workItemId])
+  const matrices = useMemo(() => {
+    if (!workItemId) return []
+    return listWorkItemFloorMatrices(state, workItemId)
+  }, [state, workItemId])
+
+  const workStats = useMemo(() => {
+    if (!workItem) return null
+    return workItemDetailStats(state, workItem)
+  }, [state, workItem])
 
   const unit =
     state.units.find((u) => u.id === state.currentUnitId) ?? state.units.find((u) => u.active)
@@ -70,7 +71,7 @@ export function ReportsPage() {
             as="h1"
             className="serif"
             style={{ margin: '4px 0 0', fontSize: 22 }}
-            hint="工項矩陣看整層工序；各戶進度一次看一戶的全部工項。"
+            hint="工項矩陣一次列出全部棟／戶；切換工種可看該工種與各工序完成度。"
           >
             {project?.name ?? state.projectName}
           </TitleHint>
@@ -121,33 +122,49 @@ export function ReportsPage() {
 
       {view === 'workItem' ? (
         <>
-          <div className="home-filters">
-            <GlassSelect
-              label="棟別"
-              value={building?.id ?? ''}
-              options={buildings.map((b) => ({ value: b.id, label: b.name }))}
-              onChange={(id) => useProjectStore.getState().setCurrentBuilding(id)}
-            />
-            <GlassSelect
-              label="工項"
-              value={workItemId ?? ''}
-              options={items.map((w) => ({ value: w.id, label: w.name }))}
-              onChange={(id) => useProjectStore.getState().setCurrentWorkItem(id)}
-            />
+          <div className="chip-row work-item-chips" style={{ marginBottom: 8 }}>
+            {items.map((w) => (
+              <button
+                key={w.id}
+                type="button"
+                className={`chip ${w.id === workItemId ? 'on' : ''}`}
+                onClick={() => useProjectStore.getState().setCurrentWorkItem(w.id)}
+              >
+                {w.name}
+              </button>
+            ))}
           </div>
-          {floorMatrix && (
-            <p style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 700, color: 'var(--ink-soft)' }}>
-              {floorMatrix.workItem.name} · {floorMatrix.building.name} · {floorMatrix.percent}%（
-              {floorMatrix.completedCells}/{floorMatrix.totalCells}）
-            </p>
+          {workStats && workItem && (
+            <div className="work-stat-card" style={{ marginBottom: 10 }}>
+              <div className="work-stat-hero">
+                <span className="work-stat-name">{workItem.name}</span>
+                <span className="nums work-stat-pct">{workStats.percent}%</span>
+              </div>
+              <div className="work-stat-stages">
+                {workStats.stages.map((s) => (
+                  <div key={s.id} className="work-stat-stage">
+                    <span className="work-stat-stage-name">{s.name}</span>
+                    <span className="nums work-stat-stage-pct">{s.percent}%</span>
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
-          <div className="glass matrix-scroll" style={{ padding: 6, marginBottom: 16 }}>
-            {floorMatrix ? (
-              <FloorStageMatrix matrix={floorMatrix} canEdit={false} />
-            ) : (
-              <p style={{ padding: 16, color: 'var(--ink-soft)', fontWeight: 600 }}>請先設定棟別與工項。</p>
-            )}
-          </div>
+          {matrices.length === 0 ? (
+            <p style={{ padding: 16, color: 'var(--ink-soft)', fontWeight: 600 }}>請先設定棟別與工項。</p>
+          ) : (
+            matrices.map((matrix) => (
+              <section key={`${matrix.building.id}:${matrix.unitCode ?? ''}`} className="house-matrix">
+                <div className="house-matrix-head">
+                  <strong>{matrix.title}</strong>
+                  <span className="nums">{matrix.percent}%</span>
+                </div>
+                <div className="glass matrix-scroll" style={{ padding: 6, marginBottom: 8 }}>
+                  <FloorStageMatrix matrix={matrix} canEdit={false} />
+                </div>
+              </section>
+            ))
+          )}
         </>
       ) : (
         <>

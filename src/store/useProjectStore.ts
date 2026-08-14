@@ -100,6 +100,7 @@ interface ProjectActions {
     floor: string
     workItemId: string
     stageId: string
+    unitIds?: string[]
   }) => { ok: boolean; error?: string; status?: StageStatus }
   setStageCellStatus: (input: {
     unitId: string
@@ -113,6 +114,7 @@ interface ProjectActions {
     workItemId: string
     stageId: string
     status: StageStatus
+    unitIds?: string[]
   }) => { ok: boolean; error?: string }
   setCurrentWorkItem: (workItemId: string | null) => void
   setCurrentBuilding: (buildingId: string | null) => void
@@ -500,9 +502,11 @@ export const useProjectStore = create<ProjectState & BundleState & ProjectAction
         return { ok: true, status: result.next }
       },
 
-      cycleFloorStage: ({ buildingId, floor, workItemId, stageId }) => {
+      cycleFloorStage: ({ buildingId, floor, workItemId, stageId, unitIds }) => {
         const state = get()
-        const units = activeUnitsOnFloor(state, buildingId, floor)
+        const units = activeUnitsOnFloor(state, buildingId, floor).filter((u) =>
+          unitIds?.length ? unitIds.includes(u.id) : true,
+        )
         if (units.length === 0) return { ok: false, error: '此樓層沒有有效戶別' }
         const snapshots = units.map((unit) => {
           const key = cellKey(unit.id, workItemId, stageId)
@@ -605,9 +609,11 @@ export const useProjectStore = create<ProjectState & BundleState & ProjectAction
         return { ok: true }
       },
 
-      setFloorStageStatus: ({ buildingId, floor, workItemId, stageId, status }) => {
+      setFloorStageStatus: ({ buildingId, floor, workItemId, stageId, status, unitIds }) => {
         const state = get()
-        const units = activeUnitsOnFloor(state, buildingId, floor)
+        const units = activeUnitsOnFloor(state, buildingId, floor).filter((u) =>
+          unitIds?.length ? unitIds.includes(u.id) : true,
+        )
         if (units.length === 0) return { ok: false, error: '此樓層沒有有效戶別' }
         let progress = state.stageProgress
         let applied = 0
