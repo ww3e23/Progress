@@ -39,7 +39,7 @@ export function WorkItemEditor({
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="例如：室內泥作"
+          placeholder="例如：泥作"
         />
       </div>
 

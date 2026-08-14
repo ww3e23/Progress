@@ -192,7 +192,7 @@ export interface ProjectState {
   areas: string[]
   /** 格局區域範本清單 */
   areaTemplates: AreaTemplate[]
-  /** 施工工項（止水墩、室內泥作…） */
+  /** 施工工項（泥作、輕隔間、鋁窗…） */
   workItems: WorkItem[]
   /** key = unitId|workItemId|stageId */
   stageProgress: Record<string, StageProgressEntry>

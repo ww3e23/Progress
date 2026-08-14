@@ -227,13 +227,17 @@ export function SettingsPage({ embedded = false }: { embedded?: boolean }) {
       </div>
 
       <div className="section-row" style={{ marginTop: 22 }}>
-        <TitleHint as="h2" hint="對應 Excel 的一張表：工項名稱 + 由左到右的工序欄。點工項可展開工序，右側編輯。">
+        <TitleHint as="h2" hint="對應現場 Excel：泥作、輕隔間、鋁窗、防水…。矩陣是樓層 × 工序。誤刪可按「填入預設」補回缺的項。">
           工項與工序
         </TitleHint>
         <button
           type="button"
           className="link"
-          onClick={() => applyDefaultWorkItems('fill-if-empty')}
+          onClick={() => {
+            const res = applyDefaultWorkItems('fill-missing')
+            setWorkItemsOpen(true)
+            window.alert(res.message || '完成')
+          }}
         >
           填入預設
         </button>

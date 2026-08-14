@@ -15,7 +15,7 @@ import type {
   WorkItem,
 } from '../types'
 import { buildDefaultChecklist } from '../data/defaultChecklist'
-import { buildDefaultWorkItems } from '../data/defaultWorkItems'
+import { applyDefaultWorkItemsToList, buildDefaultWorkItems } from '../data/defaultWorkItems'
 import { createEmptyProjectState, createProjectBundles, ensureProgressFields } from '../data/seed'
 import {
   activeUnitsOnFloor,
@@ -120,7 +120,9 @@ interface ProjectActions {
   setFocusedCell: (cell: FocusedStageCell | null) => void
   upsertWorkItem: (item: WorkItem) => void
   removeWorkItem: (workItemId: string) => { ok: boolean; reason?: string }
-  applyDefaultWorkItems: (mode?: 'fill-if-empty' | 'replace') => { ok: boolean; reason?: string }
+  applyDefaultWorkItems: (
+    mode?: 'fill-if-empty' | 'fill-missing' | 'replace',
+  ) => { ok: boolean; reason?: string; added?: number; revived?: number; message?: string }
   updateDefectStatus: (defectId: string, status: DefectStatus) => void
   /** 修改缺失內容（區域／說明／大項／照片） */
   updateDefect: (
@@ -695,18 +697,29 @@ export const useProjectStore = create<ProjectState & BundleState & ProjectAction
         return { ok: true }
       },
 
-      applyDefaultWorkItems: (mode = 'fill-if-empty') => {
+      applyDefaultWorkItems: (mode = 'fill-missing') => {
         const state = get()
-        if (mode === 'fill-if-empty' && state.workItems.some((w) => w.active)) {
-          return { ok: true, reason: 'already' }
+        const result = applyDefaultWorkItemsToList(state.workItems ?? [], mode)
+        if (result.added === 0 && result.revived === 0 && !result.migrated) {
+          return { ok: true, reason: 'already', added: 0, revived: 0, message: result.message }
         }
-        const workItems = buildDefaultWorkItems()
+        const currentStill =
+          state.currentWorkItemId &&
+          result.workItems.some((w) => w.id === state.currentWorkItemId && w.active)
+            ? state.currentWorkItemId
+            : (result.workItems.find((w) => w.active)?.id ?? null)
         set({
-          workItems,
-          currentWorkItemId: workItems[0]?.id ?? null,
+          workItems: result.workItems,
+          currentWorkItemId: currentStill,
         })
         afterProjectChange(get, set)
-        return { ok: true }
+        return {
+          ok: true,
+          reason: result.migrated ? 'migrated' : 'updated',
+          added: result.added,
+          revived: result.revived,
+          message: result.message,
+        }
       },
 
       upsertBuilding: (building) => {
