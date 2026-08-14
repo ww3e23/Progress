@@ -221,15 +221,16 @@ export function HomePage() {
 
       {view === 'matrix' && workItemId && (
         <div className="work-matrix-sticky">
-          <div className="work-item-picker">
-            <GlassSelect
-              variant="pill"
-              label="工種"
-              value={workItemId}
-              options={items.map((w) => ({ value: w.id, label: w.name }))}
-              onChange={setCurrentWorkItem}
-              searchable
-            />
+          <div className="home-filters" style={{ margin: '0 0 8px' }}>
+            <div className="home-filter-wide">
+              <GlassSelect
+                label="工種"
+                value={workItemId}
+                options={items.map((w) => ({ value: w.id, label: w.name }))}
+                onChange={setCurrentWorkItem}
+                searchable
+              />
+            </div>
           </div>
           {workStats && workItem && (
             <div className="work-stat-card">
