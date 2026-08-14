@@ -7,6 +7,7 @@ import { getUnitAreas } from '../../lib/areas'
 import type { Defect } from '../../types'
 import { resolveDefectRemark } from '../../lib/defectDisplay'
 import { Modal } from '../ui/Modal'
+import { GlassSelect } from '../ui/GlassSelect'
 import { AnnotatePlanModal } from './AnnotatePlanModal'
 import { UnitAreasEditor } from '../settings/UnitAreasEditor'
 
@@ -127,72 +128,40 @@ export function EditDefectSheet({
         )}
 
         <div className="field">
-          <label>缺失大項</label>
-          <div className="chip-row">
-            {activeCats.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                className={`chip ${cat?.id === c.id ? 'on' : ''}`}
-                onClick={() => {
-                  setCatId(c.id)
-                  const first = checklistItems
-                    .filter((i) => i.categoryId === c.id && i.active)
-                    .sort((a, b) => a.sortOrder - b.sortOrder)[0]
-                  setItemId(first?.id ?? null)
-                }}
-                disabled={!canEdit}
-              >
-                {c.name}
-              </button>
-            ))}
-          </div>
+          <GlassSelect
+            label="缺失大項"
+            value={cat?.id ?? ''}
+            options={activeCats.map((c) => ({ value: c.id, label: c.name }))}
+            onChange={(id) => {
+              setCatId(id)
+              const first = checklistItems
+                .filter((i) => i.categoryId === id && i.active)
+                .sort((a, b) => a.sortOrder - b.sortOrder)[0]
+              setItemId(first?.id ?? null)
+            }}
+            disabled={!canEdit}
+          />
         </div>
 
         <div className="field">
-          <label>缺失細項</label>
-          {catItems.length === 0 ? (
+          <GlassSelect
+            label="缺失細項"
+            value={effectiveItemId ?? ''}
+            options={catItems.map((item) => ({ value: item.id, label: item.description }))}
+            onChange={setItemId}
+            disabled={!canEdit || catItems.length === 0}
+            searchable={catItems.length > 6}
+          />
+          {catItems.length === 0 && (
             <p style={{ margin: '8px 0 0', color: 'var(--terracotta)', fontSize: 12, fontWeight: 700 }}>
               此大項尚無啟用中的細項
             </p>
-          ) : (
-            <div
-              className="chip-row"
-              style={{
-                flexDirection: 'column',
-                alignItems: 'stretch',
-                gap: 8,
-                marginTop: 8,
-                maxHeight: '28vh',
-                overflow: 'auto',
-              }}
-            >
-              {catItems.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  className={`chip ${effectiveItemId === item.id ? 'on' : ''}`}
-                  style={{
-                    minHeight: 40,
-                    justifyContent: 'flex-start',
-                    textAlign: 'left',
-                    whiteSpace: 'normal',
-                    lineHeight: 1.35,
-                    width: '100%',
-                  }}
-                  onClick={() => setItemId(item.id)}
-                  disabled={!canEdit}
-                >
-                  {item.description}
-                </button>
-              ))}
-            </div>
           )}
         </div>
 
         <div className="field">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-            <label style={{ margin: 0 }}>缺失區域（此戶）</label>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+            <span className="filter-select-label" style={{ margin: 0 }}>缺失區域（此戶）</span>
             {unit && canEdit && (
               <button
                 type="button"
@@ -206,19 +175,14 @@ export function EditDefectSheet({
               </button>
             )}
           </div>
-          <div className="chip-row" style={{ flexWrap: 'nowrap', overflowX: 'auto', marginTop: 8 }}>
-            {areas.map((a) => (
-              <button
-                key={a}
-                type="button"
-                className={`chip ${area === a ? 'on' : ''}`}
-                onClick={() => setArea(a)}
-                disabled={!canEdit}
-              >
-                {a}
-              </button>
-            ))}
-          </div>
+          <GlassSelect
+            label="缺失區域"
+            hideLabel
+            value={area}
+            options={areas.map((a) => ({ value: a, label: a }))}
+            onChange={setArea}
+            disabled={!canEdit || areas.length === 0}
+          />
         </div>
 
         <div className="field">

@@ -313,51 +313,28 @@ export function AddDefectSheet({
         )}
 
         <div className="field">
-          {items.length > 6 ? (
-            <GlassSelect
-              label="工項"
-              value={workItem?.id ?? ''}
-              options={items.map((w) => ({ value: w.id, label: w.name }))}
-              onChange={setWiId}
-            />
-          ) : (
-            <>
-              <label>工項</label>
-              <div className="chip-row">
-                {items.map((w) => (
-                  <button
-                    key={w.id}
-                    type="button"
-                    className={`chip ${workItem?.id === w.id ? 'on' : ''}`}
-                    onClick={() => setWiId(w.id)}
-                  >
-                    {w.name}
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
+          <GlassSelect
+            label="工項"
+            value={workItem?.id ?? ''}
+            options={items.map((w) => ({ value: w.id, label: w.name }))}
+            onChange={setWiId}
+            disabled={!canEdit}
+          />
         </div>
 
         <div className="field">
-          <label>工序</label>
-          <div className="chip-row">
-            {stages.map((s) => (
-              <button
-                key={s.id}
-                type="button"
-                className={`chip ${stage?.id === s.id ? 'on' : ''}`}
-                onClick={() => setStId(s.id)}
-              >
-                {s.name}
-              </button>
-            ))}
-          </div>
+          <GlassSelect
+            label="工序"
+            value={stage?.id ?? ''}
+            options={stages.map((s) => ({ value: s.id, label: s.name }))}
+            onChange={setStId}
+            disabled={!canEdit}
+          />
         </div>
 
         <div className="field">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-            <label style={{ margin: 0 }}>缺失區域（此戶）</label>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+            <span className="filter-select-label" style={{ margin: 0 }}>缺失區域（此戶）</span>
             {unit && (
               <button
                 type="button"
@@ -371,18 +348,14 @@ export function AddDefectSheet({
               </button>
             )}
           </div>
-          <div className="chip-row" style={{ flexWrap: 'nowrap', overflowX: 'auto', marginTop: 8 }}>
-            {areas.map((a) => (
-              <button
-                key={a}
-                type="button"
-                className={`chip ${area === a ? 'on' : ''}`}
-                onClick={() => setArea(a)}
-              >
-                {a}
-              </button>
-            ))}
-          </div>
+          <GlassSelect
+            label="缺失區域"
+            hideLabel
+            value={area}
+            options={areas.map((a) => ({ value: a, label: a }))}
+            onChange={setArea}
+            disabled={!canEdit || areas.length === 0}
+          />
           {areas.length === 0 && (
             <p style={{ margin: '8px 0 0', color: 'var(--terracotta)', fontSize: 12, fontWeight: 700 }}>
               此戶尚無施工區域，請先編輯新增。
