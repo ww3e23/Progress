@@ -69,6 +69,11 @@ function loadGis(): Promise<void> {
   return gisLoading
 }
 
+/** 後台進入專案設定時先載入，避免點「綁定」時才下載腳本而擋掉彈出視窗 */
+export function preloadGoogleDriveAuth(): Promise<void> {
+  return loadGis().catch(() => undefined)
+}
+
 /** 網頁 OAuth 用戶端 ID（會公開嵌在前端；靠 JS origin 限制）。CI 未設 env 時用此預設。 */
 const DEFAULT_WEB_CLIENT_ID =
   '829326871761-5ls56g2qktrk242v43551ladikvs2uhv.apps.googleusercontent.com'
@@ -190,7 +195,20 @@ export async function requestGoogleDriveAuthCode(): Promise<string> {
         resolve(resp.code)
       },
       error_callback: (err) => {
-        reject(new Error(err.message || err.type || 'Google 授權視窗關閉或失敗'))
+        const type = String(err.type || '')
+        if (type === 'popup_closed') {
+          reject(new Error('Google 授權視窗已關閉，尚未完成綁定'))
+          return
+        }
+        if (type === 'popup_failed' || type === 'popup_blocked') {
+          reject(
+            new Error(
+              '瀏覽器擋下 Google 授權視窗。請允許此網站的彈出式視窗後，再按一次「綁定雲端硬碟擁有者」。',
+            ),
+          )
+          return
+        }
+        reject(new Error(err.message || type || 'Google 授權視窗關閉或失敗'))
       },
     })
     client.requestCode()

@@ -1,16 +1,18 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { CloudUpload, Trash2, UserMinus } from 'lucide-react'
 import { useAuthStore } from '../../store/useAuthStore'
 import { createId } from '../../lib/id'
 import { nextProjectCode } from '../../lib/projectCode'
 import { driveFolderUrl, parseDriveFolderId } from '../../lib/driveFolder'
 import {
+  FIREBASE_DRIVE_UNAVAILABLE,
   connectProjectDriveOwner,
   disconnectProjectDriveOwner,
   syncProjectPhotosToDrive,
   syncProjectPhotosToDriveAsUser,
 } from '../../services/driveSync'
-import { getGoogleOAuthClientId } from '../../lib/googleDriveAuth'
+import { getGoogleOAuthClientId, preloadGoogleDriveAuth } from '../../lib/googleDriveAuth'
+import { isFirebaseConfigured } from '../../lib/firebase'
 import {
   ROLE_LABEL,
   type MemberRole,
@@ -44,6 +46,11 @@ export function ProjectsPage() {
   const [driveMsg, setDriveMsg] = useState('')
   const [driveSyncing, setDriveSyncing] = useState(false)
   const [memberQuery, setMemberQuery] = useState('')
+  const cloud = isFirebaseConfigured()
+
+  useEffect(() => {
+    void preloadGoogleDriveAuth()
+  }, [])
 
   const selected = projects.find((p) => p.id === selectedId) ?? null
   const selectedMembers = members.filter((m) => m.projectId === selectedId)
@@ -111,14 +118,23 @@ export function ProjectsPage() {
     )
   }
 
+  function showDriveBlock(message: string) {
+    setDriveMsg(message)
+    window.alert(message)
+  }
+
   async function runConnectDriveOwner() {
     if (!selected?.driveFolderId) {
-      setDriveMsg('請先貼上並儲存雲端硬碟資料夾網址')
+      showDriveBlock('請先貼上並儲存雲端硬碟資料夾網址')
       return
     }
     if (driveSyncing) return
+    if (!cloud) {
+      showDriveBlock(FIREBASE_DRIVE_UNAVAILABLE)
+      return
+    }
     if (!getGoogleOAuthClientId()) {
-      setDriveMsg(
+      showDriveBlock(
         '尚未啟用 Google OAuth：請先在 GCP 建立網頁用戶端，並設定 VITE_GOOGLE_OAUTH_CLIENT_ID 後重新部署。',
       )
       return
@@ -135,7 +151,7 @@ export function ProjectsPage() {
     try {
       const res = await connectProjectDriveOwner(selected.id)
       if (!res.ok || !res.result) {
-        setDriveMsg(res.error || '綁定失敗')
+        showDriveBlock(res.error || '綁定失敗')
         return
       }
       const email = res.result.email
@@ -169,6 +185,11 @@ export function ProjectsPage() {
       return
     }
     if (driveSyncing) return
+
+    if (!cloud) {
+      showDriveBlock(FIREBASE_DRIVE_UNAVAILABLE)
+      return
+    }
 
     if (mode === 'user' && !getGoogleOAuthClientId()) {
       setDriveMsg(
@@ -204,7 +225,7 @@ export function ProjectsPage() {
           ? await syncProjectPhotosToDriveAsUser(selected.id, { force: true })
           : await syncProjectPhotosToDrive(selected.id, { force: true })
       if (!res.ok || !res.result) {
-        setDriveMsg(res.error || '同步失敗')
+        showDriveBlock(res.error || '同步失敗')
         return
       }
       const r = res.result
@@ -336,6 +357,23 @@ export function ProjectsPage() {
               </TitleHint>
             </summary>
             <div className="field" style={{ marginTop: 10 }}>
+              {!cloud && (
+                <div
+                  style={{
+                    marginBottom: 10,
+                    padding: '10px 12px',
+                    borderRadius: 12,
+                    background: 'rgba(176, 74, 58, 0.1)',
+                    color: 'var(--terracotta)',
+                    fontSize: 13,
+                    fontWeight: 700,
+                    lineHeight: 1.5,
+                    whiteSpace: 'pre-wrap',
+                  }}
+                >
+                  {FIREBASE_DRIVE_UNAVAILABLE}
+                </div>
+              )}
               <label>資料夾網址</label>
               <input
                 value={driveInput}
@@ -426,8 +464,11 @@ export function ProjectsPage() {
                   style={{
                     marginTop: 8,
                     fontSize: 13,
-                    fontWeight: 600,
-                    color: 'var(--green-deep)',
+                    fontWeight: 700,
+                    color:
+                      /失敗|尚未|無法|請先|擋下|關閉/.test(driveMsg)
+                        ? 'var(--terracotta)'
+                        : 'var(--green-deep)',
                     whiteSpace: 'pre-wrap',
                     lineHeight: 1.45,
                   }}

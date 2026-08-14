@@ -54,9 +54,14 @@ export type DriveOwnerConnectResult = {
   reusedRefreshToken?: boolean
 }
 
+export const FIREBASE_DRIVE_UNAVAILABLE =
+  '施工進度站尚未接上 Firebase，無法完成雲端硬碟綁定（確認後不會跳出 Google 授權視窗）。\n\n' +
+  '若這是驗屋建案，請改到驗屋後台綁定：\nhttps://ww3e23.github.io/CI/#/admin\n\n' +
+  '若要在此站使用雲端硬碟，需先把 VITE_FIREBASE_* 加到 GitHub Secrets 並重新部署。'
+
 async function ensureFirebaseUser() {
   if (!isFirebaseConfigured()) {
-    return { ok: false as const, error: '尚未設定 Firebase，無法同步雲端硬碟' }
+    return { ok: false as const, error: FIREBASE_DRIVE_UNAVAILABLE }
   }
   const app = getFirebaseApp()
   const auth = getFirebaseAuth()
@@ -78,6 +83,9 @@ function cleanError(err: unknown): string {
 export async function connectProjectDriveOwner(
   projectId: string,
 ): Promise<{ ok: boolean; result?: DriveOwnerConnectResult; error?: string }> {
+  if (!isFirebaseConfigured()) {
+    return { ok: false, error: FIREBASE_DRIVE_UNAVAILABLE }
+  }
   if (!getGoogleOAuthClientId()) {
     return {
       ok: false,
@@ -86,11 +94,11 @@ export async function connectProjectDriveOwner(
     }
   }
 
-  const ready = await ensureFirebaseUser()
-  if (!ready.ok) return ready
-
   try {
+    // 先彈 Google（緊接在使用者確認之後），再等 Firebase，避免彈出視窗被擋
     const code = await requestGoogleDriveAuthCode()
+    const ready = await ensureFirebaseUser()
+    if (!ready.ok) return ready
     const functions = getFunctions(ready.app, 'asia-east1')
     const callable = httpsCallable<{ projectId: string; code: string }, DriveOwnerConnectResult>(
       functions,
