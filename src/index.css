@@ -1275,6 +1275,148 @@ button.status-pill:active {
   border-color: #c5ced8;
 }
 
+.matrix-cell:disabled,
+.report-matrix .matrix-cell {
+  cursor: default;
+  pointer-events: none;
+}
+
+.matrix-cell:disabled:hover,
+.matrix-cell:disabled:focus-visible,
+.report-matrix .matrix-cell:hover,
+.report-matrix .matrix-cell:focus-visible {
+  transform: none;
+  box-shadow: none;
+}
+
+.report-overview {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 12px;
+  padding: 16px;
+  margin: 12px 0 8px;
+}
+
+.report-overview-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+.report-overview-pct {
+  font-size: 36px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.report-overview-sub {
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+.report-overview-side {
+  display: grid;
+  gap: 6px;
+  text-align: right;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.report-legend {
+  margin: 4px 0 10px;
+}
+
+.report-empty {
+  padding: 16px;
+  color: var(--ink-soft);
+  font-weight: 600;
+}
+
+.report-matrix {
+  padding: 8px 10px;
+}
+
+.report-matrix-row {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(34, 41, 31, 0.08);
+}
+
+.report-matrix-row:last-child {
+  border-bottom: 0;
+  padding-bottom: 2px;
+}
+
+.report-matrix-name {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding-top: 14px;
+}
+
+.report-matrix-name strong {
+  font-size: 13px;
+  line-height: 1.25;
+}
+
+.report-matrix-name .nums {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--green-deep);
+}
+
+.report-matrix-stages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+}
+
+.report-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 36px;
+}
+
+.report-stage-name {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--ink-soft);
+  line-height: 1.2;
+  text-align: center;
+  max-width: 44px;
+}
+
+.report-matrix .matrix-cell {
+  width: 36px;
+  min-width: 36px;
+  height: 26px;
+  font-size: 11px;
+}
+
+.report-copy {
+  padding: 12px 14px;
+}
+
+.report-copy p {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.report-copy p:last-child {
+  margin-bottom: 0;
+}
+
 .stage-matrix {
   width: 100%;
   border-collapse: separate;

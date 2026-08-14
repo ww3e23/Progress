@@ -1,57 +1,22 @@
 import { useMemo, useState } from 'react'
-import { ChevronLeft, ChevronRight, FileSpreadsheet } from 'lucide-react'
+import { FileSpreadsheet } from 'lucide-react'
 import { useProjectStore } from '../../store/useProjectStore'
 import { useCurrentProject } from '../../store/useAuthStore'
 import { TitleHint } from '../ui/TitleHint'
-import { GlassSelect } from '../ui/GlassSelect'
-import { UnitSwitcher } from '../UnitSwitcher'
-import { FloorStageMatrix } from '../progress/FloorStageMatrix'
-import { StageCellButton } from '../progress/StageCellButton'
 import { exportProgressExcel } from '../../lib/excelProgress'
 import { formatActivity } from '../../lib/progress'
 import { formatActorLabel } from '../../lib/currentActor'
-import { formatUnitTitle, layoutForUnit } from '../../lib/units'
-import {
-  activeWorkItems,
-  listWorkItemFloorMatrices,
-  overallProgress,
-  stageStatusLabel,
-  stepActiveUnit,
-  unitWorkItemRows,
-  workItemDetailStats,
-} from '../../lib/stageProgress'
-
-type ReportView = 'workItem' | 'unit'
+import { overallProgress } from '../../lib/stageProgress'
+import { buildReportWorkRows } from '../../lib/reportSummary'
+import { ReportWorkMatrix } from './ReportWorkMatrix'
 
 export function ReportsPage() {
   const state = useProjectStore()
   const project = useCurrentProject()
   const [busy, setBusy] = useState(false)
-  const [view, setView] = useState<ReportView>('workItem')
-  const [unitOpen, setUnitOpen] = useState(false)
   const overview = useMemo(() => overallProgress(state), [state])
-  const items = activeWorkItems(state)
+  const rows = useMemo(() => buildReportWorkRows(state), [state])
   const activities = state.activities ?? []
-
-  const workItemId =
-    state.currentWorkItemId && items.some((w) => w.id === state.currentWorkItemId)
-      ? state.currentWorkItemId
-      : items[0]?.id
-  const workItem = items.find((w) => w.id === workItemId)
-
-  const matrices = useMemo(() => {
-    if (!workItemId) return []
-    return listWorkItemFloorMatrices(state, workItemId)
-  }, [state, workItemId])
-
-  const workStats = useMemo(() => {
-    if (!workItem) return null
-    return workItemDetailStats(state, workItem)
-  }, [state, workItem])
-
-  const unit =
-    state.units.find((u) => u.id === state.currentUnitId) ?? state.units.find((u) => u.active)
-  const unitRows = unit ? unitWorkItemRows(state, unit) : []
 
   async function exportExcel() {
     if (busy) return
@@ -65,183 +30,91 @@ export function ReportsPage() {
 
   return (
     <div className="rise">
-      <header style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start' }}>
-        <div style={{ minWidth: 0 }}>
-          <div className="eyebrow">PROGRESS REPORT</div>
-          <TitleHint
-            as="h1"
-            className="serif"
-            style={{ margin: '4px 0 0', fontSize: 22 }}
-            hint="工項矩陣一次列出全部棟／戶；切換工種可看該工種與各工序完成度。"
-          >
-            {project?.name ?? state.projectName}
-          </TitleHint>
-        </div>
-        <div className="view-toggle" role="tablist" aria-label="報表視角">
-          <button
-            type="button"
-            className={view === 'workItem' ? 'on' : ''}
-            onClick={() => setView('workItem')}
-          >
-            工項矩陣
-          </button>
-          <button type="button" className={view === 'unit' ? 'on' : ''} onClick={() => setView('unit')}>
-            各戶進度
-          </button>
-        </div>
+      <header>
+        <div className="eyebrow">PROGRESS REPORT</div>
+        <TitleHint
+          as="h1"
+          className="serif"
+          style={{ margin: '4px 0 0', fontSize: 22 }}
+          hint="全案工種一次看：矩陣不可改，樓層已匯總。下方文字是各工種戶數。"
+        >
+          {project?.name ?? state.projectName}
+        </TitleHint>
       </header>
 
-      <section className="glass" style={{ padding: 16, margin: '12px 0' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 12 }}>
-          <div>
-            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink-soft)' }}>全案完成率</div>
-            <div className="serif nums" style={{ fontSize: 36, fontWeight: 700, lineHeight: 1.1 }}>
-              {overview.percent}%
-            </div>
-            <div style={{ marginTop: 4, fontSize: 12, fontWeight: 700, color: 'var(--ink-soft)' }}>
-              {overview.completedCells}/{overview.totalCells} 格完成
-            </div>
+      <section className="glass report-overview">
+        <div>
+          <div className="report-overview-label">全案完成率</div>
+          <div className="serif nums report-overview-pct">{overview.percent}%</div>
+          <div className="report-overview-sub">
+            {overview.completedCells}/{overview.totalCells} 格完成
           </div>
-          <div style={{ display: 'grid', gap: 6, textAlign: 'right', fontSize: 13, fontWeight: 700 }}>
-            <span>未關缺失 {overview.openDefects}</span>
-            <span>缺失改善中 {overview.defectCells}</span>
-            <span>卡關 {overview.blockedCells}</span>
-          </div>
+        </div>
+        <div className="report-overview-side">
+          <span>未關缺失 {overview.openDefects}</span>
+          <span>缺失改善中 {overview.defectCells}</span>
+          <span>卡關 {overview.blockedCells}</span>
         </div>
       </section>
 
+      <div className="legend-row report-legend">
+        <span>
+          <i className="legend-dot" style={{ background: '#fff', border: '1px solid #e2ddd3' }} />
+          未開始
+        </span>
+        <span>
+          <i className="legend-dot" style={{ background: 'var(--matrix-progress)' }} />
+          施工中
+        </span>
+        <span>
+          <i className="legend-dot" style={{ background: 'var(--matrix-done)' }} />
+          完成
+        </span>
+        <span>
+          <i className="legend-dot" style={{ background: 'var(--matrix-na)', border: '1px solid #c5ced8' }} />
+          不適用
+        </span>
+        <span>
+          <i className="legend-dot" style={{ background: '#c64545' }} />
+          卡關
+        </span>
+        <span>
+          <i className="legend-dot" style={{ background: 'var(--matrix-defect)' }} />
+          缺失
+        </span>
+      </div>
+
+      <ReportWorkMatrix rows={rows} />
+
+      <div className="section-row">
+        <h2>各工種戶數</h2>
+      </div>
+      <div className="glass report-copy">
+        {rows.length === 0 ? (
+          <p className="report-empty" style={{ padding: 0 }}>
+            尚無工種可統計。
+          </p>
+        ) : (
+          rows.map((row) => (
+            <p key={row.id}>
+              {row.householdsTotal === 0
+                ? `${row.name}：沒有應施作戶（皆不適用）。`
+                : `${row.name}：已完成 ${row.householdsDone} 戶，未完成 ${row.householdsLeft} 戶，應施作 ${row.householdsTotal} 戶，進度 ${row.percent}%。`}
+            </p>
+          ))
+        )}
+      </div>
+
       <button
         type="button"
-        className="btn btn-primary"
-        style={{ width: '100%', marginBottom: 16 }}
+        className="btn btn-ghost"
+        style={{ width: '100%', margin: '14px 0 4px' }}
         disabled={busy}
         onClick={() => void exportExcel()}
       >
         <FileSpreadsheet size={18} />
         {busy ? '匯出中…' : '匯出進度 Excel'}
       </button>
-
-      {view === 'workItem' ? (
-        <>
-          <div className="home-filters" style={{ margin: '0 0 8px' }}>
-            <div className="home-filter-wide">
-              <GlassSelect
-                label="工種"
-                value={workItemId ?? ''}
-                options={items.map((w) => ({ value: w.id, label: w.name }))}
-                onChange={(id) => useProjectStore.getState().setCurrentWorkItem(id)}
-                searchable
-              />
-            </div>
-          </div>
-          {workStats && workItem && (
-            <div className="work-stat-card" style={{ marginBottom: 10 }}>
-              <div className="work-stat-hero">
-                <span className="work-stat-name">{workItem.name}</span>
-                <span className="nums work-stat-pct">{workStats.percent}%</span>
-              </div>
-              <div className="work-stat-stages">
-                {workStats.stages.map((s) => (
-                  <div key={s.id} className="work-stat-stage">
-                    <span className="work-stat-stage-name">{s.name}</span>
-                    <span className="nums work-stat-stage-pct">{s.percent}%</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-          {matrices.length === 0 ? (
-            <p style={{ padding: 16, color: 'var(--ink-soft)', fontWeight: 600 }}>請先設定棟別與工項。</p>
-          ) : (
-            matrices.map((matrix) => (
-              <section key={`${matrix.building.id}:${matrix.unitCode ?? ''}`} className="house-matrix">
-                <div className="house-matrix-head">
-                  <strong>{matrix.title}</strong>
-                  <span className="nums">{matrix.percent}%</span>
-                </div>
-                <div className="glass matrix-scroll" style={{ padding: 6, marginBottom: 8 }}>
-                  <FloorStageMatrix matrix={matrix} canEdit={false} />
-                </div>
-              </section>
-            ))
-          )}
-        </>
-      ) : (
-        <>
-          {unit ? (
-            <div className="unit-pager">
-              <button
-                type="button"
-                className="icon-btn"
-                aria-label="上一戶"
-                onClick={() => {
-                  const next = stepActiveUnit(useProjectStore.getState(), unit.id, -1)
-                  if (next) useProjectStore.getState().setCurrentUnit(next.id)
-                }}
-              >
-                <ChevronLeft size={20} />
-              </button>
-              <button type="button" className="unit-pager-current" onClick={() => setUnitOpen(true)}>
-                <div style={{ fontWeight: 800, fontSize: 15 }}>
-                  {formatUnitTitle(unit, layoutForUnit(state.buildings, unit))}
-                </div>
-                <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--ink-soft)' }}>點此切換</div>
-              </button>
-              <button
-                type="button"
-                className="icon-btn"
-                aria-label="下一戶"
-                onClick={() => {
-                  const next = stepActiveUnit(useProjectStore.getState(), unit.id, 1)
-                  if (next) useProjectStore.getState().setCurrentUnit(next.id)
-                }}
-              >
-                <ChevronRight size={20} />
-              </button>
-            </div>
-          ) : (
-            <p style={{ color: 'var(--ink-soft)', fontWeight: 600 }}>請先選一戶。</p>
-          )}
-          {unitRows.map((row) => (
-            <section key={row.workItem.id} className="glass" style={{ padding: 12, marginBottom: 10 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 8 }}>
-                <strong>{row.workItem.name}</strong>
-                <span className="nums" style={{ fontWeight: 800 }}>
-                  {row.percent}%
-                </span>
-              </div>
-              <div style={{ marginBottom: 8, height: 6, borderRadius: 99, background: 'rgba(30,39,51,0.08)' }}>
-                <div
-                  style={{
-                    width: `${row.percent}%`,
-                    height: '100%',
-                    background: 'var(--green-deep)',
-                    borderRadius: 99,
-                  }}
-                />
-              </div>
-              <div style={{ display: 'flex', gap: 8, overflowX: 'auto' }}>
-                {row.cells.map((cell) => (
-                  <div key={cell.stageId} style={{ textAlign: 'center', minWidth: 52 }}>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--ink-soft)', marginBottom: 4 }}>
-                      {cell.stageName}
-                    </div>
-                    <StageCellButton
-                      status={cell.status}
-                      openDefects={cell.openDefects}
-                      disabled
-                      label={`${cell.stageName} ${stageStatusLabel(cell.status)}`}
-                      onTap={() => undefined}
-                      onLongPress={() => undefined}
-                    />
-                  </div>
-                ))}
-              </div>
-            </section>
-          ))}
-          {unitOpen && <UnitSwitcher onClose={() => setUnitOpen(false)} />}
-        </>
-      )}
 
       <div className="section-row">
         <h2>操作紀錄</h2>
