@@ -46,7 +46,8 @@ function listHouseholdGroups(state: ProjectState): HouseholdGroup[] {
   for (const building of buildings) {
     const units = state.units.filter((u) => u.buildingId === building.id && u.active)
     if (isVillaLayout(building)) {
-      for (const code of building.unitCodes) {
+      const codes = householdCodes(building, units)
+      for (const code of codes) {
         const us = units.filter((u) => u.code === code)
         if (us.length) groups.push({ key: `${building.id}:${code}`, units: us })
       }
@@ -61,6 +62,14 @@ function listHouseholdGroups(state: ProjectState): HouseholdGroup[] {
     }
   }
   return groups
+}
+
+/** 別墅：同一戶號跨樓層合成一戶；戶號以實際展開的 units 為準 */
+function householdCodes(building: BuildingRule, units: Unit[]): string[] {
+  const live = [...new Set(units.map((u) => u.code).filter(Boolean))]
+  const ordered = building.unitCodes.filter((code) => live.includes(code))
+  const extra = live.filter((code) => !ordered.includes(code))
+  return [...ordered, ...extra]
 }
 
 function unitOrder(building: BuildingRule): Map<string, number> {
@@ -105,6 +114,7 @@ function householdStageResult(
     applicable += 1
     if (status === 'completed') completed += 1
   }
+  // 別墅一戶＝全部應施作樓層都完成，才算這戶完成
   if (applicable === 0) return { applicable: false, done: false }
   return { applicable: true, done: completed === applicable }
 }
@@ -162,7 +172,10 @@ export function buildReportWorkRows(state: ProjectState): ReportWorkRow[] {
       name: workItem.name,
       percent: completionPercent(cellCompleted, cellTotal, cellSeen),
       stages: stageAcc.map((s) => {
-        const percent = s.total === 0 ? 0 : Math.round((s.completed / s.total) * 100)
+        const percent =
+          s.householdsTotal === 0
+            ? 0
+            : Math.round((s.householdsDone / s.householdsTotal) * 100)
         const tone = toneForStage({
           total: s.total,
           percent,
