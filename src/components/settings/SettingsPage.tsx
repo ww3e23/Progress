@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, Search } from 'lucide-react'
 import { useProjectStore } from '../../store/useProjectStore'
 import { countActiveUnits, newBuildingDraft, summarizeBuilding } from '../../lib/units'
 import { getUnitAreas } from '../../lib/areas'
@@ -47,6 +47,15 @@ export function SettingsPage({ embedded = false }: { embedded?: boolean }) {
   const [buildingsOpen, setBuildingsOpen] = useState(
     () => buildings.filter((b) => b.active).length <= 2,
   )
+  /** 工項多時整組收合；單筆工序預設收起，點列才展開 */
+  const [workItemsOpen, setWorkItemsOpen] = useState(
+    () => workItems.filter((w) => w.active).length <= 6,
+  )
+  const [expandedWorkId, setExpandedWorkId] = useState<string | null>(null)
+  const [workQuery, setWorkQuery] = useState('')
+  const [catsOpen, setCatsOpen] = useState(
+    () => categories.filter((c) => c.active).length <= 4,
+  )
 
   const currentUnit =
     units.find((u) => u.id === currentUnitId) ?? units.find((u) => u.active)
@@ -59,6 +68,14 @@ export function SettingsPage({ embedded = false }: { embedded?: boolean }) {
   const activeCats = categories
     .filter((c) => c.active)
     .sort((a, b) => a.sortOrder - b.sortOrder)
+
+  const activeWorkList = [...workItems]
+    .filter((w) => w.active)
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+  const workFilter = workQuery.trim().toLowerCase()
+  const visibleWorks = workFilter
+    ? activeWorkList.filter((w) => w.name.toLowerCase().includes(workFilter))
+    : activeWorkList
 
   return (
     <div className={embedded ? undefined : 'rise'}>
@@ -221,7 +238,7 @@ export function SettingsPage({ embedded = false }: { embedded?: boolean }) {
       </div>
 
       <div className="section-row" style={{ marginTop: 22 }}>
-        <TitleHint as="h2" hint="對應 Excel 的一張表：工項名稱 + 由左到右的工序欄。">
+        <TitleHint as="h2" hint="對應 Excel 的一張表：工項名稱 + 由左到右的工序欄。點工項可展開工序，右側編輯。">
           工項與工序
         </TitleHint>
         <button
@@ -232,37 +249,155 @@ export function SettingsPage({ embedded = false }: { embedded?: boolean }) {
           填入預設
         </button>
       </div>
-      <div style={{ display: 'grid', gap: 8 }}>
-        {workItems
-          .filter((w) => w.active)
-          .sort((a, b) => a.sortOrder - b.sortOrder)
-          .map((w) => (
-            <button
-              key={w.id}
-              type="button"
-              className="glass"
-              style={{ padding: 12, textAlign: 'left' }}
-              onClick={() => {
-                setIsNewWork(false)
-                setEditingWork(w)
-              }}
-            >
-              <div style={{ fontWeight: 800 }}>{w.name}</div>
-              <div style={{ marginTop: 4, fontSize: 12, fontWeight: 600, color: 'var(--ink-soft)' }}>
-                {w.stages.map((s) => s.name).join(' → ')}
-              </div>
-            </button>
-          ))}
+      <div className="glass" style={{ padding: 0, overflow: 'hidden' }}>
         <button
           type="button"
-          className="btn-dashed"
-          onClick={() => {
-            setIsNewWork(true)
-            setEditingWork(newWorkItemDraft({ sortOrder: workItems.length }))
-          }}
+          className="building-fold-toggle"
+          aria-expanded={workItemsOpen}
+          onClick={() => setWorkItemsOpen((v) => !v)}
         >
-          + 新增工項
+          <div style={{ minWidth: 0, textAlign: 'left' }}>
+            <div style={{ fontWeight: 800, fontSize: 15 }}>
+              {activeWorkList.length} 個工項
+            </div>
+            <div
+              style={{
+                marginTop: 2,
+                color: 'var(--ink-soft)',
+                fontSize: 12,
+                fontWeight: 600,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {activeWorkList.length === 0
+                ? '尚未設定工項'
+                : workItemsOpen
+                  ? '點工項展開工序，右側可編輯'
+                  : activeWorkList.map((w) => w.name).join('、')}
+            </div>
+          </div>
+          <ChevronDown
+            size={20}
+            style={{
+              flexShrink: 0,
+              color: 'var(--ink-soft)',
+              transform: workItemsOpen ? 'rotate(180deg)' : undefined,
+              transition: 'transform 0.2s ease',
+            }}
+          />
         </button>
+
+        {workItemsOpen && (
+          <>
+            {activeWorkList.length > 8 && (
+              <label className="fold-search">
+                <Search size={14} aria-hidden />
+                <input
+                  value={workQuery}
+                  onChange={(e) => setWorkQuery(e.target.value)}
+                  placeholder="搜尋工項"
+                  aria-label="搜尋工項"
+                />
+              </label>
+            )}
+            <div className="fold-list">
+              {visibleWorks.map((w) => {
+                const open = expandedWorkId === w.id
+                return (
+                  <div key={w.id} className="building-fold-row" style={{ alignItems: 'flex-start' }}>
+                    <button
+                      type="button"
+                      className="fold-row-expand"
+                      aria-expanded={open}
+                      onClick={() => setExpandedWorkId(open ? null : w.id)}
+                    >
+                      <ChevronDown
+                        size={18}
+                        style={{
+                          flexShrink: 0,
+                          marginTop: 2,
+                          color: 'var(--ink-soft)',
+                          transform: open ? 'rotate(180deg)' : undefined,
+                          transition: 'transform 0.2s ease',
+                        }}
+                      />
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontWeight: 800, fontSize: 14 }}>{w.name}</div>
+                        {open ? (
+                          <div className="fold-stages">{w.stages.map((s) => s.name).join(' → ')}</div>
+                        ) : (
+                          <div
+                            style={{
+                              marginTop: 2,
+                              color: 'var(--ink-soft)',
+                              fontSize: 11,
+                              fontWeight: 600,
+                            }}
+                          >
+                            {w.stages.length} 道工序
+                          </div>
+                        )}
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-ghost"
+                      style={{ minHeight: 36, flexShrink: 0, padding: '0 12px' }}
+                      onClick={() => {
+                        setIsNewWork(false)
+                        setEditingWork(w)
+                      }}
+                    >
+                      編輯
+                    </button>
+                  </div>
+                )
+              })}
+              {visibleWorks.length === 0 && (
+                <div
+                  style={{
+                    padding: 14,
+                    color: 'var(--ink-soft)',
+                    fontSize: 13,
+                    fontWeight: 600,
+                  }}
+                >
+                  {workFilter ? `沒有符合「${workQuery.trim()}」的工項` : '尚未設定工項'}
+                </div>
+              )}
+            </div>
+            <button
+              type="button"
+              className="btn-dashed"
+              style={{ margin: 12, marginTop: 8 }}
+              onClick={() => {
+                setIsNewWork(true)
+                setEditingWork(newWorkItemDraft({ sortOrder: workItems.length }))
+              }}
+            >
+              + 新增工項
+            </button>
+          </>
+        )}
+
+        {!workItemsOpen && (
+          <div style={{ padding: '0 12px 12px' }}>
+            <button
+              type="button"
+              className="btn-dashed"
+              style={{ width: '100%' }}
+              onClick={() => {
+                setWorkItemsOpen(true)
+                setIsNewWork(true)
+                setEditingWork(newWorkItemDraft({ sortOrder: workItems.length }))
+              }}
+            >
+              + 新增工項
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="section-row" style={{ marginTop: 22 }}>
@@ -356,24 +491,6 @@ export function SettingsPage({ embedded = false }: { embedded?: boolean }) {
           >
             套用預設範本
           </button>
-          <button
-            type="button"
-            className="link"
-            onClick={() => {
-              setIsNewCat(true)
-              setEditingCat({
-                id: createId('cat'),
-                name: '',
-                iconChar: '項',
-                color: '#2F5D4C',
-                itemCount: 0,
-                sortOrder: categories.length,
-                active: true,
-              })
-            }}
-          >
-            + 新增大項
-          </button>
         </div>
       </div>
 
@@ -388,65 +505,135 @@ export function SettingsPage({ embedded = false }: { embedded?: boolean }) {
         </button>
       )}
 
-      <div style={{ display: 'grid', gap: 8 }}>
-        {activeCats.map((cat) => (
-          <article
-            key={cat.id}
-            className="glass"
-            style={{ padding: 12, display: 'flex', alignItems: 'center', gap: 12 }}
-          >
+      <div className="glass" style={{ padding: 0, overflow: 'hidden', marginBottom: 8 }}>
+        <button
+          type="button"
+          className="building-fold-toggle"
+          aria-expanded={catsOpen}
+          onClick={() => setCatsOpen((v) => !v)}
+        >
+          <div style={{ minWidth: 0, textAlign: 'left' }}>
+            <div style={{ fontWeight: 800, fontSize: 15 }}>
+              {activeCats.length} 個大項
+            </div>
             <div
               style={{
-                width: 40,
-                height: 40,
-                borderRadius: 12,
-                background: cat.color,
-                color: '#fff',
-                display: 'grid',
-                placeItems: 'center',
-                fontWeight: 800,
+                marginTop: 2,
+                color: 'var(--ink-soft)',
+                fontSize: 12,
+                fontWeight: 600,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
               }}
             >
-              {cat.iconChar}
+              {activeCats.length === 0
+                ? '尚未設定分類'
+                : catsOpen
+                  ? '點此收合分類清單'
+                  : activeCats.map((c) => c.name).join('、')}
             </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 800 }}>{cat.name}</div>
-              <div style={{ color: 'var(--ink-soft)', fontSize: 12, fontWeight: 600 }}>
-                {cat.itemCount} 細項
-              </div>
+          </div>
+          <ChevronDown
+            size={20}
+            style={{
+              flexShrink: 0,
+              color: 'var(--ink-soft)',
+              transform: catsOpen ? 'rotate(180deg)' : undefined,
+              transition: 'transform 0.2s ease',
+            }}
+          />
+        </button>
+
+        {catsOpen && (
+          <>
+            <div className="fold-list">
+              {activeCats.map((cat) => (
+                <div key={cat.id} className="building-fold-row">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                    <div
+                      style={{
+                        width: 32,
+                        height: 32,
+                        borderRadius: 10,
+                        background: cat.color,
+                        color: '#fff',
+                        display: 'grid',
+                        placeItems: 'center',
+                        fontWeight: 800,
+                        fontSize: 13,
+                        flexShrink: 0,
+                      }}
+                    >
+                      {cat.iconChar}
+                    </div>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontWeight: 800, fontSize: 14 }}>{cat.name}</div>
+                      <div style={{ color: 'var(--ink-soft)', fontSize: 11, fontWeight: 600 }}>
+                        {cat.itemCount} 細項
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    style={{ minHeight: 36, flexShrink: 0, padding: '0 12px' }}
+                    onClick={() => {
+                      setIsNewCat(false)
+                      setEditingCat(cat)
+                    }}
+                  >
+                    編輯
+                  </button>
+                </div>
+              ))}
             </div>
             <button
               type="button"
-              className="btn btn-ghost"
-              style={{ minHeight: 40 }}
+              className="btn-dashed"
+              style={{ margin: 12, marginTop: 8 }}
               onClick={() => {
-                setIsNewCat(false)
-                setEditingCat(cat)
+                setIsNewCat(true)
+                setEditingCat({
+                  id: createId('cat'),
+                  name: '',
+                  iconChar: '項',
+                  color: '#2F5D4C',
+                  itemCount: 0,
+                  sortOrder: categories.length,
+                  active: true,
+                })
               }}
             >
-              編輯
+              + 新增大項
             </button>
-          </article>
-        ))}
+          </>
+        )}
 
-        <button
-          type="button"
-          className="btn-dashed"
-          onClick={() => {
-            setIsNewCat(true)
-            setEditingCat({
-              id: createId('cat'),
-              name: '',
-              iconChar: '項',
-              color: '#2F5D4C',
-              itemCount: 0,
-              sortOrder: categories.length,
-              active: true,
-            })
-          }}
-        >
-          + 新增大項
-        </button>
+        {!catsOpen && (
+          <div style={{ padding: '0 12px 12px' }}>
+            <button
+              type="button"
+              className="btn-dashed"
+              style={{ width: '100%' }}
+              onClick={() => {
+                setCatsOpen(true)
+                setIsNewCat(true)
+                setEditingCat({
+                  id: createId('cat'),
+                  name: '',
+                  iconChar: '項',
+                  color: '#2F5D4C',
+                  itemCount: 0,
+                  sortOrder: categories.length,
+                  active: true,
+                })
+              }}
+            >
+              + 新增大項
+            </button>
+          </div>
+        )}
       </div>
 
       {editing && (

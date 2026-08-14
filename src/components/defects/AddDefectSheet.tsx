@@ -8,6 +8,7 @@ import { fileToCompressedDataUrl } from '../../lib/imageCompress'
 import { getUnitAreas } from '../../lib/areas'
 import { Modal } from '../ui/Modal'
 import { TitleHint } from '../ui/TitleHint'
+import { GlassSelect } from '../ui/GlassSelect'
 import { AnnotatePlanModal } from './AnnotatePlanModal'
 import { UnitAreasEditor } from '../settings/UnitAreasEditor'
 
@@ -312,19 +313,30 @@ export function AddDefectSheet({
         )}
 
         <div className="field">
-          <label>工項</label>
-          <div className="chip-row">
-            {items.map((w) => (
-              <button
-                key={w.id}
-                type="button"
-                className={`chip ${workItem?.id === w.id ? 'on' : ''}`}
-                onClick={() => setWiId(w.id)}
-              >
-                {w.name}
-              </button>
-            ))}
-          </div>
+          {items.length > 6 ? (
+            <GlassSelect
+              label="工項"
+              value={workItem?.id ?? ''}
+              options={items.map((w) => ({ value: w.id, label: w.name }))}
+              onChange={setWiId}
+            />
+          ) : (
+            <>
+              <label>工項</label>
+              <div className="chip-row">
+                {items.map((w) => (
+                  <button
+                    key={w.id}
+                    type="button"
+                    className={`chip ${workItem?.id === w.id ? 'on' : ''}`}
+                    onClick={() => setWiId(w.id)}
+                  >
+                    {w.name}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
         </div>
 
         <div className="field">

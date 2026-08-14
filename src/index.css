@@ -876,6 +876,56 @@ button.status-pill:active {
   border-bottom: 0;
 }
 
+.fold-list {
+  max-height: min(52vh, 440px);
+  overflow: auto;
+  overscroll-behavior: contain;
+  border-top: 1px solid rgba(34, 41, 31, 0.08);
+}
+
+.fold-row-expand {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+}
+
+.fold-stages {
+  margin-top: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  line-height: 1.45;
+}
+
+.fold-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 14px 4px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(34, 41, 31, 0.08);
+}
+
+.fold-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: none;
+  font-size: 14px;
+  font-weight: 600;
+  outline: none;
+}
+
 /* 選戶 Bottom Sheet：內容可捲、底部按鈕常駐，避免棟很多時按不到「產生報告」 */
 .modal-dialog.unit-pick-sheet {
   display: flex;

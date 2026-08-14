@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { FileSpreadsheet } from 'lucide-react'
+import { ChevronDown, FileSpreadsheet } from 'lucide-react'
 import { useProjectStore } from '../../store/useProjectStore'
 import { useCurrentProject } from '../../store/useAuthStore'
 import { TitleHint } from '../ui/TitleHint'
@@ -16,6 +16,9 @@ export function ReportsPage() {
   const state = useProjectStore()
   const project = useCurrentProject()
   const [busy, setBusy] = useState(false)
+  const [itemsOpen, setItemsOpen] = useState(
+    () => activeWorkItems(useProjectStore.getState()).length <= 6,
+  )
   const overview = useMemo(() => overallProgress(state), [state])
   const items = activeWorkItems(state)
   const activities = state.activities ?? []
@@ -77,45 +80,91 @@ export function ReportsPage() {
       <div className="section-row">
         <h2>各工項</h2>
       </div>
-      <div style={{ display: 'grid', gap: 8, marginBottom: 16 }}>
-        {items.map((item) => {
-          const r = workItemRollup(state, item)
-          return (
-            <article key={item.id} className="glass" style={{ padding: 12 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-                <strong>{item.name}</strong>
-                <span className="nums" style={{ fontWeight: 800 }}>
-                  {r.percent}%
-                </span>
-              </div>
-              <div style={{ marginTop: 4, fontSize: 12, fontWeight: 600, color: 'var(--ink-soft)' }}>
-                完成 {r.completedCells}/{r.totalCells}
-                {r.openDefects ? ` · 缺 ${r.openDefects}` : ''}
-                {r.blockedCells ? ` · 卡關 ${r.blockedCells}` : ''}
-              </div>
-              <div
-                style={{
-                  marginTop: 8,
-                  height: 8,
-                  borderRadius: 99,
-                  background: 'rgba(34,41,31,0.08)',
-                  overflow: 'hidden',
-                }}
-              >
-                <div
-                  style={{
-                    width: `${r.percent}%`,
-                    height: '100%',
-                    background: 'var(--green-deep)',
-                    borderRadius: 99,
-                  }}
-                />
-              </div>
-            </article>
-          )
-        })}
-        {items.length === 0 && (
-          <p style={{ color: 'var(--ink-soft)', fontWeight: 600 }}>尚未設定工項。</p>
+      <div className="glass" style={{ padding: 0, overflow: 'hidden', marginBottom: 16 }}>
+        <button
+          type="button"
+          className="building-fold-toggle"
+          aria-expanded={itemsOpen}
+          onClick={() => setItemsOpen((v) => !v)}
+        >
+          <div style={{ minWidth: 0, textAlign: 'left' }}>
+            <div style={{ fontWeight: 800, fontSize: 15 }}>
+              {items.length} 個工項
+            </div>
+            <div
+              style={{
+                marginTop: 2,
+                color: 'var(--ink-soft)',
+                fontSize: 12,
+                fontWeight: 600,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {items.length === 0
+                ? '尚未設定工項'
+                : itemsOpen
+                  ? '點此收合工項完成率'
+                  : items.map((w) => w.name).join('、')}
+            </div>
+          </div>
+          <ChevronDown
+            size={20}
+            style={{
+              flexShrink: 0,
+              color: 'var(--ink-soft)',
+              transform: itemsOpen ? 'rotate(180deg)' : undefined,
+              transition: 'transform 0.2s ease',
+            }}
+          />
+        </button>
+        {itemsOpen && (
+          <div className="fold-list">
+            {items.map((item) => {
+              const r = workItemRollup(state, item)
+              return (
+                <div key={item.id} className="building-fold-row" style={{ alignItems: 'flex-start' }}>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                      <strong style={{ fontSize: 14 }}>{item.name}</strong>
+                      <span className="nums" style={{ fontWeight: 800 }}>
+                        {r.percent}%
+                      </span>
+                    </div>
+                    <div style={{ marginTop: 2, fontSize: 11, fontWeight: 600, color: 'var(--ink-soft)' }}>
+                      完成 {r.completedCells}/{r.totalCells}
+                      {r.openDefects ? ` · 缺 ${r.openDefects}` : ''}
+                      {r.blockedCells ? ` · 卡關 ${r.blockedCells}` : ''}
+                    </div>
+                    <div
+                      style={{
+                        marginTop: 6,
+                        height: 6,
+                        borderRadius: 99,
+                        background: 'rgba(34,41,31,0.08)',
+                        overflow: 'hidden',
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: `${r.percent}%`,
+                          height: '100%',
+                          background: 'var(--green-deep)',
+                          borderRadius: 99,
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+            {items.length === 0 && (
+              <p style={{ margin: 0, padding: 14, color: 'var(--ink-soft)', fontWeight: 600 }}>
+                尚未設定工項。
+              </p>
+            )}
+          </div>
         )}
       </div>
 
