@@ -538,7 +538,7 @@ export function renderAdminPage(origin: string): string {
           featureRow('translate', '即時翻譯', '群內中文 ↔ 外語。也可傳「翻譯 泰文」。', langSelect),
           featureRow('imageSearch', '搜尋圖片', '群內傳：搜圖 安全帽。沒開則當一般訊息處理。', null),
           featureRow('infoSearch', '搜尋資料', '群內傳：查 鋼筋搭接。沒開則當一般訊息處理。', null),
-          featureRow('weather', '氣象播報', '時間可自訂到分鐘。要立刻測試：打開開關 → 儲存 → 立即播報天氣。群內也可傳「天氣」。', el('div', { class: 'row' }, [
+          featureRow('weather', '氣象播報', '先按「儲存此群設定」。到點會自動播；若差幾分鐘才存好，30 分鐘內會補播一次。要立刻看效果請用「立即播報天氣」。群內也可傳「天氣」。', el('div', { class: 'row' }, [
             el('input', { type: 'text', 'data-k': 'weatherPlace', value: f.weatherPlace || '台北', placeholder: '台北 / 台中 / 工地附近地名' }),
             weatherHour,
             weatherMinute,

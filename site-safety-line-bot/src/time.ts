@@ -66,3 +66,25 @@ export function clampMinute(value: unknown, fallback = 0): number {
   if (!Number.isInteger(minute) || minute < 0 || minute > 59) return fallback
   return minute
 }
+
+export function minutesOfDay(hour: number, minute: number): number {
+  return hour * 60 + minute
+}
+
+/** True on the scheduled minute, or up to graceMinutes later the same day. */
+export function isScheduleDue(
+  hour: number,
+  minute: number,
+  nowHour: number,
+  nowMinute: number,
+  graceMinutes = 30,
+): boolean {
+  if (!Number.isInteger(hour) || !Number.isInteger(minute)) return false
+  if (!Number.isInteger(nowHour) || !Number.isInteger(nowMinute)) return false
+  const delta = minutesOfDay(nowHour, nowMinute) - minutesOfDay(hour, minute)
+  return delta >= 0 && delta <= graceMinutes
+}
+
+export function scheduleSlot(hour: number, minute: number): string {
+  return `${String(hour).padStart(2, '0')}${String(minute).padStart(2, '0')}`
+}

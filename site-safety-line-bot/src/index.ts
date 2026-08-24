@@ -290,7 +290,8 @@ export default {
     return textResponse('工程bot 已啟動')
   },
 
-  async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
-    ctx.waitUntil(runHourlyJobs(env))
+  async scheduled(controller: ScheduledController, env: Env, _ctx: ExecutionContext): Promise<void> {
+    const when = typeof controller.scheduledTime === 'number' ? new Date(controller.scheduledTime) : new Date()
+    await runHourlyJobs(env, when)
   },
 }
