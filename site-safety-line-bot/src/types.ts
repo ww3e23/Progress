@@ -56,6 +56,8 @@ export interface ChatFeatures {
   dutyPeople: string[]
   dutyHour: number
   dutyMode: DutyMode
+  dutyDays: number[]
+  safety: boolean
 }
 
 export interface ChatState {

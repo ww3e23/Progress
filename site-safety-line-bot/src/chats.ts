@@ -18,6 +18,8 @@ export const DEFAULT_FEATURES: ChatFeatures = {
   dutyPeople: [],
   dutyHour: 21,
   dutyMode: 'all',
+  dutyDays: [0, 1, 2, 3, 4, 5, 6],
+  safety: false,
 }
 
 function chatKey(id: string): string {
@@ -51,6 +53,9 @@ export function parseFeatures(raw: string | null): ChatFeatures {
   const lang = typeof parsed.translateLang === 'string' ? parsed.translateLang : ''
   const known = LANGS.some((item) => item.code === lang)
   const mode: DutyMode = parsed.dutyMode === 'rotate' ? 'rotate' : 'all'
+  const days = Array.isArray(parsed.dutyDays)
+    ? [...new Set(parsed.dutyDays.map((day) => Number(day)).filter((day) => Number.isInteger(day) && day >= 0 && day <= 6))].sort()
+    : [0, 1, 2, 3, 4, 5, 6]
   return {
     translate: Boolean(parsed.translate),
     translateLang: known ? lang : '',
@@ -63,6 +68,8 @@ export function parseFeatures(raw: string | null): ChatFeatures {
     dutyPeople: people,
     dutyHour: clampHour(parsed.dutyHour, DEFAULT_FEATURES.dutyHour),
     dutyMode: mode,
+    dutyDays: days.length > 0 ? days : [],
+    safety: Boolean(parsed.safety),
   }
 }
 
@@ -224,5 +231,6 @@ export function enabledFeatureLabels(features: ChatFeatures): string[] {
   if (features.infoSearch) labels.push('搜尋資料')
   if (features.weather) labels.push(`氣象播報（${features.weatherPlace} ${features.weatherHour}:00）`)
   if (features.duty) labels.push(`夜間值班（${features.dutyHour}:00）`)
+  if (features.safety) labels.push('工安提醒')
   return labels
 }

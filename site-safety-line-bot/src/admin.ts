@@ -112,7 +112,7 @@ export function renderAdminPage(origin: string): string {
         <input id="token" type="password" autocomplete="off" placeholder="ADMIN_TOKEN">
         <button id="reload" type="button">重新整理</button>
       </div>
-      <p class="hint">把工程bot 拉進群組，並在群裡說一句話，這個群就會出現在下面。再開關功能、填地點與值班名單。</p>
+      <p class="hint">把工程bot 拉進群組，並在群裡說一句話，這個群就會出現在下面。再開關功能、填地點與值班名單。<br>沒打開的功能不會在群裡回話，也不會排程推播。預覽只顯示在後台，不會發到 LINE。</p>
       <div class="status" id="topStatus"></div>
     </section>
 
@@ -189,6 +189,8 @@ export function renderAdminPage(origin: string): string {
     }
 
     function readFeatures(card) {
+      const days = [];
+      card.querySelectorAll('[data-k=dutyDay]:checked').forEach((box) => days.push(Number(box.value)));
       return {
         translate: card.querySelector('[data-k=translate]').checked,
         translateLang: card.querySelector('[data-k=translateLang]').value,
@@ -201,6 +203,8 @@ export function renderAdminPage(origin: string): string {
         dutyPeople: card.querySelector('[data-k=dutyPeople]').value.split(/\\n+/).map((s) => s.trim()).filter(Boolean),
         dutyHour: Number(card.querySelector('[data-k=dutyHour]').value),
         dutyMode: card.querySelector('[data-k=dutyMode]').value,
+        dutyDays: days,
+        safety: card.querySelector('[data-k=safety]').checked,
       };
     }
 
@@ -226,7 +230,6 @@ export function renderAdminPage(origin: string): string {
       if (!confirm('確定發到這個群？')) return;
       status.textContent = '發送中…';
       try {
-        await saveCard(card, true);
         const data = await api('/api/admin/send', {
           method: 'POST',
           body: JSON.stringify({ chatId: card.dataset.id, kind: kind }),
@@ -242,7 +245,6 @@ export function renderAdminPage(origin: string): string {
       const status = card.querySelector('.status');
       status.textContent = '預覽中…';
       try {
-        await saveCard(card, true);
         const params = new URLSearchParams({ kind: kind, chatId: card.dataset.id });
         if (kind === 'weather') params.set('place', card.querySelector('[data-k=weatherPlace]').value.trim() || '台北');
         if (extraQuery) params.set('q', extraQuery);
@@ -279,19 +281,31 @@ export function renderAdminPage(origin: string): string {
       weatherHour.setAttribute('data-k', 'weatherHour');
       const dutyHour = hourSelect(f.dutyHour);
       dutyHour.setAttribute('data-k', 'dutyHour');
+      const dayBox = el('div', { class: 'row' });
+      const dayLabels = [['1','一'],['2','二'],['3','三'],['4','四'],['5','五'],['6','六'],['0','日']];
+      const selectedDays = Array.isArray(f.dutyDays) && f.dutyDays.length ? f.dutyDays.map(String) : ['0','1','2','3','4','5','6'];
+      dayLabels.forEach(([value, label]) => {
+        const box = el('label', { class: 'hint' }, [
+          el('input', { type: 'checkbox', 'data-k': 'dutyDay', value: value, checked: selectedDays.includes(value) }),
+          ' ' + label,
+        ]);
+        dayBox.appendChild(box);
+      });
+      const onlyTranslate = !!f.translate && !f.imageSearch && !f.infoSearch && !f.weather && !f.duty && !f.safety;
       const card = el('article', { class: 'card', 'data-id': chat.id, 'data-type': chat.type }, [
         el('h2', {}, [chat.note || chat.name || chat.id]),
         el('div', { class: 'meta' }, [typeLabel(chat.type) + ' · ' + chat.id + ' · 最後活動 ' + whenText(chat.lastSeenAt)]),
+        onlyTranslate ? el('p', { class: 'hint' }, ['目前僅即時翻譯。沒開的功能不會在此群發話，排程也不會推播。']) : null,
         el('label', {}, ['顯示名稱（只有後台看得到）']),
         el('input', { type: 'text', 'data-k': 'note', value: chat.note || '', placeholder: chat.name || '例如：外籍工人群' }),
         featureRow('translate', '即時翻譯', '群內中文 ↔ 外語。也可傳「翻譯 泰文」。', langSelect),
-        featureRow('imageSearch', '搜尋圖片', '群內傳：搜圖 安全帽', null),
-        featureRow('infoSearch', '搜尋資料', '群內傳：查 鋼筋搭接', null),
-        featureRow('weather', '氣象播報', '群內傳「天氣」。到點會自動推播。', el('div', { class: 'row' }, [
+        featureRow('imageSearch', '搜尋圖片', '群內傳：搜圖 安全帽。沒開則當一般訊息處理。', null),
+        featureRow('infoSearch', '搜尋資料', '群內傳：查 鋼筋搭接。沒開則當一般訊息處理。', null),
+        featureRow('weather', '氣象播報', '群內傳「天氣」。沒開不會回、也不會每天推播。', el('div', { class: 'row' }, [
           el('input', { type: 'text', 'data-k': 'weatherPlace', value: f.weatherPlace || '台北', placeholder: '台北 / 台中 / 工地附近地名' }),
           weatherHour,
         ])),
-        featureRow('duty', '排班／夜間值班通知', '到點自動通知今晚值班。輪值則每天換一人。', el('div', {}, [
+        featureRow('duty', '排班／夜間值班通知', '到點自動通知。沒開不會回、也不會推播。', el('div', {}, [
           el('div', { class: 'row' }, [
             dutyHour,
             el('select', { 'data-k': 'dutyMode' }, [
@@ -299,8 +313,10 @@ export function renderAdminPage(origin: string): string {
               el('option', { value: 'rotate' }, ['輪值（每天一人）']),
             ]),
           ]),
+          dayBox,
           el('textarea', { 'data-k': 'dutyPeople', placeholder: '一行一個姓名' }, [(f.dutyPeople || []).join('\\n')]),
         ])),
+        featureRow('safety', '工安提醒推播', '允許後台對此群發送熱危害／高處／降雨。沒開按了也不會發到群裡。', null),
         el('div', { class: 'actions' }, [
           el('button', { class: 'green', type: 'button', onClick: () => saveCard(card) }, ['儲存此群設定']),
           el('button', { class: 'secondary', type: 'button', onClick: () => previewKind(card, 'weather') }, ['預覽天氣']),
@@ -335,11 +351,9 @@ export function renderAdminPage(origin: string): string {
       card.querySelector('[data-k=infoSearch]').checked = !!f.infoSearch;
       card.querySelector('[data-k=weather]').checked = !!f.weather;
       card.querySelector('[data-k=duty]').checked = !!f.duty;
+      card.querySelector('[data-k=safety]').checked = !!f.safety;
       card.querySelector('[data-k=dutyMode]').value = f.dutyMode || 'all';
       if (!f.translateLang && langs[0]) langSelect.value = langs[2] ? langs[2].code : langs[0].code;
-      card.querySelectorAll('input[type=checkbox]').forEach((box) => {
-        box.addEventListener('change', () => saveCard(card, true).catch(() => {}));
-      });
       return card;
     }
 

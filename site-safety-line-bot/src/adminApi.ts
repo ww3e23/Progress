@@ -4,6 +4,7 @@ import { searchImages } from './imageSearch'
 import { searchInfo } from './infoSearch'
 import { fetchChatTitle, pushText } from './line'
 import { isReminderType, REMINDERS } from './reminders'
+import { allowsAdminPush, adminPushBlockedMessage } from './pushGuard'
 import { taipeiParts } from './time'
 import { formatWeather } from './weather'
 import type { ChatRecord, ChatType, Env, ReminderType } from './types'
@@ -180,6 +181,9 @@ export async function handleAdminApi(request: Request, env: Env): Promise<Respon
       return errorResponse('未知發送類型')
     }
     if (!previewOnly) {
+      if (!allowsAdminPush(features, kind)) {
+        return errorResponse(adminPushBlockedMessage(kind), 403)
+      }
       await pushText(env, id, text)
     }
     return jsonResponse({ ok: true, preview: text, sent: !previewOnly })

@@ -70,8 +70,7 @@ async function handleTranslateCommand(env: Env, event: LineWebhookEvent, text: s
     return true
   }
   if (features && !features.translate) {
-    await deliverText(env, event, '此聊天尚未開啟即時翻譯。請管理員到後台打開「即時翻譯」。')
-    return true
+    return false
   }
   if (command.action === 'help') {
     const current = await getTranslateLang(env, chatId)
@@ -108,10 +107,7 @@ async function handleFeatureCommand(env: Env, event: LineWebhookEvent, text: str
   }
 
   if (command.kind === 'image') {
-    if (!features.imageSearch) {
-      await deliverText(env, event, '此聊天尚未開啟搜圖。請管理員到後台打開「搜尋圖片」。')
-      return true
-    }
+    if (!features.imageSearch) return false
     if (!command.query) {
       await deliverText(env, event, '用法：搜圖 安全帽')
       return true
@@ -135,30 +131,21 @@ async function handleFeatureCommand(env: Env, event: LineWebhookEvent, text: str
   }
 
   if (command.kind === 'info') {
-    if (!features.infoSearch) {
-      await deliverText(env, event, '此聊天尚未開啟查資料。請管理員到後台打開「搜尋資料」。')
-      return true
-    }
+    if (!features.infoSearch) return false
     const answer = await searchInfo(env, command.query)
     await deliverText(env, event, answer.slice(0, 4900))
     return true
   }
 
   if (command.kind === 'weather') {
-    if (!features.weather) {
-      await deliverText(env, event, '此聊天尚未開啟氣象。請管理員到後台打開「氣象播報」。')
-      return true
-    }
+    if (!features.weather) return false
     const place = command.place || features.weatherPlace || '台北'
     await deliverText(env, event, await formatWeather(place))
     return true
   }
 
   if (command.kind === 'duty') {
-    if (!features.duty) {
-      await deliverText(env, event, '此聊天尚未開啟值班通知。請管理員到後台打開「夜間值班」。')
-      return true
-    }
+    if (!features.duty) return false
     await deliverText(env, event, formatDuty(features, taipeiParts().dayOfYear))
     return true
   }
@@ -174,7 +161,6 @@ async function processEvents(env: Env, events: LineWebhookEvent[]): Promise<void
       const features = chatId ? await getFeatures(env, chatId) : null
 
       if (event.type === 'join') {
-        await deliverText(env, event, '工程bot 已加入。請管理員到後台為此群開啟功能，或在群裡傳「功能」。')
         continue
       }
       if (event.type === 'follow') {

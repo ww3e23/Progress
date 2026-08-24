@@ -1,6 +1,7 @@
 import { listChatStates } from './chats'
 import { formatDuty } from './duty'
 import { pushText } from './line'
+import { allowsScheduledDuty, allowsScheduledWeather } from './pushGuard'
 import { taipeiParts } from './time'
 import { formatWeather } from './weather'
 import type { Env } from './types'
@@ -23,7 +24,7 @@ export async function runHourlyJobs(env: Env): Promise<void> {
   const states = await listChatStates(env)
   for (const { chat, features } of states) {
     try {
-      if (features.weather && features.weatherHour === now.hour) {
+      if (allowsScheduledWeather(features) && features.weatherHour === now.hour) {
         if (!(await alreadySent(env, 'weather', chat.id, now.ymd))) {
           const text = await formatWeather(features.weatherPlace)
           await pushText(env, chat.id, text)
@@ -34,7 +35,7 @@ export async function runHourlyJobs(env: Env): Promise<void> {
       console.error('weather job failed', chat.id, error)
     }
     try {
-      if (features.duty && features.dutyHour === now.hour && features.dutyPeople.length > 0) {
+      if (allowsScheduledDuty(features, now.weekday) && features.dutyHour === now.hour) {
         if (!(await alreadySent(env, 'duty', chat.id, now.ymd))) {
           await pushText(env, chat.id, formatDuty(features, now.dayOfYear))
           await markSent(env, 'duty', chat.id, now.ymd)

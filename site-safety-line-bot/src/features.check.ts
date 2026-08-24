@@ -1,6 +1,7 @@
 import { parseFeatures, DEFAULT_FEATURES } from './chats.ts'
 import { featureHelp, parseFeatureCommand } from './commands.ts'
 import { dutyPeopleLine, formatDuty } from './duty.ts'
+import { allowsAdminPush, allowsScheduledDuty, allowsScheduledWeather } from './pushGuard.ts'
 import { menuText } from './reminders.ts'
 import { clampHour, taipeiParts } from './time.ts'
 import { parseTranslateCommand } from './translate.ts'
@@ -46,7 +47,17 @@ assert(features.weatherPlace === '高雄', 'place trimmed')
 assert(features.weatherHour === 8, 'hour parsed')
 assert(features.dutyPeople.join(',') === '阿明,阿華', 'people cleaned')
 assert(features.dutyMode === 'rotate', 'rotate mode')
-assert(parseFeatures(null).weatherPlace === DEFAULT_FEATURES.weatherPlace, 'defaults')
+assert(features.dutyDays.join(',') === '0,1,2,3,4,5,6', 'default all days')
+assert(features.safety === false, 'safety default off')
+assert(parseFeatures(JSON.stringify({ dutyDays: [1, 3, 1, 9] })).dutyDays.join(',') === '1,3', 'duty days cleaned')
+
+assert(allowsScheduledWeather({ ...DEFAULT_FEATURES, weather: true }) === true, 'weather cron on')
+assert(allowsScheduledWeather({ ...DEFAULT_FEATURES, weather: false }) === false, 'weather cron off')
+assert(allowsScheduledDuty({ ...DEFAULT_FEATURES, duty: true, dutyPeople: ['A'], dutyDays: [1, 2] }, 1) === true, 'duty weekday match')
+assert(allowsScheduledDuty({ ...DEFAULT_FEATURES, duty: true, dutyPeople: ['A'], dutyDays: [1, 2] }, 3) === false, 'duty weekday skip')
+assert(allowsAdminPush({ ...DEFAULT_FEATURES, translate: true }, 'weather') === false, 'no weather push')
+assert(allowsAdminPush({ ...DEFAULT_FEATURES, translate: true }, 'heat') === false, 'no safety push')
+assert(allowsAdminPush({ ...DEFAULT_FEATURES, safety: true }, 'heat') === true, 'safety push ok')
 
 assert(dutyPeopleLine({ ...DEFAULT_FEATURES, dutyPeople: ['A', 'B', 'C'], dutyMode: 'all' }, 10) === 'A、B、C', 'all duty')
 assert(dutyPeopleLine({ ...DEFAULT_FEATURES, dutyPeople: ['A', 'B', 'C'], dutyMode: 'rotate' }, 7) === 'B', 'rotate duty')
@@ -61,6 +72,7 @@ assert(!helpNoImage.includes('搜圖 安全帽'), 'help hides disabled image')
 const now = taipeiParts()
 assert(/^\d{4}-\d{2}-\d{2}$/.test(now.ymd), 'ymd format')
 assert(now.hour >= 0 && now.hour <= 23, 'taipei hour')
+assert(now.weekday >= 0 && now.weekday <= 6, 'taipei weekday')
 
 assert(parseTranslateCommand('翻譯 關')?.action === 'off', 'translate off still works')
 assert(menuText().includes('功能'), 'menu mentions 功能')
