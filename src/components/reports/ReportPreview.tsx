@@ -2,32 +2,25 @@ import { useEffect, useMemo, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { Download, Printer, X } from 'lucide-react'
 import {
-  buildInspectionReportHtml,
-  downloadInspectionReport,
-} from '../../lib/reportDocument'
+  buildProgressReportHtml,
+  downloadProgressReport,
+} from '../../lib/progressReportDocument'
 import { setReportPreviewLock } from '../../lib/reportPreviewLock'
 import type { ProjectState } from '../../types'
 
 export function ReportPreview({
   projectName,
-  projectCode,
-  location,
   state,
   onClose,
 }: {
   projectName: string
-  projectCode?: string
-  location?: string
   state: ProjectState
   onClose: () => void
 }) {
   const iframeRef = useRef<HTMLIFrameElement>(null)
-  const input = useMemo(
-    () => ({ projectName, projectCode, location, state }),
-    [projectName, projectCode, location, state],
-  )
+  const input = useMemo(() => ({ projectName, state }), [projectName, state])
   const html = useMemo(
-    () => buildInspectionReportHtml({ ...input, mode: 'embed' }),
+    () => buildProgressReportHtml({ ...input, mode: 'embed' }),
     [input],
   )
 
@@ -50,7 +43,7 @@ export function ReportPreview({
     const frame = iframeRef.current
     const win = frame?.contentWindow
     if (!win) {
-      alert('報告尚未載入完成，請稍候再試')
+      alert('報表尚未載入完成，請稍候再試')
       return
     }
     win.focus()
@@ -62,7 +55,7 @@ export function ReportPreview({
       className="report-preview"
       role="dialog"
       aria-modal="true"
-      aria-label="進度報告預覽"
+      aria-label="進度報表預覽"
       onClick={(e) => e.stopPropagation()}
       onPointerDown={(e) => e.stopPropagation()}
       style={{ zIndex: 200 }}
@@ -70,12 +63,24 @@ export function ReportPreview({
       <header className="report-preview-bar">
         <div style={{ minWidth: 0 }}>
           <div className="eyebrow" style={{ color: 'rgba(255,255,255,0.7)' }}>REPORT</div>
-          <div style={{ fontWeight: 800, fontSize: 16, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {projectName}・進度報告
+          <div
+            style={{
+              fontWeight: 800,
+              fontSize: 16,
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
+          >
+            {projectName}・進度報表
           </div>
         </div>
         <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-          <button type="button" className="btn btn-ghost report-bar-btn" onClick={() => downloadInspectionReport(input)}>
+          <button
+            type="button"
+            className="btn btn-ghost report-bar-btn"
+            onClick={() => downloadProgressReport(input)}
+          >
             <Download size={16} /> 下載
           </button>
           <button type="button" className="btn btn-primary report-bar-btn" onClick={printReport}>
@@ -86,12 +91,7 @@ export function ReportPreview({
           </button>
         </div>
       </header>
-      <iframe
-        ref={iframeRef}
-        className="report-preview-frame"
-        title="進度報告"
-        srcDoc={html}
-      />
+      <iframe ref={iframeRef} className="report-preview-frame" title="進度報表" srcDoc={html} />
     </div>,
     document.body,
   )

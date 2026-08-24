@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { EyeOff } from 'lucide-react'
 import { Modal } from '../ui/Modal'
 import { activeWorkItems, sortedStages } from '../../lib/stageProgress'
@@ -15,11 +15,13 @@ export function ReportWorkMatrix({
   rows,
   hiddenKeys,
   workItems,
+  extraActions,
   onChangeHidden,
 }: {
   rows: ReportWorkRow[]
   hiddenKeys: string[]
   workItems: ProjectState['workItems']
+  extraActions?: ReactNode
   onChangeHidden: (keys: string[]) => void
 }) {
   const [hideOpen, setHideOpen] = useState(false)
@@ -34,6 +36,7 @@ export function ReportWorkMatrix({
   return (
     <>
       <div className="report-toolbar">
+        {extraActions}
         <button type="button" className="btn btn-ghost" onClick={() => setHideOpen(true)}>
           <EyeOff size={16} /> 隱藏工序
         </button>

@@ -1330,6 +1330,8 @@ button.status-pill:active {
 .report-toolbar {
   display: flex;
   justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
   margin: 0 0 8px;
 }
 
