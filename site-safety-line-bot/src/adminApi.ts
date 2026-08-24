@@ -48,6 +48,16 @@ export async function handleAdminApi(request: Request, env: Env): Promise<Respon
 
   if (path === '/api/admin/state' && request.method === 'GET') {
     const chats = await listChatStates(env)
+    for (const state of chats) {
+      if (!state.chat.name) {
+        const title = await fetchChatTitle(env, state.chat)
+        if (title) {
+          state.chat.name = title
+          state.chat.nameFetchedAt = Date.now()
+          await putChat(env, state.chat)
+        }
+      }
+    }
     return jsonResponse({
       chats,
       adminProtected: Boolean(env.ADMIN_TOKEN),
@@ -106,6 +116,17 @@ export async function handleAdminApi(request: Request, env: Env): Promise<Respon
       await putChat(env, chat)
     }
     return jsonResponse({ chat, name: chat.name })
+  }
+
+  if (path === '/api/admin/remove' && request.method === 'POST') {
+    const body = await readJson(request)
+    const id = typeof body.id === 'string' ? body.id.trim() : ''
+    if (!id) return errorResponse('缺少群組 id')
+    if (!env.TRANSLATE_KV) return errorResponse('尚未綁定 TRANSLATE_KV', 500)
+    await env.TRANSLATE_KV.delete(`chat:${id}`)
+    await env.TRANSLATE_KV.delete(`feat:${id}`)
+    await env.TRANSLATE_KV.delete(`lang:${id}`)
+    return jsonResponse({ ok: true, id })
   }
 
   if (path === '/api/admin/send' && request.method === 'POST') {

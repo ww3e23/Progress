@@ -294,6 +294,17 @@ export function renderAdminPage(origin: string): string {
           el('button', { class: 'red', type: 'button', onClick: () => sendKind(card, 'height') }, ['高處作業']),
           el('button', { class: 'blue', type: 'button', onClick: () => sendKind(card, 'rain') }, ['降雨']),
         ]),
+        el('div', { class: 'actions' }, [
+          el('button', { class: 'secondary', type: 'button', onClick: async () => {
+            if (!confirm('從後台移除這個聊天，並關閉它的功能？')) return
+            try {
+              await api('/api/admin/remove', { method: 'POST', body: JSON.stringify({ id: card.dataset.id }) })
+              await load()
+            } catch (error) {
+              card.querySelector('.status').textContent = error.message
+            }
+          } }, ['從後台移除']),
+        ]),
         el('div', { class: 'status' }, ['尚未操作']),
       ]);
       card.querySelector('[data-k=translate]').checked = !!f.translate;

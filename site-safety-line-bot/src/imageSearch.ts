@@ -10,15 +10,6 @@ function flickrPreview(url: string): string {
   return url.replace(/_b\.(jpe?g|png)$/i, '_z.$1').replace(/_o\.(jpe?g|png)$/i, '_z.$1')
 }
 
-function isHttpsImage(url: string): boolean {
-  try {
-    const parsed = new URL(url)
-    return parsed.protocol === 'https:' && /\.(jpe?g|png)(\?|$)/i.test(parsed.pathname + parsed.search)
-  } catch {
-    return false
-  }
-}
-
 async function fromOpenverse(query: string): Promise<FoundImage[]> {
   const url = `https://api.openverse.org/v1/images/?q=${encodeURIComponent(query)}&page_size=6`
   const res = await fetch(url, { headers: { 'User-Agent': UA, Accept: 'application/json' } })
@@ -29,11 +20,10 @@ async function fromOpenverse(query: string): Promise<FoundImage[]> {
   const images: FoundImage[] = []
   for (const item of data.results || []) {
     const original = item.url || ''
-    if (!isHttpsImage(original) && !original.startsWith('https://')) continue
     if (!original.startsWith('https://')) continue
     images.push({
       url: original,
-      preview: item.thumbnail || flickrPreview(original),
+      preview: flickrPreview(original),
       title: item.title || query,
     })
     if (images.length >= 2) break
