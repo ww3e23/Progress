@@ -109,7 +109,7 @@ async function handleFeatureCommand(env: Env, event: LineWebhookEvent, text: str
   if (command.kind === 'image') {
     if (!features.imageSearch) return false
     if (!command.query) {
-      await deliverText(env, event, '用法：搜圖 安全帽')
+      await deliverText(env, event, '用法：*搜圖 安全帽')
       return true
     }
     const images = await searchImages(command.query)

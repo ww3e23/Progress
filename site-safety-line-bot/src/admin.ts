@@ -536,15 +536,15 @@ export function renderAdminPage(origin: string): string {
           el('label', {}, ['顯示名稱（只有後台看得到）']),
           el('input', { type: 'text', 'data-k': 'note', value: chat.note || '', placeholder: chat.name || '例如：外籍工人群' }),
           featureRow('translate', '即時翻譯', '群內中文 ↔ 外語。也可傳「翻譯 泰文」。', langSelect),
-          featureRow('imageSearch', '搜尋圖片', '群內傳：搜圖 安全帽。沒開則當一般訊息處理。', null),
-          featureRow('infoSearch', '搜尋資料', '群內傳：查 鋼筋搭接。沒開則當一般訊息處理。', null),
-          featureRow('weather', '氣象播報', '先按「儲存此群設定」。到點會自動播；若差幾分鐘才存好，30 分鐘內會補播一次。要立刻看效果請用「立即播報天氣」。群內也可傳「天氣」。', el('div', { class: 'row' }, [
+          featureRow('imageSearch', '搜尋圖片', '群內傳：*搜圖 安全帽。沒開則當一般訊息處理。', null),
+          featureRow('infoSearch', '搜尋資料', '群內傳：*查 鋼筋搭接。沒開則當一般訊息處理。', null),
+          featureRow('weather', '氣象播報', '先按「儲存此群設定」。會在設定的那一分鐘自動播（最多晚約 3 分鐘）。要立刻看效果請用「立即播報天氣」。群內查詢請傳「*天氣」。', el('div', { class: 'row' }, [
             el('input', { type: 'text', 'data-k': 'weatherPlace', value: f.weatherPlace || '台北', placeholder: '台北 / 台中 / 工地附近地名' }),
             weatherHour,
             weatherMinute,
           ])),
-          featureRow('nightDuty', '夜間值班', '與日間上班分開。依日期指定 1～2 人，當天沒人就不推播。群內可傳「值班」。', rosterEditor('nightDuty', night, '05:30-07:30（如遇工班加班配合工班時段）')),
-          featureRow('dayShift', '日間上班人員', '不要和夜間值班混用。依日期指定當天上班的人，可每天一人或兩人。群內可傳「上班」。', rosterEditor('dayShift', day, '')),
+          featureRow('nightDuty', '夜間值班', '與日間上班分開。依日期指定 1～2 人，當天沒人就不推播。群內查詢請傳「*值班」。', rosterEditor('nightDuty', night, '05:30-07:30（如遇工班加班配合工班時段）')),
+          featureRow('dayShift', '日間上班人員', '不要和夜間值班混用。依日期指定當天上班的人，可每天一人或兩人。群內查詢請傳「*上班」。', rosterEditor('dayShift', day, '')),
           featureRow('safety', '工安提醒推播', '允許後台對此群發送熱危害／高處／降雨。沒開按了也不會發到群裡。', null),
           el('div', { class: 'actions' }, [
             el('button', { class: 'green', type: 'button', onClick: () => saveCard(card) }, ['儲存此群設定']),

@@ -77,7 +77,7 @@ export function isScheduleDue(
   minute: number,
   nowHour: number,
   nowMinute: number,
-  graceMinutes = 30,
+  graceMinutes = 3,
 ): boolean {
   if (!Number.isInteger(hour) || !Number.isInteger(minute)) return false
   if (!Number.isInteger(nowHour) || !Number.isInteger(nowMinute)) return false
