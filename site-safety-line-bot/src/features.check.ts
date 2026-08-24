@@ -1,5 +1,6 @@
 import { isGroupLike, parseFeatures, DEFAULT_FEATURES } from './chats.ts'
 import { featureHelp, parseFeatureCommand } from './commands.ts'
+import { isRebarWeightQuery, rebarWeightTable } from './rebar.ts'
 import { formatDayShift, formatNightDuty, parseNamesInput, parseRosterPaste } from './duty.ts'
 import { allowsAdminPush, allowsScheduledRoster, allowsScheduledWeather } from './pushGuard.ts'
 import { menuText } from './reminders.ts'
@@ -18,6 +19,13 @@ assert(parseFeatureCommand('*查 模板支撐')?.['query'] === '模板支撐', '
 assert(parseFeatureCommand('*查熱危害')?.['query'] === '熱危害', 'info without extra space')
 assert(parseFeatureCommand('*查')?.kind === 'info' && parseFeatureCommand('*查')?.['query'] === '', 'empty info query')
 assert(parseFeatureCommand('*搜 熱危害')?.kind === 'info', 'info search alias')
+assert(isRebarWeightQuery('列出所有鋼筋號數以及對應的重量') === true, 'rebar weight query')
+assert(isRebarWeightQuery('鋼筋搭接') === false, 'lap splice is not weight table')
+assert(isRebarWeightQuery('D25一米多重') === true, 'single size weight')
+assert(isRebarWeightQuery('钢筋重量') === true, 'simplified rebar weight')
+assert(rebarWeightTable().includes('D25（#8）　3.98'), 'rebar D25 weight')
+assert(rebarWeightTable().includes('0.56'), 'rebar D10 weight')
+assert(rebarWeightTable().includes('D36（#11）　7.90'), 'rebar D36 weight')
 assert(parseFeatureCommand('*天氣')?.kind === 'weather', 'weather command')
 assert(parseFeatureCommand('*天氣 台中')?.kind === 'weather', 'weather place')
 assert(parseFeatureCommand('*值班')?.kind === 'duty', 'duty command')

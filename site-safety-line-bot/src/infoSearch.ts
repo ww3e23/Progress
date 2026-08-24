@@ -1,10 +1,13 @@
 import { askGemini } from './translateService'
 import { infoUsage } from './commands'
+import { isRebarWeightQuery, rebarWeightTable } from './rebar.ts'
 import type { Env } from './types'
+
+export { isRebarWeightQuery, rebarWeightTable }
 
 const UA = 'site-safety-line-bot/1.0 (https://workers.dev)'
 const SYSTEM =
-  '你是台灣工地現場助理。用台灣繁體中文簡短回答，最多 8 行。用「· 標題：內容」條列，不要用 markdown、不要用星號、不要用編號。不要捏造法規條號或數字。不確定就明說。'
+  '你是台灣工地現場助理。用台灣繁體中文回答。用「· 」條列，不要 markdown、不要用星號當粗體。工地常用對照表（例如鋼筋號數與 kg/m）請直接列出公認數字，不要叫對方去查表。不要杜撰法規條號。沒把握的數字就說不確定。表格類最多 20 行。'
 
 export function formatInfoForLine(text: string): string {
   return text
@@ -54,10 +57,11 @@ async function wikipediaExtract(query: string): Promise<string> {
 export async function searchInfo(env: Env, query: string): Promise<string> {
   const q = query.trim().slice(0, 200)
   if (!q) return infoUsage()
+  if (isRebarWeightQuery(q)) return rebarWeightTable()
 
   let gemini = ''
   try {
-    gemini = await askGemini(env, `工地問題：${q}`, SYSTEM, 256)
+    gemini = await askGemini(env, `工地問題：${q}`, SYSTEM, 512)
   } catch (error) {
     console.error('info gemini failed', error)
   }
