@@ -442,6 +442,7 @@ export function renderAdminPage(origin: string): string {
         weatherPlace: card.querySelector('[data-k=weatherPlace]').value.trim() || '台北',
         weatherHour: Number(card.querySelector('[data-k=weatherHour]').value),
         weatherMinute: Number(card.querySelector('[data-k=weatherMinute]').value),
+        weatherLink: card.querySelector('[data-k=weatherLink]').value.trim(),
         nightDuty: readRoster(card, 'nightDuty'),
         dayShift: readRoster(card, 'dayShift'),
         safety: card.querySelector('[data-k=safety]').checked,
@@ -548,10 +549,14 @@ export function renderAdminPage(origin: string): string {
           featureRow('translate', '即時翻譯', '群內中文 ↔ 外語。也可傳「翻譯 泰文」。', langSelect),
           featureRow('imageSearch', '搜尋圖片', '群內傳：*搜圖 安全帽。沒開則當一般訊息處理。', null),
           featureRow('infoSearch', '搜尋資料', '群內傳：*查 鋼筋搭接。沒開則當一般訊息處理。', null),
-          featureRow('weather', '氣象播報', '先按「儲存此群設定」。會在設定的那一分鐘自動播（最多晚約 3 分鐘）。要立刻看效果請用「立即播報天氣」。群內查詢請傳「*天氣」。', el('div', { class: 'row' }, [
-            el('input', { type: 'text', 'data-k': 'weatherPlace', value: f.weatherPlace || '台北', placeholder: '台北 / 台中 / 工地附近地名' }),
-            weatherHour,
-            weatherMinute,
+          featureRow('weather', '氣象播報', '資料來自 Open-Meteo（依工地經緯度查預報）。先按「儲存此群設定」。會在設定的那一分鐘自動播（最多晚約 3 分鐘）。要立刻看效果請用「立即播報天氣」。群內查詢請傳「*天氣」。', el('div', {}, [
+            el('div', { class: 'row' }, [
+              el('input', { type: 'text', 'data-k': 'weatherPlace', value: f.weatherPlace || '台北', placeholder: '台北 / 台中 / 工地附近地名' }),
+              weatherHour,
+              weatherMinute,
+            ]),
+            el('div', { class: 'hint' }, ['參考網址（可空。LINE 會變成可點連結。填 open-meteo 會附上該地點資料頁，也可貼氣象局或其他網址）']),
+            el('input', { type: 'text', 'data-k': 'weatherLink', value: f.weatherLink || '', placeholder: '可空／open-meteo／https://…' }),
           ])),
           featureRow('nightDuty', '夜間值班', '與日間上班分開。依日期指定 1～2 人，當天沒人就不推播。群內查詢請傳「*值班」。', rosterEditor('nightDuty', night, '05:30-07:30（如遇工班加班配合工班時段）')),
           featureRow('dayShift', '日間上班人員', '不要和夜間值班混用。依日期指定當天上班的人，可每天一人或兩人。群內查詢請傳「*上班」。', rosterEditor('dayShift', day, '')),

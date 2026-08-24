@@ -60,6 +60,7 @@ export interface ChatFeatures {
   weatherPlace: string
   weatherHour: number
   weatherMinute: number
+  weatherLink: string
   nightDuty: DateRoster
   dayShift: DateRoster
   safety: boolean

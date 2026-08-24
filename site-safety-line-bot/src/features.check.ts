@@ -5,7 +5,7 @@ import { allowsAdminPush, allowsScheduledRoster, allowsScheduledWeather } from '
 import { menuText } from './reminders.ts'
 import { clampMinute, isScheduleDue, scheduleSlot, taipeiParts } from './time.ts'
 import { parseTranslateCommand } from './translate.ts'
-import { geocodeQuery, weatherLabel, buildWeatherMessage, weatherSiteHint } from './weather.ts'
+import { geocodeQuery, weatherLabel, buildWeatherMessage, weatherSiteHint, parseWeatherLink } from './weather.ts'
 
 function assert(condition: unknown, message: string): void {
   if (!condition) throw new Error(message)
@@ -72,6 +72,28 @@ assert(weatherText === [
   '雨天注意濕滑、高處與電氣作業。',
 ].join('\n'), 'weather layout for LINE')
 assert(!weatherText.includes('現在 26°C、雷雨，降雨'), 'old cramped weather line gone')
+assert(!weatherText.includes('【參考】'), 'no source link by default')
+assert(parseWeatherLink('') === '', 'empty weather link')
+assert(parseWeatherLink('open-meteo') === 'open-meteo', 'open-meteo token')
+assert(parseWeatherLink('javascript:alert(1)') === '', 'reject javascript link')
+assert(parseWeatherLink('https://www.cwa.gov.tw/V8/C/').startsWith('https://www.cwa.gov.tw/'), 'https weather link')
+assert(buildWeatherMessage({
+  place: '新竹縣寶山鄉',
+  nowTemp: 26,
+  nowLabel: '雷雨',
+  nowRainMm: 0.6,
+  nowWindKmh: 10,
+  todayMin: 25,
+  todayMax: 27,
+  todayLabel: '雷雨',
+  todayRainChance: 100,
+  todayRainMm: 51,
+  tomorrowMin: 24,
+  tomorrowMax: 27,
+  tomorrowLabel: '雷雨',
+  tomorrowRainChance: 98,
+  link: 'https://open-meteo.com/',
+}).includes('https://open-meteo.com/'), 'optional source link')
 
 assert(clampMinute(17, 0) === 17, 'valid minute')
 assert(clampMinute(99, 0) === 0, 'invalid minute fallback')

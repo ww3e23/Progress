@@ -147,7 +147,7 @@ export async function handleAdminApi(request: Request, env: Env): Promise<Respon
         ? await getFeatures(env, chatId)
         : parseFeatures(null)
     if (kind === 'weather') {
-      return jsonResponse({ kind, preview: await formatWeather(place || features.weatherPlace) })
+      return jsonResponse({ kind, preview: await formatWeather(place || features.weatherPlace, features.weatherLink) })
     }
     if (kind === 'duty' || kind === 'nightDuty') {
       return jsonResponse({ kind, preview: formatNightDuty(features.nightDuty, taipeiParts().ymd) })
@@ -183,7 +183,7 @@ export async function handleAdminApi(request: Request, env: Env): Promise<Respon
     const features = id ? await getFeatures(env, id) : parseFeatures(null)
     let text = ''
     if (kind === 'weather') {
-      text = await formatWeather(features.weatherPlace)
+      text = await formatWeather(features.weatherPlace, features.weatherLink)
     } else if (kind === 'duty' || kind === 'nightDuty') {
       text = formatNightDuty(features.nightDuty, taipeiParts().ymd)
     } else if (kind === 'dayShift') {

@@ -140,7 +140,7 @@ async function handleFeatureCommand(env: Env, event: LineWebhookEvent, text: str
   if (command.kind === 'weather') {
     if (!features.weather) return false
     const place = command.place || features.weatherPlace || '台北'
-    await deliverText(env, event, await formatWeather(place))
+    await deliverText(env, event, await formatWeather(place, features.weatherLink))
     return true
   }
 

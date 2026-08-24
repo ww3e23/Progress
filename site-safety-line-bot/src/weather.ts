@@ -114,6 +114,26 @@ export interface WeatherSnapshot {
   tomorrowMax: number
   tomorrowLabel: string
   tomorrowRainChance: number
+  link?: string
+}
+
+export function parseWeatherLink(raw: unknown): string {
+  if (typeof raw !== 'string') return ''
+  const text = raw.trim()
+  if (!text) return ''
+  if (/^open-meteo$/i.test(text)) return 'open-meteo'
+  const withScheme = /^https?:\/\//i.test(text) ? text : `https://${text}`
+  try {
+    const url = new URL(withScheme)
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return ''
+    return url.toString().slice(0, 300)
+  } catch {
+    return ''
+  }
+}
+
+export function openMeteoPageUrl(latitude: number, longitude: number): string {
+  return `https://open-meteo.com/en/docs#latitude=${latitude}&longitude=${longitude}`
 }
 
 function formatMm(value: number): string {
@@ -130,7 +150,7 @@ export function weatherSiteHint(rainChance: number, nowRainMm: number, todayMax:
 }
 
 export function buildWeatherMessage(weather: WeatherSnapshot): string {
-  return [
+  const lines = [
     `氣象｜${weather.place}`,
     '',
     '【現在】',
@@ -149,10 +169,14 @@ export function buildWeatherMessage(weather: WeatherSnapshot): string {
     '',
     '【工地提醒】',
     weatherSiteHint(weather.todayRainChance, weather.nowRainMm, weather.todayMax),
-  ].join('\n')
+  ]
+  if (weather.link) {
+    lines.push('', '【參考】', weather.link)
+  }
+  return lines.join('\n')
 }
 
-export async function formatWeather(place: string): Promise<string> {
+export async function formatWeather(place: string, link = ''): Promise<string> {
   const geo = await geocodePlace(place)
   const url =
     'https://api.open-meteo.com/v1/forecast' +
@@ -181,6 +205,8 @@ export async function formatWeather(place: string): Promise<string> {
   const daily = data.daily || {}
   const todayCode = daily.weather_code?.[0] ?? current.weather_code ?? 0
   const tomorrowCode = daily.weather_code?.[1] ?? todayCode
+  const parsedLink = parseWeatherLink(link)
+  const resolvedLink = parsedLink === 'open-meteo' ? openMeteoPageUrl(geo.latitude, geo.longitude) : parsedLink
   return buildWeatherMessage({
     place: geo.name,
     nowTemp: Math.round(current.temperature_2m || 0),
@@ -196,6 +222,7 @@ export async function formatWeather(place: string): Promise<string> {
     tomorrowMax: Math.round(daily.temperature_2m_max?.[1] || 0),
     tomorrowLabel: weatherLabel(tomorrowCode),
     tomorrowRainChance: daily.precipitation_probability_max?.[1] ?? 0,
+    link: resolvedLink,
   })
 }
 

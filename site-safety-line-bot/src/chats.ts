@@ -1,6 +1,7 @@
 import { DEFAULT_DAY_SHIFT, DEFAULT_NIGHT_DUTY, parseRoster } from './duty.ts'
 import { clampHour, clampMinute } from './time.ts'
 import { chatIdFromSource, LANGS } from './translate.ts'
+import { parseWeatherLink } from './weather.ts'
 import type { ChatFeatures, ChatRecord, ChatState, ChatType, Env } from './types'
 
 const CHAT_PREFIX = 'chat:'
@@ -16,6 +17,7 @@ export const DEFAULT_FEATURES: ChatFeatures = {
   weatherPlace: '台北',
   weatherHour: 7,
   weatherMinute: 0,
+  weatherLink: '',
   nightDuty: { ...DEFAULT_NIGHT_DUTY, days: {} },
   dayShift: { ...DEFAULT_DAY_SHIFT, days: {} },
   safety: false,
@@ -69,6 +71,7 @@ export function parseFeatures(raw: string | null): ChatFeatures {
     weatherPlace: (typeof parsed.weatherPlace === 'string' ? parsed.weatherPlace : DEFAULT_FEATURES.weatherPlace).trim() || DEFAULT_FEATURES.weatherPlace,
     weatherHour: clampHour(parsed.weatherHour, DEFAULT_FEATURES.weatherHour),
     weatherMinute: clampMinute(parsed.weatherMinute, DEFAULT_FEATURES.weatherMinute),
+    weatherLink: parseWeatherLink(parsed.weatherLink),
     nightDuty,
     dayShift,
     safety: Boolean(parsed.safety),

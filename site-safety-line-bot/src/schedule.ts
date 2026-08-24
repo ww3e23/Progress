@@ -50,7 +50,7 @@ export async function runHourlyJobs(env: Env, nowDate = new Date()): Promise<voi
     try {
       if (allowsScheduledWeather(features) && isJobDue(features.weatherHour, features.weatherMinute, tick, wall)) {
         await sendOnce(env, jobKey('weather', chat.id, tick.ymd, features.weatherHour, features.weatherMinute), async () => {
-          await pushText(env, chat.id, await formatWeather(features.weatherPlace))
+          await pushText(env, chat.id, await formatWeather(features.weatherPlace, features.weatherLink))
         })
       }
     } catch (error) {
