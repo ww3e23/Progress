@@ -1,7 +1,7 @@
 import { formatTranslation, isMostlyChinese, LANGS, shouldSkipTranslate } from './translate'
 import type { Env } from './types'
 
-const LLM_MODEL = '@cf/meta/llama-3.1-8b-instruct-fp8-fast'
+const LLM_MODELS = ['@cf/zai-org/glm-4.7-flash', '@cf/meta/llama-3.1-8b-instruct-fp8-fast']
 const FALLBACK_MODEL = '@cf/meta/m2m100-1.2b'
 const DAILY_LIMIT = 400
 const ZH_LABEL = '中文'
@@ -81,21 +81,34 @@ function cleanTranslation(text: string): string {
 
 async function translateWithLlm(env: Env, text: string, targetLang: string): Promise<string> {
   const targetName = LANG_NAMES[targetLang] || targetLang
-  const result = await env.AI!.run(LLM_MODEL, {
-    messages: [
-      {
-        role: 'system',
-        content:
-          'You are a Taiwan construction-site interpreter. Translate the user message into the requested language. Output ONLY the translation, no quotes and no explanation. Translate every word; do not leave Chinese, Thai, or Vietnamese untranslated. Keep numbers, times, and names. If the target is Chinese, use Traditional Chinese (台灣用語). Jobsite terms: 安全帽=safety helmet / mũ bảo hộ / หมวกนิรภัย; 鷹架=scaffold / giàn giáo / นั่งร้าน; 灌漿=grouting / bơm vữa / งานเทกราวต์; 收工=knock off / tan ca / เลิกงาน; 缺失=defect / lỗi / ข้อบกพร่อง.',
-      },
-      {
-        role: 'user',
-        content: `Translate into ${targetName}:\n${text}`,
-      },
-    ],
-    max_tokens: 256,
-  })
-  return pickTranslated(result)
+  const messages = [
+    {
+      role: 'system',
+      content: [
+        '你是台灣工地口譯，翻譯給現場主管和外籍工人聽。',
+        '只輸出譯文，不要解釋、不要加引號。',
+        '翻意思，不要逐字硬翻；用自然口語。',
+        '目標是中文時，一律用台灣繁體，用語像現場在講話。',
+        '泰文 ปิดบังฝน / กันฝน / ที่บังฝน = 遮雨、擋雨、蓋帆布，絕對不要翻成「直擊」。',
+        'อาคาร = 棟／建物；ห้อง = 房間／室內；น้ำไหลเข้า = 進水、漏進去。',
+        'ช่วยหาคนมา = 找人來幫忙／叫人過來。',
+      ].join('\n'),
+    },
+    {
+      role: 'user',
+      content: `請翻成${targetName}：\n${text}`,
+    },
+  ]
+  for (const model of LLM_MODELS) {
+    try {
+      const result = await env.AI!.run(model, { messages, max_tokens: 256 })
+      const translated = pickTranslated(result)
+      if (translated) return translated
+    } catch (error) {
+      console.error(`${model} translate failed`, error)
+    }
+  }
+  return ''
 }
 
 async function translateWithM2m(env: Env, text: string, sourceLang: string, targetLang: string): Promise<string> {
