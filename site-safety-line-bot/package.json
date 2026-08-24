@@ -8,7 +8,7 @@
     "deploy": "wrangler deploy",
     "types": "wrangler types",
     "check": "wrangler types && tsc --noEmit",
-    "test": "node --experimental-strip-types src/reminders.check.ts"
+    "test": "node --experimental-strip-types src/reminders.check.ts && node --experimental-strip-types src/features.check.ts"
   },
   "devDependencies": {
     "typescript": "^5.9.2",

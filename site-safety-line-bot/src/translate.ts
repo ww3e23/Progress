@@ -40,6 +40,7 @@ export function shouldSkipTranslate(text: string): boolean {
   if (!trimmed) return true
   if (trimmed.startsWith(TRANSLATE_MARK)) return true
   if (trimmed.length <= 1) return true
+  if (parseTranslateCommand(trimmed)) return true
   return false
 }
 

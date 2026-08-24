@@ -95,15 +95,19 @@ function pickGeminiText(result: unknown): string {
   return cleanTranslation(text)
 }
 
-async function translateWithGemini(env: Env, text: string, targetLang: string): Promise<string> {
+export async function askGemini(
+  env: Env,
+  userText: string,
+  system = INTERPRETER_PROMPT,
+  maxOutputTokens = 128,
+): Promise<string> {
   if (!env.GEMINI_API_KEY) return ''
-  const targetName = LANG_NAMES[targetLang] || targetLang
   const body = {
-    system_instruction: { parts: [{ text: INTERPRETER_PROMPT }] },
-    contents: [{ parts: [{ text: `翻成${targetName}：\n${text}` }] }],
+    system_instruction: { parts: [{ text: system }] },
+    contents: [{ parts: [{ text: userText }] }],
     generationConfig: {
       temperature: 0.2,
-      maxOutputTokens: 128,
+      maxOutputTokens,
     },
   }
   for (const model of GEMINI_MODELS) {
@@ -120,12 +124,19 @@ async function translateWithGemini(env: Env, text: string, targetLang: string): 
         console.error('gemini failed', model, res.status, await res.text())
         continue
       }
-      const translated = pickGeminiText(await res.json())
-      if (translated && !looksWrongLanguage(translated, targetLang)) return translated
+      const text = pickGeminiText(await res.json())
+      if (text) return text
     } catch (error) {
       console.error('gemini error', model, error)
     }
   }
+  return ''
+}
+
+async function translateWithGemini(env: Env, text: string, targetLang: string): Promise<string> {
+  const targetName = LANG_NAMES[targetLang] || targetLang
+  const translated = await askGemini(env, `翻成${targetName}：\n${text}`, INTERPRETER_PROMPT, 128)
+  if (translated && !looksWrongLanguage(translated, targetLang)) return translated
   return ''
 }
 

@@ -8,11 +8,18 @@ export interface Env {
   AI?: {
     run: (model: string, input: Record<string, unknown>) => Promise<unknown>
   }
-  TRANSLATE_KV?: {
-    get: (key: string) => Promise<string | null>
-    put: (key: string, value: string, options?: { expirationTtl?: number }) => Promise<void>
-    delete: (key: string) => Promise<void>
-  }
+  TRANSLATE_KV?: KVStore
+}
+
+export interface KVStore {
+  get: (key: string) => Promise<string | null>
+  put: (key: string, value: string, options?: { expirationTtl?: number }) => Promise<void>
+  delete: (key: string) => Promise<void>
+  list?: (options?: { prefix?: string; limit?: number; cursor?: string }) => Promise<{
+    keys: Array<{ name: string }>
+    list_complete: boolean
+    cursor?: string
+  }>
 }
 
 export type ReminderType = 'heat' | 'height' | 'rain'
@@ -24,10 +31,50 @@ export interface Reminder {
   text: string
 }
 
+export type ChatType = 'group' | 'room' | 'user'
+
+export type DutyMode = 'all' | 'rotate'
+
+export interface ChatRecord {
+  id: string
+  type: ChatType
+  name: string
+  note: string
+  lastSeenAt: number
+  nameFetchedAt?: number
+}
+
+export interface ChatFeatures {
+  translate: boolean
+  translateLang: string
+  imageSearch: boolean
+  infoSearch: boolean
+  weather: boolean
+  weatherPlace: string
+  weatherHour: number
+  duty: boolean
+  dutyPeople: string[]
+  dutyHour: number
+  dutyMode: DutyMode
+}
+
+export interface ChatState {
+  chat: ChatRecord
+  features: ChatFeatures
+}
+
 export interface LineTextMessage {
   type: 'text'
   text: string
 }
+
+export interface LineImageMessage {
+  type: 'image'
+  originalContentUrl: string
+  previewImageUrl: string
+}
+
+export type LineMessage = LineTextMessage | LineImageMessage
 
 export interface LineWebhookEvent {
   type: string

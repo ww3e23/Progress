@@ -1,9 +1,27 @@
 import { renderAdminPage } from './admin'
-import { deliverText, hasLineToken, parseWebhookBody, sendReminderMessages, verifyLineSignature } from './line'
+import { handleAdminApi, requireAdmin } from './adminApi'
+import { enabledFeatureLabels, getFeatures, putFeatures, touchChat } from './chats'
+import { featureHelp, parseFeatureCommand } from './commands'
+import { formatDuty } from './duty'
+import { searchImages } from './imageSearch'
+import { searchInfo } from './infoSearch'
+import {
+  deliverMessages,
+  deliverText,
+  fetchChatTitle,
+  hasLineToken,
+  imageMessage,
+  parseWebhookBody,
+  sendReminderMessages,
+  verifyLineSignature,
+} from './line'
 import { isReminderType, menuText, reminderFromText, REMINDERS } from './reminders'
+import { runHourlyJobs } from './schedule'
+import { taipeiParts } from './time'
 import { chatIdFromSource, isGroupOrRoom, isMostlyChinese, parseTranslateCommand, translateHelp } from './translate'
 import { getTranslateLang, setTranslateLang, translateForChat, translateText } from './translateService'
-import type { Env, LineWebhookEvent, ReminderType } from './types'
+import { formatWeather } from './weather'
+import type { ChatFeatures, Env, LineWebhookEvent, ReminderType } from './types'
 
 function textResponse(body: string, status = 200, contentType = 'text/plain;charset=UTF-8'): Response {
   return new Response(body, {
@@ -14,15 +32,6 @@ function textResponse(body: string, status = 200, contentType = 'text/plain;char
 
 function unauthorized(): Response {
   return textResponse('未授權：請提供正確的 ADMIN_TOKEN', 401)
-}
-
-function requireAdmin(request: Request, env: Env): boolean {
-  const expected = env.ADMIN_TOKEN
-  if (!expected) return true
-  const url = new URL(request.url)
-  const queryToken = url.searchParams.get('token')
-  const headerToken = request.headers.get('authorization')?.replace(/^Bearer\s+/i, '')
-  return queryToken === expected || headerToken === expected
 }
 
 async function handleSend(request: Request, env: Env): Promise<Response> {
@@ -52,12 +61,16 @@ async function handleSend(request: Request, env: Env): Promise<Response> {
   }
 }
 
-async function handleTranslateCommand(env: Env, event: LineWebhookEvent, text: string): Promise<boolean> {
+async function handleTranslateCommand(env: Env, event: LineWebhookEvent, text: string, features: ChatFeatures | null): Promise<boolean> {
   const command = parseTranslateCommand(text)
   if (!command) return false
   const chatId = chatIdFromSource(event.source)
   if (!chatId) {
     await deliverText(env, event, translateHelp())
+    return true
+  }
+  if (features && !features.translate) {
+    await deliverText(env, event, '此聊天尚未開啟即時翻譯。請管理員到後台打開「即時翻譯」。')
     return true
   }
   if (command.action === 'help') {
@@ -68,22 +81,100 @@ async function handleTranslateCommand(env: Env, event: LineWebhookEvent, text: s
   }
   if (command.action === 'off') {
     await setTranslateLang(env, chatId, null)
-    await deliverText(env, event, '已關閉此聊天的即時翻譯。')
+    if (features) {
+      await putFeatures(env, chatId, { ...features, translateLang: '' })
+    }
+    await deliverText(env, event, '已暫停此聊天的即時翻譯。再傳「翻譯 泰文」可重新開啟。')
     return true
   }
   if (command.lang) {
     await setTranslateLang(env, chatId, command.lang.code)
+    if (features) {
+      await putFeatures(env, chatId, { ...features, translate: true, translateLang: command.lang.code })
+    }
     await deliverText(env, event, `已開啟即時翻譯：中文 ↔ ${command.lang.label}\n之後訊息會自動翻譯。`)
     return true
   }
   return true
 }
 
+async function handleFeatureCommand(env: Env, event: LineWebhookEvent, text: string, features: ChatFeatures): Promise<boolean> {
+  const command = parseFeatureCommand(text)
+  if (!command) return false
+
+  if (command.kind === 'help') {
+    await deliverText(env, event, featureHelp(features, enabledFeatureLabels(features)))
+    return true
+  }
+
+  if (command.kind === 'image') {
+    if (!features.imageSearch) {
+      await deliverText(env, event, '此聊天尚未開啟搜圖。請管理員到後台打開「搜尋圖片」。')
+      return true
+    }
+    if (!command.query) {
+      await deliverText(env, event, '用法：搜圖 安全帽')
+      return true
+    }
+    const images = await searchImages(command.query)
+    if (images.length === 0) {
+      await deliverText(env, event, `找不到「${command.query}」的圖片，換個關鍵字再試。`)
+      return true
+    }
+    try {
+      await deliverMessages(env, event, [
+        { type: 'text', text: `搜圖：${command.query}` },
+        ...images.map((image) => imageMessage(image.url, image.preview)),
+      ])
+    } catch (error) {
+      console.error('image send failed', error)
+      const links = images.map((image) => image.url).join('\n')
+      await deliverText(env, event, `搜圖：${command.query}\n${links}`)
+    }
+    return true
+  }
+
+  if (command.kind === 'info') {
+    if (!features.infoSearch) {
+      await deliverText(env, event, '此聊天尚未開啟查資料。請管理員到後台打開「搜尋資料」。')
+      return true
+    }
+    const answer = await searchInfo(env, command.query)
+    await deliverText(env, event, answer.slice(0, 4900))
+    return true
+  }
+
+  if (command.kind === 'weather') {
+    if (!features.weather) {
+      await deliverText(env, event, '此聊天尚未開啟氣象。請管理員到後台打開「氣象播報」。')
+      return true
+    }
+    const place = command.place || features.weatherPlace || '台北'
+    await deliverText(env, event, await formatWeather(place))
+    return true
+  }
+
+  if (command.kind === 'duty') {
+    if (!features.duty) {
+      await deliverText(env, event, '此聊天尚未開啟值班通知。請管理員到後台打開「夜間值班」。')
+      return true
+    }
+    await deliverText(env, event, formatDuty(features, taipeiParts().dayOfYear))
+    return true
+  }
+
+  return false
+}
+
 async function processEvents(env: Env, events: LineWebhookEvent[]): Promise<void> {
   for (const event of events) {
     try {
+      await touchChat(env, event.source, (chat) => fetchChatTitle(env, chat))
+      const chatId = chatIdFromSource(event.source)
+      const features = chatId ? await getFeatures(env, chatId) : null
+
       if (event.type === 'join') {
-        await deliverText(env, event, translateHelp())
+        await deliverText(env, event, '工程bot 已加入。請管理員到後台為此群開啟功能，或在群裡傳「功能」。')
         continue
       }
       if (event.type === 'follow') {
@@ -94,10 +185,10 @@ async function processEvents(env: Env, events: LineWebhookEvent[]): Promise<void
         continue
       }
       const text = event.message.text
-      if (await handleTranslateCommand(env, event, text)) continue
+      if (await handleTranslateCommand(env, event, text, features)) continue
+      if (features && (await handleFeatureCommand(env, event, text, features))) continue
 
-      const chatId = chatIdFromSource(event.source)
-      if (chatId) {
+      if (chatId && features?.translate) {
         try {
           const translated = await translateForChat(env, chatId, text)
           if (translated) {
@@ -147,8 +238,18 @@ async function handleWebhook(request: Request, env: Env, ctx?: ExecutionContext)
 }
 
 export default {
-    async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url)
+
+    if (url.pathname.startsWith('/api/admin/')) {
+      if (!requireAdmin(request, env)) return unauthorized()
+      try {
+        return await handleAdminApi(request, env)
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        return textResponse(`操作失敗：${message}`, 502)
+      }
+    }
 
     if (url.pathname === '/health') {
       return textResponse('OK')
@@ -195,5 +296,9 @@ export default {
     }
 
     return textResponse('工程bot 已啟動')
+  },
+
+  async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+    ctx.waitUntil(runHourlyJobs(env))
   },
 }

@@ -1,0 +1,134 @@
+import { getChat, getFeatures, listChatStates, parseFeatures, putChat, putFeatures, registerChat } from './chats'
+import { formatDuty } from './duty'
+import { fetchChatTitle, pushText } from './line'
+import { isReminderType, REMINDERS } from './reminders'
+import { taipeiParts } from './time'
+import { formatWeather } from './weather'
+import type { ChatRecord, ChatType, Env, ReminderType } from './types'
+
+function jsonResponse(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'content-type': 'application/json;charset=UTF-8' },
+  })
+}
+
+function errorResponse(message: string, status = 400): Response {
+  return jsonResponse({ error: message }, status)
+}
+
+export function requireAdmin(request: Request, env: Env): boolean {
+  const expected = env.ADMIN_TOKEN
+  if (!expected) return true
+  const url = new URL(request.url)
+  const queryToken = url.searchParams.get('token')
+  const headerToken = request.headers.get('authorization')?.replace(/^Bearer\s+/i, '')
+  return queryToken === expected || headerToken === expected
+}
+
+async function readJson(request: Request): Promise<Record<string, unknown>> {
+  try {
+    const parsed = (await request.json()) as Record<string, unknown>
+    return parsed && typeof parsed === 'object' ? parsed : {}
+  } catch {
+    return {}
+  }
+}
+
+function asChatType(value: unknown): ChatType {
+  if (value === 'group' || value === 'room' || value === 'user') return value
+  if (typeof value === 'string' && value.startsWith('C')) return 'group'
+  if (typeof value === 'string' && value.startsWith('R')) return 'room'
+  return 'user'
+}
+
+export async function handleAdminApi(request: Request, env: Env): Promise<Response> {
+  const url = new URL(request.url)
+  const path = url.pathname
+
+  if (path === '/api/admin/state' && request.method === 'GET') {
+    const chats = await listChatStates(env)
+    return jsonResponse({
+      chats,
+      adminProtected: Boolean(env.ADMIN_TOKEN),
+    })
+  }
+
+  if (path === '/api/admin/save' && request.method === 'POST') {
+    const body = await readJson(request)
+    const chatInput = body.chat as Partial<ChatRecord> | undefined
+    const id = typeof chatInput?.id === 'string' ? chatInput.id.trim() : ''
+    if (!id) return errorResponse('缺少群組 id')
+    const existing = (await getChat(env, id)) || {
+      id,
+      type: asChatType(chatInput?.type || id),
+      name: '',
+      note: '',
+      lastSeenAt: Date.now(),
+    }
+    existing.note = typeof chatInput?.note === 'string' ? chatInput.note.trim() : existing.note
+    if (typeof chatInput?.name === 'string' && chatInput.name.trim()) existing.name = chatInput.name.trim()
+    if (chatInput?.type) existing.type = asChatType(chatInput.type)
+    await putChat(env, existing)
+    const features = parseFeatures(JSON.stringify(body.features || {}))
+    await putFeatures(env, id, features)
+    return jsonResponse({ chat: existing, features: await getFeatures(env, id) })
+  }
+
+  if (path === '/api/admin/register' && request.method === 'POST') {
+    const body = await readJson(request)
+    const id = typeof body.id === 'string' ? body.id.trim() : ''
+    if (!id) return errorResponse('請貼上 LINE 群組 ID（通常是 C 開頭）')
+    const type = asChatType(body.type || id)
+    const name = typeof body.name === 'string' ? body.name.trim() : ''
+    const chat = await registerChat(env, id, type, name)
+    if (!chat.name) {
+      const title = await fetchChatTitle(env, chat)
+      if (title) {
+        chat.name = title
+        chat.nameFetchedAt = Date.now()
+        await putChat(env, chat)
+      }
+    }
+    return jsonResponse({ chat, features: await getFeatures(env, id) })
+  }
+
+  if (path === '/api/admin/refresh-name' && request.method === 'POST') {
+    const body = await readJson(request)
+    const id = typeof body.id === 'string' ? body.id.trim() : ''
+    if (!id) return errorResponse('缺少群組 id')
+    const chat = await getChat(env, id)
+    if (!chat) return errorResponse('找不到這個聊天', 404)
+    const title = await fetchChatTitle(env, chat)
+    if (title) {
+      chat.name = title
+      chat.nameFetchedAt = Date.now()
+      await putChat(env, chat)
+    }
+    return jsonResponse({ chat, name: chat.name })
+  }
+
+  if (path === '/api/admin/send' && request.method === 'POST') {
+    const body = await readJson(request)
+    const id = typeof body.chatId === 'string' ? body.chatId.trim() : ''
+    const kind = typeof body.kind === 'string' ? body.kind : ''
+    if (!id) return errorResponse('缺少群組 id')
+    const features = await getFeatures(env, id)
+    let text = ''
+    if (kind === 'weather') {
+      text = await formatWeather(features.weatherPlace)
+    } else if (kind === 'duty') {
+      text = formatDuty(features, taipeiParts().dayOfYear)
+    } else if (isReminderType(kind)) {
+      text = REMINDERS[kind as ReminderType].text
+    } else {
+      return errorResponse('未知發送類型')
+    }
+    await pushText(env, id, text)
+    return jsonResponse({ ok: true, preview: text })
+  }
+
+  return errorResponse('找不到這個 API', 404)
+}
+
+export { jsonResponse, errorResponse }
