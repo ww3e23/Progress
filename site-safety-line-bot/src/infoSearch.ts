@@ -1,4 +1,5 @@
 import { askGemini } from './translateService'
+import { infoUsage } from './commands'
 import type { Env } from './types'
 
 const UA = 'site-safety-line-bot/1.0 (https://workers.dev)'
@@ -52,7 +53,7 @@ async function wikipediaExtract(query: string): Promise<string> {
 
 export async function searchInfo(env: Env, query: string): Promise<string> {
   const q = query.trim().slice(0, 200)
-  if (!q) return '請輸入要查的內容，例如：查 鋼筋搭接'
+  if (!q) return infoUsage()
 
   let gemini = ''
   try {

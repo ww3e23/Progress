@@ -1,7 +1,7 @@
 import { renderAdminPage } from './admin'
 import { handleAdminApi, requireAdmin } from './adminApi'
 import { enabledFeatureLabels, getFeatures, putFeatures, touchChat } from './chats'
-import { featureHelp, parseFeatureCommand } from './commands'
+import { featureHelp, infoUsage, parseFeatureCommand } from './commands'
 import { formatDayShift, formatNightDuty } from './duty'
 import { searchImages } from './imageSearch'
 import { searchInfo } from './infoSearch'
@@ -132,6 +132,10 @@ async function handleFeatureCommand(env: Env, event: LineWebhookEvent, text: str
 
   if (command.kind === 'info') {
     if (!features.infoSearch) return false
+    if (!command.query) {
+      await deliverText(env, event, infoUsage())
+      return true
+    }
     const answer = await searchInfo(env, command.query)
     await deliverText(env, event, answer.slice(0, 4900))
     return true

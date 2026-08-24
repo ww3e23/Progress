@@ -548,7 +548,7 @@ export function renderAdminPage(origin: string): string {
           el('input', { type: 'text', 'data-k': 'note', value: chat.note || '', placeholder: chat.name || '例如：外籍工人群' }),
           featureRow('translate', '即時翻譯', '群內中文 ↔ 外語。也可傳「翻譯 泰文」。', langSelect),
           featureRow('imageSearch', '搜尋圖片', '群內傳：*搜圖 安全帽。沒開則當一般訊息處理。', null),
-          featureRow('infoSearch', '搜尋資料', '群內傳：*查 鋼筋搭接。沒開則當一般訊息處理。', null),
+          featureRow('infoSearch', '搜尋資料', '群內傳：*查 熱危害。工地相關都可以問（高處、模板、鋼筋、防水…），不限某一項。沒開則當一般訊息處理。', null),
           featureRow('weather', '氣象播報', '資料來自 Open-Meteo（依工地經緯度查預報）。先按「儲存此群設定」。會在設定的那一分鐘自動播（最多晚約 3 分鐘）。要立刻看效果請用「立即播報天氣」。群內查詢請傳「*天氣」。', el('div', {}, [
             el('div', { class: 'row' }, [
               el('input', { type: 'text', 'data-k': 'weatherPlace', value: f.weatherPlace || '台北', placeholder: '台北 / 台中 / 工地附近地名' }),

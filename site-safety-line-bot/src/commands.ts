@@ -48,12 +48,28 @@ export function parseFeatureCommand(text: string): FeatureCommand | null {
     return { kind: 'dayShift' }
   }
 
-  const info = body.match(/^(查詢|查询|搜尋|搜寻|查|搜|問|问)\s+(.+)$/)
-  if (info?.[2]) {
-    return { kind: 'info', query: info[2].trim() }
+  const info = body.match(/^(查詢|查询|搜尋|搜寻|查|問|问)(?:\s*(.+))?$/)
+  if (info) {
+    return { kind: 'info', query: (info[2] || '').trim() }
+  }
+
+  const searchAlias = body.match(/^(搜)\s+(.+)$/)
+  if (searchAlias?.[2]) {
+    return { kind: 'info', query: searchAlias[2].trim() }
   }
 
   return null
+}
+
+export function infoUsage(): string {
+  return [
+    '用法：*查 你要問的內容',
+    '工地相關都可以問，不限某一項。例如：',
+    '· *查 熱危害',
+    '· *查 高處作業',
+    '· *查 模板支撐',
+    '· *查 鋼筋搭接',
+  ].join('\n')
 }
 
 export function featureHelp(features: ChatFeatures, enabled: string[]): string {
@@ -63,7 +79,7 @@ export function featureHelp(features: ChatFeatures, enabled: string[]): string {
   const commands: string[] = []
   if (features.translate) commands.push('· 翻譯 泰文／翻譯 關')
   if (features.imageSearch) commands.push('· *搜圖 安全帽')
-  if (features.infoSearch) commands.push('· *查 鋼筋搭接')
+  if (features.infoSearch) commands.push('· *查 熱危害（工地問題都可以問）')
   if (features.weather) commands.push('· *天氣　或　*天氣 台中')
   if (features.nightDuty.enabled) commands.push('· *值班')
   if (features.dayShift.enabled) commands.push('· *上班')
