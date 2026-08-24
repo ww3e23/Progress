@@ -91,7 +91,8 @@ export function buildProgressReportModel(
     .sort((a, b) => a.sortOrder - b.sortOrder)
 
   const works: ProgressReportWork[] = []
-  for (const workItem of workItems) {
+  if (buildings.length > 0) {
+    for (const workItem of workItems) {
     const stages = visibleStages(workItem, hidden)
     if (stages.length === 0) continue
     const summary = summaryRows.find((r) => r.id === workItem.id)
@@ -178,6 +179,7 @@ export function buildProgressReportModel(
       tables,
       remarks,
     })
+    }
   }
 
   const now = new Date()
