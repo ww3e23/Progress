@@ -4,6 +4,14 @@ export interface Env {
   ADMIN_TOKEN?: string
   /** Comma-separated LINE group / user / room IDs. Empty = broadcast to all friends. */
   LINE_TO_IDS?: string
+  AI?: {
+    run: (model: string, input: Record<string, unknown>) => Promise<unknown>
+  }
+  TRANSLATE_KV?: {
+    get: (key: string) => Promise<string | null>
+    put: (key: string, value: string, options?: { expirationTtl?: number }) => Promise<void>
+    delete: (key: string) => Promise<void>
+  }
 }
 
 export type ReminderType = 'heat' | 'height' | 'rain'
@@ -23,6 +31,12 @@ export interface LineTextMessage {
 export interface LineWebhookEvent {
   type: string
   replyToken?: string
+  source?: {
+    type?: string
+    userId?: string
+    groupId?: string
+    roomId?: string
+  }
   message?: {
     type: string
     text?: string

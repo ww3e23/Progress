@@ -1,7 +1,9 @@
 import { renderAdminPage } from './admin'
 import { parseWebhookBody, replyText, sendReminderMessages, verifyLineSignature } from './line'
 import { isReminderType, menuText, reminderFromText, REMINDERS } from './reminders'
-import type { Env, ReminderType } from './types'
+import { chatIdFromSource, isGroupOrRoom, isMostlyChinese, parseTranslateCommand, translateHelp } from './translate'
+import { getTranslateLang, setTranslateLang, translateForChat, translateText } from './translateService'
+import type { Env, LineWebhookEvent, ReminderType } from './types'
 
 function textResponse(body: string, status = 200, contentType = 'text/plain;charset=UTF-8'): Response {
   return new Response(body, {
@@ -16,7 +18,7 @@ function unauthorized(): Response {
 
 function requireAdmin(request: Request, env: Env): boolean {
   const expected = env.ADMIN_TOKEN
-  if (!expected) return false
+  if (!expected) return true
   const url = new URL(request.url)
   const queryToken = url.searchParams.get('token')
   const headerToken = request.headers.get('authorization')?.replace(/^Bearer\s+/i, '')
@@ -50,12 +52,41 @@ async function handleSend(request: Request, env: Env): Promise<Response> {
   }
 }
 
+async function handleTranslateCommand(env: Env, event: LineWebhookEvent, text: string): Promise<boolean> {
+  const command = parseTranslateCommand(text)
+  if (!command || !event.replyToken) return false
+  const chatId = chatIdFromSource(event.source)
+  if (!chatId) {
+    await replyText(env, event.replyToken, translateHelp())
+    return true
+  }
+  if (command.action === 'help') {
+    const current = await getTranslateLang(env, chatId)
+    const extra = current ? `\n目前：已開啟（${current}）` : '\n目前：關閉'
+    await replyText(env, event.replyToken, translateHelp() + extra)
+    return true
+  }
+  if (command.action === 'off') {
+    await setTranslateLang(env, chatId, null)
+    await replyText(env, event.replyToken, '已關閉此聊天的即時翻譯。')
+    return true
+  }
+  if (command.lang) {
+    await setTranslateLang(env, chatId, command.lang.code)
+    await replyText(env, event.replyToken, `已開啟即時翻譯：中文 ↔ ${command.lang.label}\n之後訊息會自動翻譯。`)
+    return true
+  }
+  return true
+}
+
 async function handleWebhook(request: Request, env: Env): Promise<Response> {
   const rawBody = await request.text()
   const signature = request.headers.get('x-line-signature')
-  const ok = await verifyLineSignature(rawBody, signature, env.LINE_CHANNEL_SECRET)
-  if (!ok) {
-    return textResponse('invalid signature', 401)
+  if (env.LINE_CHANNEL_SECRET) {
+    const ok = await verifyLineSignature(rawBody, signature, env.LINE_CHANNEL_SECRET)
+    if (!ok) {
+      return textResponse('invalid signature', 401)
+    }
   }
 
   const body = parseWebhookBody(rawBody)
@@ -63,6 +94,10 @@ async function handleWebhook(request: Request, env: Env): Promise<Response> {
 
   await Promise.all(
     events.map(async (event) => {
+      if (event.type === 'join' && event.replyToken) {
+        await replyText(env, event.replyToken, translateHelp())
+        return
+      }
       if (!event.replyToken) return
       if (event.type === 'follow') {
         await replyText(env, event.replyToken, menuText())
@@ -71,12 +106,32 @@ async function handleWebhook(request: Request, env: Env): Promise<Response> {
       if (event.type !== 'message' || event.message?.type !== 'text' || !event.message.text) {
         return
       }
-      const reminder = reminderFromText(event.message.text)
+      const text = event.message.text
+      if (await handleTranslateCommand(env, event, text)) return
+
+      const chatId = chatIdFromSource(event.source)
+      if (chatId) {
+        try {
+          const translated = await translateForChat(env, chatId, text)
+          if (translated) {
+            await replyText(env, event.replyToken, translated)
+            return
+          }
+        } catch (error) {
+          console.error('translate failed', error)
+        }
+      }
+
+      if (isGroupOrRoom(event.source)) return
+
+      const reminder = reminderFromText(text)
       if (reminder) {
         await replyText(env, event.replyToken, reminder.text)
         return
       }
-      await replyText(env, event.replyToken, menuText())
+      if (/^(說明|说明|選單|选单|help|menu)$/i.test(text.trim())) {
+        await replyText(env, event.replyToken, menuText())
+      }
     }),
   )
 
@@ -93,6 +148,18 @@ export default {
 
     if (url.pathname === '/admin') {
       return textResponse(renderAdminPage(url.origin), 200, 'text/html;charset=UTF-8')
+    }
+
+    if (url.pathname === '/translate-preview') {
+      const text = (url.searchParams.get('text') || '請戴安全帽').slice(0, 200)
+      const to = url.searchParams.get('to') || 'vi'
+      try {
+        const translated = await translateText(env, text, isMostlyChinese(text) ? 'zh' : to, isMostlyChinese(text) ? to : 'zh')
+        return textResponse(translated)
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        return textResponse(`翻譯失敗：${message}`, 502)
+      }
     }
 
     if (url.pathname === '/send') {

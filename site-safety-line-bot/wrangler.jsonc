@@ -5,5 +5,14 @@
   "compatibility_date": "2026-08-24",
   "observability": {
     "enabled": true
-  }
+  },
+  "ai": {
+    "binding": "AI"
+  },
+  "kv_namespaces": [
+    {
+      "binding": "TRANSLATE_KV",
+      "id": "8e28a38cc9694141a549cd66847383d0"
+    }
+  ]
 }

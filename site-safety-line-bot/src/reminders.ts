@@ -82,6 +82,7 @@ export function menuText(): string {
     '· 高處作業',
     '· 降雨',
     '',
+    '群組翻譯：翻譯 越南',
     '管理後台：/admin',
   ].join('\n')
 }

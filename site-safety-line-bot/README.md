@@ -56,4 +56,15 @@ npm run deploy
 - 可用 `LINE_TO_IDS` 只推給指定群組，避免誤 broadcast
 - LINE 關鍵字（熱危害／高處／降雨）可自動回覆對應提醒
 
-確認新專案沒問題後，若要取代正式機，把 `wrangler.jsonc` 的 `name` 改回 `site-safety-line-bot` 再部署即可。
+## 群組即時翻譯（免費）
+
+使用 Cloudflare Workers AI 的翻譯模型，每天約 300 則訊息遠低於免費額度。
+
+1. LINE Developers → Messaging API → 允許加入群組聊天
+2. 把工程bot 拉進外籍工人群組
+3. 在群組傳：`翻譯 越南`（也可：印尼／泰文／英文／菲律賓／緬甸／柬埔寨）
+4. 之後中文會翻成外語，外語會翻成中文
+5. 關閉：`翻譯 關`
+
+只會在有開啟翻譯的那個聊天生效，其他群組不會被翻。
+

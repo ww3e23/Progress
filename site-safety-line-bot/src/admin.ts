@@ -57,6 +57,7 @@ export function renderAdminPage(origin: string): string {
   <button class="rain" onclick="sendType('rain')">發送降雨提醒</button>
   <button class="preview" onclick="previewType()">預覽目前類型（不發送）</button>
   <pre id="result">尚未操作</pre>
+  <p>群組即時翻譯：把工程bot拉進外籍群組，傳送「翻譯 越南」（也可印尼／泰文／英文）。關閉傳「翻譯 關」。</p>
 
   <script>
     const origin = ${JSON.stringify(origin)};
