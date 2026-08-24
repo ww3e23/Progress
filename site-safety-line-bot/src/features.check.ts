@@ -19,7 +19,7 @@ assert(parseFeatureCommand('天氣')?.kind === 'weather', 'weather command')
 assert(parseFeatureCommand('天氣 台中')?.kind === 'weather', 'weather place')
 assert(parseFeatureCommand('今晚值班')?.kind === 'duty', 'duty command')
 assert(parseFeatureCommand('功能')?.kind === 'help', 'help command')
-assert(parseFeatureCommand('翻譯 泰文') === null, 'translate is not a feature command')
+assert(parseFeatureCommand('翻譯快一點') === null, 'faster is not a feature command')
 assert(parseFeatureCommand('選單') === null, 'menu stays on reminders')
 assert(parseFeatureCommand('搜圖')?.kind === 'image' && parseFeatureCommand('搜圖')?.['query'] === '', 'empty image query')
 

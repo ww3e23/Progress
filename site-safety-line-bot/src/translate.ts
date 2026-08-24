@@ -1,3 +1,5 @@
+import { parseFeatureCommand } from './commands.ts'
+
 export const BOT_NAME = '工程bot'
 export const TRANSLATE_MARK = '🌐'
 
@@ -41,6 +43,7 @@ export function shouldSkipTranslate(text: string): boolean {
   if (trimmed.startsWith(TRANSLATE_MARK)) return true
   if (trimmed.length <= 1) return true
   if (parseTranslateCommand(trimmed)) return true
+  if (parseFeatureCommand(trimmed)) return true
   return false
 }
 
@@ -63,7 +66,7 @@ export function parseTranslateCommand(text: string): { action: 'help' | 'off' | 
       return needle === key || needle.startsWith(key)
     }),
   )
-  if (!lang) return { action: 'help' }
+  if (!lang) return null
   return { action: 'on', lang }
 }
 
