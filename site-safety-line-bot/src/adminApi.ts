@@ -1,5 +1,7 @@
 import { getChat, getFeatures, listChatStates, parseFeatures, putChat, putFeatures, registerChat } from './chats'
 import { formatDuty } from './duty'
+import { searchImages } from './imageSearch'
+import { searchInfo } from './infoSearch'
 import { fetchChatTitle, pushText } from './line'
 import { isReminderType, REMINDERS } from './reminders'
 import { taipeiParts } from './time'
@@ -129,12 +131,44 @@ export async function handleAdminApi(request: Request, env: Env): Promise<Respon
     return jsonResponse({ ok: true, id })
   }
 
+  if (path === '/api/admin/preview' && request.method === 'GET') {
+    const kind = url.searchParams.get('kind') || ''
+    const query = (url.searchParams.get('q') || url.searchParams.get('query') || '').trim()
+    const place = (url.searchParams.get('place') || '台北').trim()
+    const chatId = (url.searchParams.get('chatId') || '').trim()
+    if (kind === 'weather') {
+      return jsonResponse({ kind, preview: await formatWeather(place) })
+    }
+    if (kind === 'duty') {
+      const features = chatId ? await getFeatures(env, chatId) : parseFeatures(null)
+      return jsonResponse({ kind, preview: formatDuty(features, taipeiParts().dayOfYear) })
+    }
+    if (kind === 'image') {
+      const images = await searchImages(query || '安全帽')
+      return jsonResponse({
+        kind,
+        query: query || '安全帽',
+        images,
+        preview: images.map((image) => `${image.title}\n${image.url}`).join('\n\n'),
+      })
+    }
+    if (kind === 'info') {
+      const preview = await searchInfo(env, query || '安全帽')
+      return jsonResponse({ kind, query: query || '安全帽', preview })
+    }
+    if (isReminderType(kind)) {
+      return jsonResponse({ kind, preview: REMINDERS[kind as ReminderType].text })
+    }
+    return errorResponse('未知預覽類型，請用 kind=weather|duty|image|info|heat|height|rain')
+  }
+
   if (path === '/api/admin/send' && request.method === 'POST') {
     const body = await readJson(request)
     const id = typeof body.chatId === 'string' ? body.chatId.trim() : ''
     const kind = typeof body.kind === 'string' ? body.kind : ''
-    if (!id) return errorResponse('缺少群組 id')
-    const features = await getFeatures(env, id)
+    const previewOnly = body.preview === true || body.preview === '1'
+    if (!id && !previewOnly) return errorResponse('缺少群組 id')
+    const features = id ? await getFeatures(env, id) : parseFeatures(null)
     let text = ''
     if (kind === 'weather') {
       text = await formatWeather(features.weatherPlace)
@@ -145,8 +179,10 @@ export async function handleAdminApi(request: Request, env: Env): Promise<Respon
     } else {
       return errorResponse('未知發送類型')
     }
-    await pushText(env, id, text)
-    return jsonResponse({ ok: true, preview: text })
+    if (!previewOnly) {
+      await pushText(env, id, text)
+    }
+    return jsonResponse({ ok: true, preview: text, sent: !previewOnly })
   }
 
   return errorResponse('找不到這個 API', 404)

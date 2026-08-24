@@ -223,6 +223,7 @@ export function renderAdminPage(origin: string): string {
 
     async function sendKind(card, kind) {
       const status = card.querySelector('.status');
+      if (!confirm('確定發到這個群？')) return;
       status.textContent = '發送中…';
       try {
         await saveCard(card, true);
@@ -231,6 +232,22 @@ export function renderAdminPage(origin: string): string {
           body: JSON.stringify({ chatId: card.dataset.id, kind: kind }),
         });
         status.textContent = '已發到此群\\n' + (data.preview || '');
+      } catch (error) {
+        status.textContent = error.message;
+        alert(error.message);
+      }
+    }
+
+    async function previewKind(card, kind, extraQuery) {
+      const status = card.querySelector('.status');
+      status.textContent = '預覽中…';
+      try {
+        await saveCard(card, true);
+        const params = new URLSearchParams({ kind: kind, chatId: card.dataset.id });
+        if (kind === 'weather') params.set('place', card.querySelector('[data-k=weatherPlace]').value.trim() || '台北');
+        if (extraQuery) params.set('q', extraQuery);
+        const data = await api('/api/admin/preview?' + params.toString());
+        status.textContent = data.preview || JSON.stringify(data, null, 2);
       } catch (error) {
         status.textContent = error.message;
         alert(error.message);
@@ -286,6 +303,12 @@ export function renderAdminPage(origin: string): string {
         ])),
         el('div', { class: 'actions' }, [
           el('button', { class: 'green', type: 'button', onClick: () => saveCard(card) }, ['儲存此群設定']),
+          el('button', { class: 'secondary', type: 'button', onClick: () => previewKind(card, 'weather') }, ['預覽天氣']),
+          el('button', { class: 'secondary', type: 'button', onClick: () => previewKind(card, 'duty') }, ['預覽值班']),
+          el('button', { class: 'secondary', type: 'button', onClick: () => previewKind(card, 'image', '安全帽') }, ['預覽搜圖']),
+          el('button', { class: 'secondary', type: 'button', onClick: () => previewKind(card, 'info', '熱危害') }, ['預覽查資料']),
+        ]),
+        el('div', { class: 'actions' }, [
           el('button', { class: 'blue', type: 'button', onClick: () => sendKind(card, 'weather') }, ['立即播報天氣']),
           el('button', { class: 'orange', type: 'button', onClick: () => sendKind(card, 'duty') }, ['立即通知值班']),
         ]),
