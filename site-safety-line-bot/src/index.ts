@@ -1,5 +1,5 @@
 import { renderAdminPage } from './admin'
-import { hasLineToken, parseWebhookBody, replyText, sendReminderMessages, verifyLineSignature } from './line'
+import { deliverText, hasLineToken, parseWebhookBody, sendReminderMessages, verifyLineSignature } from './line'
 import { isReminderType, menuText, reminderFromText, REMINDERS } from './reminders'
 import { chatIdFromSource, isGroupOrRoom, isMostlyChinese, parseTranslateCommand, translateHelp } from './translate'
 import { getTranslateLang, setTranslateLang, translateForChat, translateText } from './translateService'
@@ -54,32 +54,78 @@ async function handleSend(request: Request, env: Env): Promise<Response> {
 
 async function handleTranslateCommand(env: Env, event: LineWebhookEvent, text: string): Promise<boolean> {
   const command = parseTranslateCommand(text)
-  if (!command || !event.replyToken) return false
+  if (!command) return false
   const chatId = chatIdFromSource(event.source)
   if (!chatId) {
-    await replyText(env, event.replyToken, translateHelp())
+    await deliverText(env, event, translateHelp())
     return true
   }
   if (command.action === 'help') {
     const current = await getTranslateLang(env, chatId)
     const extra = current ? `\n目前：已開啟（${current}）` : '\n目前：關閉'
-    await replyText(env, event.replyToken, translateHelp() + extra)
+    await deliverText(env, event, translateHelp() + extra)
     return true
   }
   if (command.action === 'off') {
     await setTranslateLang(env, chatId, null)
-    await replyText(env, event.replyToken, '已關閉此聊天的即時翻譯。')
+    await deliverText(env, event, '已關閉此聊天的即時翻譯。')
     return true
   }
   if (command.lang) {
     await setTranslateLang(env, chatId, command.lang.code)
-    await replyText(env, event.replyToken, `已開啟即時翻譯：中文 ↔ ${command.lang.label}\n之後訊息會自動翻譯。`)
+    await deliverText(env, event, `已開啟即時翻譯：中文 ↔ ${command.lang.label}\n之後訊息會自動翻譯。`)
     return true
   }
   return true
 }
 
-async function handleWebhook(request: Request, env: Env): Promise<Response> {
+async function processEvents(env: Env, events: LineWebhookEvent[]): Promise<void> {
+  for (const event of events) {
+    try {
+      if (event.type === 'join') {
+        await deliverText(env, event, translateHelp())
+        continue
+      }
+      if (event.type === 'follow') {
+        await deliverText(env, event, menuText())
+        continue
+      }
+      if (event.type !== 'message' || event.message?.type !== 'text' || !event.message.text) {
+        continue
+      }
+      const text = event.message.text
+      if (await handleTranslateCommand(env, event, text)) continue
+
+      const chatId = chatIdFromSource(event.source)
+      if (chatId) {
+        try {
+          const translated = await translateForChat(env, chatId, text)
+          if (translated) {
+            await deliverText(env, event, translated)
+            continue
+          }
+        } catch (error) {
+          console.error('translate failed', error)
+        }
+      }
+
+      if (isGroupOrRoom(event.source)) continue
+
+      const reminder = reminderFromText(text)
+      if (reminder) {
+        await deliverText(env, event, reminder.text)
+        continue
+      }
+      if (/^(說明|说明|選單|选单|help|menu)$/i.test(text.trim())) {
+        await deliverText(env, event, menuText())
+      }
+    } catch (error) {
+      console.error('event failed', error)
+    }
+  }
+}
+
+async function handleWebhook(request: Request, env: Env, ctx?: ExecutionContext): Promise<Response> {
   const rawBody = await request.text()
   const signature = request.headers.get('x-line-signature')
   if (env.LINE_CHANNEL_SECRET) {
@@ -91,59 +137,17 @@ async function handleWebhook(request: Request, env: Env): Promise<Response> {
 
   const body = parseWebhookBody(rawBody)
   const events = body.events ?? []
-
-  try {
-    await Promise.all(
-      events.map(async (event) => {
-        if (event.type === 'join' && event.replyToken) {
-          await replyText(env, event.replyToken, translateHelp())
-          return
-        }
-        if (!event.replyToken) return
-        if (event.type === 'follow') {
-          await replyText(env, event.replyToken, menuText())
-          return
-        }
-        if (event.type !== 'message' || event.message?.type !== 'text' || !event.message.text) {
-          return
-        }
-        const text = event.message.text
-        if (await handleTranslateCommand(env, event, text)) return
-
-        const chatId = chatIdFromSource(event.source)
-        if (chatId) {
-          try {
-            const translated = await translateForChat(env, chatId, text)
-            if (translated) {
-              await replyText(env, event.replyToken, translated)
-              return
-            }
-          } catch (error) {
-            console.error('translate failed', error)
-          }
-        }
-
-        if (isGroupOrRoom(event.source)) return
-
-        const reminder = reminderFromText(text)
-        if (reminder) {
-          await replyText(env, event.replyToken, reminder.text)
-          return
-        }
-        if (/^(說明|说明|選單|选单|help|menu)$/i.test(text.trim())) {
-          await replyText(env, event.replyToken, menuText())
-        }
-      }),
-    )
-  } catch (error) {
-    console.error('webhook handler failed', error)
+  const pending = processEvents(env, events)
+  if (ctx && typeof ctx.waitUntil === 'function') {
+    ctx.waitUntil(pending)
+  } else {
+    await pending
   }
-
   return textResponse('OK')
 }
 
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
+    async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url)
 
     if (url.pathname === '/health') {
@@ -182,11 +186,11 @@ export default {
     }
 
     if (url.pathname === '/webhook' && request.method === 'POST') {
-      return handleWebhook(request, env)
+      return handleWebhook(request, env, ctx)
     }
 
     if (request.method === 'POST' && url.pathname === '/') {
-      return handleWebhook(request, env)
+      return handleWebhook(request, env, ctx)
     }
 
     return textResponse('工程bot 已啟動')

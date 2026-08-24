@@ -74,6 +74,33 @@ export async function replyText(env: Env, replyToken: string, text: string): Pro
   }
 }
 
+export async function pushText(env: Env, to: string, text: string): Promise<void> {
+  const messages: LineTextMessage[] = [{ type: 'text', text }]
+  const res = await linePost(env, '/push', { to, messages })
+  if (!res.ok) {
+    const detail = await res.text()
+    throw new Error(`LINE push 失敗 (${res.status}): ${detail}`)
+  }
+}
+
+export async function deliverText(
+  env: Env,
+  event: { replyToken?: string; source?: { userId?: string; groupId?: string; roomId?: string } },
+  text: string,
+): Promise<void> {
+  if (event.replyToken) {
+    try {
+      await replyText(env, event.replyToken, text)
+      return
+    } catch (error) {
+      console.error('reply failed, fallback push', error)
+    }
+  }
+  const to = event.source?.groupId || event.source?.roomId || event.source?.userId
+  if (!to) throw new Error('沒有可推播的聊天對象')
+  await pushText(env, to, text)
+}
+
 export async function sendReminderMessages(env: Env, text: string): Promise<string> {
   const messages: LineTextMessage[] = [{ type: 'text', text }]
   const targets = parseTargetIds(env.LINE_TO_IDS)
