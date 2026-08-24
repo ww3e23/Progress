@@ -33,7 +33,13 @@ export interface Reminder {
 
 export type ChatType = 'group' | 'room' | 'user'
 
-export type DutyMode = 'all' | 'rotate'
+export interface DateRoster {
+  enabled: boolean
+  hour: number
+  minute: number
+  period: string
+  days: Record<string, string[]>
+}
 
 export interface ChatRecord {
   id: string
@@ -53,11 +59,8 @@ export interface ChatFeatures {
   weatherPlace: string
   weatherHour: number
   weatherMinute: number
-  duty: boolean
-  dutyPeople: string[]
-  dutyHour: number
-  dutyMode: DutyMode
-  dutyDays: number[]
+  nightDuty: DateRoster
+  dayShift: DateRoster
   safety: boolean
 }
 

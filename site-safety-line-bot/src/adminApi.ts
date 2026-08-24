@@ -1,5 +1,5 @@
 import { getChat, getFeatures, listChatStates, parseFeatures, purgePrivateChats, putChat, putFeatures, registerChat } from './chats'
-import { formatDuty } from './duty'
+import { formatDayShift, formatNightDuty } from './duty'
 import { searchImages } from './imageSearch'
 import { searchInfo } from './infoSearch'
 import { fetchChatTitle, pushText } from './line'
@@ -135,17 +135,25 @@ export async function handleAdminApi(request: Request, env: Env): Promise<Respon
     return jsonResponse({ ok: true, id })
   }
 
-  if (path === '/api/admin/preview' && request.method === 'GET') {
-    const kind = url.searchParams.get('kind') || ''
-    const query = (url.searchParams.get('q') || url.searchParams.get('query') || '').trim()
-    const place = (url.searchParams.get('place') || '台北').trim()
-    const chatId = (url.searchParams.get('chatId') || '').trim()
+  if (path === '/api/admin/preview' && (request.method === 'GET' || request.method === 'POST')) {
+    const body = request.method === 'POST' ? await readJson(request) : {}
+    const kind = (request.method === 'POST' ? String(body.kind || '') : url.searchParams.get('kind')) || ''
+    const query = String((request.method === 'POST' ? body.q || body.query : null) ?? url.searchParams.get('q') ?? url.searchParams.get('query') ?? '').trim()
+    const place = String((request.method === 'POST' ? body.place : null) ?? url.searchParams.get('place') ?? '台北').trim()
+    const chatId = String((request.method === 'POST' ? body.chatId : null) ?? url.searchParams.get('chatId') ?? '').trim()
+    const features = body.features
+      ? parseFeatures(JSON.stringify(body.features))
+      : chatId
+        ? await getFeatures(env, chatId)
+        : parseFeatures(null)
     if (kind === 'weather') {
-      return jsonResponse({ kind, preview: await formatWeather(place) })
+      return jsonResponse({ kind, preview: await formatWeather(place || features.weatherPlace) })
     }
-    if (kind === 'duty') {
-      const features = chatId ? await getFeatures(env, chatId) : parseFeatures(null)
-      return jsonResponse({ kind, preview: formatDuty(features, taipeiParts().dayOfYear) })
+    if (kind === 'duty' || kind === 'nightDuty') {
+      return jsonResponse({ kind, preview: formatNightDuty(features.nightDuty, taipeiParts().ymd) })
+    }
+    if (kind === 'dayShift') {
+      return jsonResponse({ kind, preview: formatDayShift(features.dayShift, taipeiParts().ymd) })
     }
     if (kind === 'image') {
       const images = await searchImages(query || '安全帽')
@@ -163,7 +171,7 @@ export async function handleAdminApi(request: Request, env: Env): Promise<Respon
     if (isReminderType(kind)) {
       return jsonResponse({ kind, preview: REMINDERS[kind as ReminderType].text })
     }
-    return errorResponse('未知預覽類型，請用 kind=weather|duty|image|info|heat|height|rain')
+    return errorResponse('未知預覽類型，請用 kind=weather|nightDuty|dayShift|image|info|heat|height|rain')
   }
 
   if (path === '/api/admin/send' && request.method === 'POST') {
@@ -176,8 +184,10 @@ export async function handleAdminApi(request: Request, env: Env): Promise<Respon
     let text = ''
     if (kind === 'weather') {
       text = await formatWeather(features.weatherPlace)
-    } else if (kind === 'duty') {
-      text = formatDuty(features, taipeiParts().dayOfYear)
+    } else if (kind === 'duty' || kind === 'nightDuty') {
+      text = formatNightDuty(features.nightDuty, taipeiParts().ymd)
+    } else if (kind === 'dayShift') {
+      text = formatDayShift(features.dayShift, taipeiParts().ymd)
     } else if (isReminderType(kind)) {
       text = REMINDERS[kind as ReminderType].text
     } else {

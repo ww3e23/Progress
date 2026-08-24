@@ -1,6 +1,7 @@
+import { DEFAULT_DAY_SHIFT, DEFAULT_NIGHT_DUTY, parseRoster } from './duty.ts'
 import { clampHour, clampMinute } from './time.ts'
 import { chatIdFromSource, LANGS } from './translate.ts'
-import type { ChatFeatures, ChatRecord, ChatState, ChatType, DutyMode, Env } from './types'
+import type { ChatFeatures, ChatRecord, ChatState, ChatType, Env } from './types'
 
 const CHAT_PREFIX = 'chat:'
 const FEAT_PREFIX = 'feat:'
@@ -15,11 +16,8 @@ export const DEFAULT_FEATURES: ChatFeatures = {
   weatherPlace: '台北',
   weatherHour: 7,
   weatherMinute: 0,
-  duty: false,
-  dutyPeople: [],
-  dutyHour: 21,
-  dutyMode: 'all',
-  dutyDays: [0, 1, 2, 3, 4, 5, 6],
+  nightDuty: { ...DEFAULT_NIGHT_DUTY, days: {} },
+  dayShift: { ...DEFAULT_DAY_SHIFT, days: {} },
   safety: false,
 }
 
@@ -46,37 +44,33 @@ export function chatTypeFromSource(
 }
 
 export function parseFeatures(raw: string | null): ChatFeatures {
-  let parsed: Partial<ChatFeatures> = {}
+  let parsed: Record<string, unknown> = {}
   if (raw) {
     try {
-      parsed = JSON.parse(raw) as Partial<ChatFeatures>
+      parsed = JSON.parse(raw) as Record<string, unknown>
     } catch {
       parsed = {}
     }
   }
-  const people = Array.isArray(parsed.dutyPeople)
-    ? parsed.dutyPeople.map((name) => String(name).trim()).filter(Boolean)
-    : []
   const lang = typeof parsed.translateLang === 'string' ? parsed.translateLang : ''
   const known = LANGS.some((item) => item.code === lang)
-  const mode: DutyMode = parsed.dutyMode === 'rotate' ? 'rotate' : 'all'
-  const days = Array.isArray(parsed.dutyDays)
-    ? [...new Set(parsed.dutyDays.map((day) => Number(day)).filter((day) => Number.isInteger(day) && day >= 0 && day <= 6))].sort()
-    : [0, 1, 2, 3, 4, 5, 6]
+  const nightDuty = parseRoster(parsed.nightDuty, DEFAULT_NIGHT_DUTY)
+  const dayShift = parseRoster(parsed.dayShift, DEFAULT_DAY_SHIFT)
+  if (!parsed.nightDuty && 'duty' in parsed) {
+    nightDuty.enabled = Boolean(parsed.duty)
+    nightDuty.hour = clampHour(parsed.dutyHour, DEFAULT_NIGHT_DUTY.hour)
+  }
   return {
     translate: Boolean(parsed.translate),
     translateLang: known ? lang : '',
     imageSearch: Boolean(parsed.imageSearch),
     infoSearch: Boolean(parsed.infoSearch),
     weather: Boolean(parsed.weather),
-    weatherPlace: (parsed.weatherPlace || DEFAULT_FEATURES.weatherPlace).trim() || DEFAULT_FEATURES.weatherPlace,
+    weatherPlace: (typeof parsed.weatherPlace === 'string' ? parsed.weatherPlace : DEFAULT_FEATURES.weatherPlace).trim() || DEFAULT_FEATURES.weatherPlace,
     weatherHour: clampHour(parsed.weatherHour, DEFAULT_FEATURES.weatherHour),
     weatherMinute: clampMinute(parsed.weatherMinute, DEFAULT_FEATURES.weatherMinute),
-    duty: Boolean(parsed.duty),
-    dutyPeople: people,
-    dutyHour: clampHour(parsed.dutyHour, DEFAULT_FEATURES.dutyHour),
-    dutyMode: mode,
-    dutyDays: days.length > 0 ? days : [],
+    nightDuty,
+    dayShift,
     safety: Boolean(parsed.safety),
   }
 }
@@ -258,7 +252,16 @@ export function enabledFeatureLabels(features: ChatFeatures): string[] {
     const mm = String(features.weatherMinute).padStart(2, '0')
     labels.push(`氣象播報（${features.weatherPlace} ${hh}:${mm}）`)
   }
-  if (features.duty) labels.push(`夜間值班（${String(features.dutyHour).padStart(2, '0')}:00）`)
+  if (features.nightDuty.enabled) {
+    const hh = String(features.nightDuty.hour).padStart(2, '0')
+    const mm = String(features.nightDuty.minute).padStart(2, '0')
+    labels.push(`夜間值班（${hh}:${mm}）`)
+  }
+  if (features.dayShift.enabled) {
+    const hh = String(features.dayShift.hour).padStart(2, '0')
+    const mm = String(features.dayShift.minute).padStart(2, '0')
+    labels.push(`日間上班（${hh}:${mm}）`)
+  }
   if (features.safety) labels.push('工安提醒')
   return labels
 }

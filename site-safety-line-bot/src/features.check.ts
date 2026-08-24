@@ -1,9 +1,9 @@
 import { isGroupLike, parseFeatures, DEFAULT_FEATURES } from './chats.ts'
 import { featureHelp, parseFeatureCommand } from './commands.ts'
-import { dutyPeopleLine, formatDuty } from './duty.ts'
-import { allowsAdminPush, allowsScheduledDuty, allowsScheduledWeather } from './pushGuard.ts'
+import { formatDayShift, formatNightDuty, parseNamesInput, parseRosterPaste } from './duty.ts'
+import { allowsAdminPush, allowsScheduledRoster, allowsScheduledWeather } from './pushGuard.ts'
 import { menuText } from './reminders.ts'
-import { clampHour, clampMinute, taipeiParts } from './time.ts'
+import { clampMinute, taipeiParts } from './time.ts'
 import { parseTranslateCommand } from './translate.ts'
 import { geocodeQuery, weatherLabel } from './weather.ts'
 
@@ -18,6 +18,7 @@ assert(parseFeatureCommand('搜 熱危害')?.kind === 'info', 'info search alias
 assert(parseFeatureCommand('天氣')?.kind === 'weather', 'weather command')
 assert(parseFeatureCommand('天氣 台中')?.kind === 'weather', 'weather place')
 assert(parseFeatureCommand('今晚值班')?.kind === 'duty', 'duty command')
+assert(parseFeatureCommand('今日上班')?.kind === 'dayShift', 'day shift command')
 assert(parseFeatureCommand('功能')?.kind === 'help', 'help command')
 assert(parseFeatureCommand('翻譯快一點') === null, 'faster is not a feature command')
 assert(parseFeatureCommand('選單') === null, 'menu stays on reminders')
@@ -38,37 +39,64 @@ const features = parseFeatures(JSON.stringify({
   imageSearch: 1,
   weatherPlace: ' 高雄 ',
   weatherHour: '8',
-  dutyPeople: [' 阿明 ', '', '阿華'],
-  dutyMode: 'rotate',
+  nightDuty: {
+    enabled: true,
+    hour: 21,
+    minute: 0,
+    period: '05:30-07:30（如遇工班加班配合工班時段）',
+    days: { '2026-08-21': [' 范士朋 ', '田啟均'] },
+  },
 }))
 assert(features.translate === true, 'translate flag')
 assert(features.translateLang === 'th', 'translate lang')
 assert(features.imageSearch === true, 'image coerced')
 assert(features.weatherPlace === '高雄', 'place trimmed')
 assert(features.weatherHour === 8, 'hour parsed')
-assert(features.dutyPeople.join(',') === '阿明,阿華', 'people cleaned')
-assert(features.dutyMode === 'rotate', 'rotate mode')
-assert(features.dutyDays.join(',') === '0,1,2,3,4,5,6', 'default all days')
+assert(features.nightDuty.enabled === true, 'night duty on')
+assert(features.nightDuty.days['2026-08-21'].join(',') === '范士朋,田啟均', 'night names cleaned')
+assert(features.dayShift.enabled === false, 'day shift default off')
 assert(features.safety === false, 'safety default off')
-assert(parseFeatures(JSON.stringify({ dutyDays: [1, 3, 1, 9] })).dutyDays.join(',') === '1,3', 'duty days cleaned')
 
+const migrated = parseFeatures(JSON.stringify({ duty: true, dutyHour: 20, dutyPeople: ['阿明'] }))
+assert(migrated.nightDuty.enabled === true, 'legacy duty migrated')
+assert(migrated.nightDuty.hour === 20, 'legacy duty hour migrated')
+assert(Object.keys(migrated.nightDuty.days).length === 0, 'legacy people not treated as every-night roster')
+
+assert(parseNamesInput('范士朋, 田啟均').join(',') === '范士朋,田啟均', 'names split')
+assert(parseRosterPaste('8/1 陳學鴻\n8/21 范士朋,田啟均\n2 謝采辰', 2026, 8)['2026-08-01'][0] === '陳學鴻', 'paste month/day')
+assert(parseRosterPaste('8/21 范士朋,田啟均', 2026, 8)['2026-08-21'].join(',') === '范士朋,田啟均', 'paste two people')
+assert(parseRosterPaste('2 謝采辰', 2026, 8)['2026-08-02'][0] === '謝采辰', 'paste day-only')
+
+const nightOn = {
+  ...DEFAULT_FEATURES.nightDuty,
+  enabled: true,
+  days: { '2026-08-21': ['范士朋', '田啟均'] },
+}
+const nightOff = { ...DEFAULT_FEATURES.nightDuty, enabled: true, days: {} }
+assert(allowsScheduledRoster(nightOn, '2026-08-21') === true, 'night roster match')
+assert(allowsScheduledRoster(nightOn, '2026-08-22') === false, 'night roster empty day skip')
+assert(allowsScheduledRoster(nightOff, '2026-08-21') === false, 'night roster no names skip')
 assert(allowsScheduledWeather({ ...DEFAULT_FEATURES, weather: true }) === true, 'weather cron on')
 assert(allowsScheduledWeather({ ...DEFAULT_FEATURES, weather: false }) === false, 'weather cron off')
-assert(allowsScheduledDuty({ ...DEFAULT_FEATURES, duty: true, dutyPeople: ['A'], dutyDays: [1, 2] }, 1) === true, 'duty weekday match')
-assert(allowsScheduledDuty({ ...DEFAULT_FEATURES, duty: true, dutyPeople: ['A'], dutyDays: [1, 2] }, 3) === false, 'duty weekday skip')
 assert(allowsAdminPush({ ...DEFAULT_FEATURES, translate: true }, 'weather') === false, 'no weather push')
 assert(allowsAdminPush({ ...DEFAULT_FEATURES, translate: true }, 'heat') === false, 'no safety push')
 assert(allowsAdminPush({ ...DEFAULT_FEATURES, safety: true }, 'heat') === true, 'safety push ok')
+assert(allowsAdminPush({ ...DEFAULT_FEATURES, nightDuty: nightOn }, 'nightDuty') === true, 'night push ok')
+assert(allowsAdminPush(DEFAULT_FEATURES, 'dayShift') === false, 'day push off')
 
-assert(dutyPeopleLine({ ...DEFAULT_FEATURES, dutyPeople: ['A', 'B', 'C'], dutyMode: 'all' }, 10) === 'A、B、C', 'all duty')
-assert(dutyPeopleLine({ ...DEFAULT_FEATURES, dutyPeople: ['A', 'B', 'C'], dutyMode: 'rotate' }, 7) === 'B', 'rotate duty')
-assert(formatDuty({ ...DEFAULT_FEATURES, dutyPeople: ['阿明'], dutyMode: 'all' }, 0).includes('阿明'), 'duty message')
+assert(formatNightDuty(nightOn, '2026-08-21').includes('范士朋、田啟均'), 'night message two people')
+assert(formatNightDuty(nightOn, '2026-08-21').includes('05:30-07:30'), 'night period')
+assert(formatNightDuty(nightOn, '2026-08-22').includes('尚未排班'), 'night empty day')
+assert(formatDayShift({ ...DEFAULT_FEATURES.dayShift, days: { '2026-08-24': ['陳學鴻'] } }, '2026-08-24').includes('陳學鴻'), 'day shift message')
+assert(!formatDayShift({ ...DEFAULT_FEATURES.dayShift, days: { '2026-08-24': ['陳學鴻'] } }, '2026-08-24').includes('夜間'), 'day shift not mixed with night')
 
 const help = featureHelp(features, ['即時翻譯（泰文）'])
 assert(help.includes('翻譯 泰文'), 'help lists translate')
 assert(help.includes('搜圖 安全帽'), 'help lists enabled image')
-const helpNoImage = featureHelp({ ...features, imageSearch: false }, ['即時翻譯（泰文）'])
+assert(help.includes('值班'), 'help lists night duty')
+const helpNoImage = featureHelp({ ...features, imageSearch: false, nightDuty: DEFAULT_FEATURES.nightDuty }, ['即時翻譯（泰文）'])
 assert(!helpNoImage.includes('搜圖 安全帽'), 'help hides disabled image')
+assert(!helpNoImage.includes('· 值班'), 'help hides disabled night duty')
 
 const now = taipeiParts()
 assert(/^\d{4}-\d{2}-\d{2}$/.test(now.ymd), 'ymd format')

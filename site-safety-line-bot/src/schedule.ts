@@ -1,10 +1,10 @@
 import { listChatStates } from './chats'
-import { formatDuty } from './duty'
+import { formatDayShift, formatNightDuty } from './duty'
 import { pushText } from './line'
-import { allowsScheduledDuty, allowsScheduledWeather } from './pushGuard'
+import { allowsScheduledRoster, allowsScheduledWeather } from './pushGuard'
 import { taipeiParts } from './time'
 import { formatWeather } from './weather'
-import type { Env } from './types'
+import type { DateRoster, Env } from './types'
 
 async function alreadySent(env: Env, kind: string, chatId: string, ymd: string): Promise<boolean> {
   if (!env.TRANSLATE_KV) return false
@@ -16,6 +16,10 @@ async function alreadySent(env: Env, kind: string, chatId: string, ymd: string):
 async function markSent(env: Env, kind: string, chatId: string, ymd: string): Promise<void> {
   if (!env.TRANSLATE_KV) return
   await env.TRANSLATE_KV.put(`job:${kind}:${chatId}:${ymd}`, '1', { expirationTtl: 60 * 60 * 72 })
+}
+
+function rosterDue(roster: DateRoster, hour: number, minute: number): boolean {
+  return roster.hour === hour && roster.minute === minute
 }
 
 export async function runHourlyJobs(env: Env): Promise<void> {
@@ -35,14 +39,24 @@ export async function runHourlyJobs(env: Env): Promise<void> {
       console.error('weather job failed', chat.id, error)
     }
     try {
-      if (allowsScheduledDuty(features, now.weekday) && features.dutyHour === now.hour && now.minute === 0) {
-        if (!(await alreadySent(env, 'duty', chat.id, now.ymd))) {
-          await pushText(env, chat.id, formatDuty(features, now.dayOfYear))
-          await markSent(env, 'duty', chat.id, now.ymd)
+      if (allowsScheduledRoster(features.nightDuty, now.ymd) && rosterDue(features.nightDuty, now.hour, now.minute)) {
+        if (!(await alreadySent(env, 'nightDuty', chat.id, now.ymd))) {
+          await pushText(env, chat.id, formatNightDuty(features.nightDuty, now.ymd))
+          await markSent(env, 'nightDuty', chat.id, now.ymd)
         }
       }
     } catch (error) {
-      console.error('duty job failed', chat.id, error)
+      console.error('night duty job failed', chat.id, error)
+    }
+    try {
+      if (allowsScheduledRoster(features.dayShift, now.ymd) && rosterDue(features.dayShift, now.hour, now.minute)) {
+        if (!(await alreadySent(env, 'dayShift', chat.id, now.ymd))) {
+          await pushText(env, chat.id, formatDayShift(features.dayShift, now.ymd))
+          await markSent(env, 'dayShift', chat.id, now.ymd)
+        }
+      }
+    } catch (error) {
+      console.error('day shift job failed', chat.id, error)
     }
   }
 }

@@ -5,6 +5,7 @@ export type FeatureCommand =
   | { kind: 'info'; query: string }
   | { kind: 'weather'; place?: string }
   | { kind: 'duty' }
+  | { kind: 'dayShift' }
   | { kind: 'help' }
 
 function stripMention(text: string): string {
@@ -33,8 +34,12 @@ export function parseFeatureCommand(text: string): FeatureCommand | null {
     return { kind: 'weather', place: place || undefined }
   }
 
-  if (/^(值班|今晚值班|排班|誰值班|谁值班)$/.test(trimmed)) {
+  if (/^(值班|今晚值班|夜間值班|夜间值班|排班|誰值班|谁值班)$/.test(trimmed)) {
     return { kind: 'duty' }
+  }
+
+  if (/^(上班|今日上班|日間上班|日間人員|谁上班|誰上班)$/.test(trimmed)) {
+    return { kind: 'dayShift' }
   }
 
   const info = trimmed.match(/^(查詢|查询|搜尋|搜寻|查|搜|問|问)\s+(.+)$/)
@@ -47,13 +52,14 @@ export function parseFeatureCommand(text: string): FeatureCommand | null {
 
 export function featureHelp(features: ChatFeatures, enabled: string[]): string {
   if (enabled.length === 0) {
-    return '此聊天尚未開啟功能。請管理員到後台勾選：即時翻譯、搜圖、查資料、氣象、值班。'
+    return '此聊天尚未開啟功能。請管理員到後台勾選：即時翻譯、搜圖、查資料、氣象、夜間值班、日間上班。'
   }
   const commands: string[] = []
   if (features.translate) commands.push('· 翻譯 泰文／翻譯 關')
   if (features.imageSearch) commands.push('· 搜圖 安全帽')
   if (features.infoSearch) commands.push('· 查 鋼筋搭接')
   if (features.weather) commands.push('· 天氣　或　天氣 台中')
-  if (features.duty) commands.push('· 值班')
+  if (features.nightDuty.enabled) commands.push('· 值班')
+  if (features.dayShift.enabled) commands.push('· 上班')
   return ['此聊天已開啟：', ...enabled.map((item) => `· ${item}`), '', '可用指令：', ...commands].join('\n')
 }

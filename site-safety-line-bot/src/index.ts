@@ -2,7 +2,7 @@ import { renderAdminPage } from './admin'
 import { handleAdminApi, requireAdmin } from './adminApi'
 import { enabledFeatureLabels, getFeatures, putFeatures, touchChat } from './chats'
 import { featureHelp, parseFeatureCommand } from './commands'
-import { formatDuty } from './duty'
+import { formatDayShift, formatNightDuty } from './duty'
 import { searchImages } from './imageSearch'
 import { searchInfo } from './infoSearch'
 import {
@@ -145,8 +145,14 @@ async function handleFeatureCommand(env: Env, event: LineWebhookEvent, text: str
   }
 
   if (command.kind === 'duty') {
-    if (!features.duty) return false
-    await deliverText(env, event, formatDuty(features, taipeiParts().dayOfYear))
+    if (!features.nightDuty.enabled) return false
+    await deliverText(env, event, formatNightDuty(features.nightDuty, taipeiParts().ymd))
+    return true
+  }
+
+  if (command.kind === 'dayShift') {
+    if (!features.dayShift.enabled) return false
+    await deliverText(env, event, formatDayShift(features.dayShift, taipeiParts().ymd))
     return true
   }
 
