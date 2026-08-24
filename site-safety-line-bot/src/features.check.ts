@@ -3,7 +3,7 @@ import { featureHelp, parseFeatureCommand } from './commands.ts'
 import { formatDayShift, formatNightDuty, parseNamesInput, parseRosterPaste } from './duty.ts'
 import { allowsAdminPush, allowsScheduledRoster, allowsScheduledWeather } from './pushGuard.ts'
 import { menuText } from './reminders.ts'
-import { clampMinute, isScheduleDue, taipeiParts } from './time.ts'
+import { clampMinute, isScheduleDue, scheduleSlot, taipeiParts } from './time.ts'
 import { parseTranslateCommand } from './translate.ts'
 import { geocodeQuery, weatherLabel, buildWeatherMessage, weatherSiteHint } from './weather.ts'
 
@@ -76,6 +76,7 @@ assert(isScheduleDue(17, 42, 17, 43) === true, 'due one minute late')
 assert(isScheduleDue(17, 42, 18, 12) === true, 'due within 30 min grace')
 assert(isScheduleDue(17, 42, 18, 13) === false, 'past 30 min grace')
 assert(isScheduleDue(17, 42, 17, 41) === false, 'not due early')
+assert(scheduleSlot(17, 53) === '1753', 'schedule slot pad')
 assert(parseFeatures(JSON.stringify({ weatherMinute: 17 })).weatherMinute === 17, 'weather minute')
 
 const features = parseFeatures(JSON.stringify({

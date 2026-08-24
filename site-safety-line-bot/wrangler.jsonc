@@ -7,7 +7,7 @@
     "enabled": true
   },
   "triggers": {
-    "crons": ["* * * * *"]
+    "crons": []
   },
   "ai": {
     "binding": "AI"
@@ -17,5 +17,22 @@
       "binding": "TRANSLATE_KV",
       "id": "8e28a38cc9694141a549cd66847383d0"
     }
-  ]
+  ],
+  "env": {
+    "production": {
+      "name": "site-safety-line-bot",
+      "triggers": {
+        "crons": ["* * * * *"]
+      },
+      "ai": {
+        "binding": "AI"
+      },
+      "kv_namespaces": [
+        {
+          "binding": "TRANSLATE_KV",
+          "id": "8e28a38cc9694141a549cd66847383d0"
+        }
+      ]
+    }
+  }
 }
