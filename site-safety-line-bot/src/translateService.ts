@@ -85,38 +85,22 @@ function looksWrongLanguage(text: string, targetLang: string): boolean {
 
 async function translateWithLlm(env: Env, text: string, targetLang: string): Promise<string> {
   const targetName = LANG_NAMES[targetLang] || targetLang
-  const messages = [
-    {
-      role: 'system',
-      content: [
-        '你是台灣工地口譯，翻譯給現場主管和外籍工人聽。',
-        '只輸出譯文，不要解釋、不要加引號。',
-        '翻意思，不要逐字硬翻；用自然口語。',
-        '目標是中文時，一律用台灣繁體，用語像現場在講話。',
-        '目標不是中文時，禁止輸出中文。',
-        '泰文 ปิดบังฝน / กันฝน / ที่บังฝน = 遮雨、擋雨、蓋帆布，絕對不要翻成「直擊」。',
-        'อาคาร = 棟／建物；ห้อง = 房間／室內；น้ำไหลเข้า = 進水、漏進去。',
-        'ช่วยหาคนมา = 找人來幫忙／叫人過來。',
-      ].join('\n'),
-    },
-    {
-      role: 'user',
-      content: `目標語言：${targetName}\n請只輸出這個語言的譯文：\n${text}`,
-    },
-  ]
-  const models =
-    targetLang === 'zh'
-      ? ['@cf/zai-org/glm-4.7-flash', '@cf/meta/llama-3.1-8b-instruct-fp8-fast']
-      : ['@cf/meta/llama-3.1-8b-instruct-fp8-fast', '@cf/zai-org/glm-4.7-flash']
-  for (const model of models) {
-    try {
-      const result = await env.AI!.run(model, { messages, max_tokens: 256 })
-      const translated = pickTranslated(result)
-      if (translated && !looksWrongLanguage(translated, targetLang)) return translated
-    } catch (error) {
-      console.error(`${model} translate failed`, error)
-    }
-  }
+  const result = await env.AI!.run('@cf/meta/llama-3.1-8b-instruct-fp8-fast', {
+    messages: [
+      {
+        role: 'system',
+        content:
+          '台灣工地口譯。只輸出譯文。翻意思，不要硬翻。中文用台灣繁體口語。外語不要夾中文。ปิดบังฝน=遮雨/擋雨，不要翻成直擊。ห้อง=房間。ช่วยหาคนมา=叫人來幫忙。',
+      },
+      {
+        role: 'user',
+        content: `翻成${targetName}：\n${text}`,
+      },
+    ],
+    max_tokens: 128,
+  })
+  const translated = pickTranslated(result)
+  if (translated && !looksWrongLanguage(translated, targetLang)) return translated
   return ''
 }
 
