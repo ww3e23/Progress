@@ -179,7 +179,8 @@ export function HomePage() {
   }
 
   return (
-    <div className="rise">
+    <div className={`rise${view === 'matrix' ? ' home-page-matrix' : ''}`}>
+      <div className={view === 'matrix' ? 'home-page-chrome' : undefined}>
       <header style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start' }}>
         <div style={{ minWidth: 0 }}>
           <div className="eyebrow">SITE PROGRESS</div>
@@ -220,7 +221,7 @@ export function HomePage() {
       </header>
 
       {view === 'matrix' && workItemId && (
-        <div className="work-matrix-sticky">
+        <div className="work-matrix-toolbar">
           <div className="home-filters" style={{ margin: '0 0 8px' }}>
             <div className="home-filter-wide">
               <GlassSelect
@@ -253,9 +254,11 @@ export function HomePage() {
 
       {toast && <div className="toast-banner">{toast}</div>}
 
+      {view === 'matrix' && <LegendRow />}
+      </div>
+
       {view === 'matrix' ? (
-        <>
-          <LegendRow />
+        <div className="home-page-body">
           {matrices.length === 0 ? (
             <p style={{ padding: 16, color: 'var(--ink-soft)', fontWeight: 600 }}>
               請先在「我的」設定棟別／別墅，再回來填進度。
@@ -284,7 +287,7 @@ export function HomePage() {
           <p style={{ margin: '8px 0 0', fontSize: 12, fontWeight: 600, color: 'var(--ink-soft)' }}>
             由上往下滑，依序填每一戶。點格子輪轉：未開始 → 施工中 → 完成 → 不適用。長按可拍照、記缺失、卡關或不適用。
           </p>
-        </>
+        </div>
       ) : (
         <UnitView
           canEdit={canEdit}
