@@ -5,16 +5,22 @@ const UA = 'site-safety-line-bot/1.0 (https://workers.dev)'
 const SYSTEM =
   '你是台灣工地現場助理。用台灣繁體中文簡短回答，最多 8 行，條列重點。不要捏造法規條號或數字。不確定就明說。'
 
+function wikiRelevant(query: string, title: string, extract: string): boolean {
+  const q = query.replace(/\s+/g, '')
+  if (q.length < 2) return false
+  return title.includes(q) || extract.includes(q)
+}
+
 async function wikipediaExtract(query: string): Promise<string> {
   const searchUrl =
     'https://zh.wikipedia.org/w/api.php?action=query&list=search&utf8=1&format=json' +
-    `&srlimit=1&srsearch=${encodeURIComponent(query)}`
+    `&srlimit=3&srsearch=${encodeURIComponent(query)}`
   const searchRes = await fetch(searchUrl, { headers: { 'User-Agent': UA, Accept: 'application/json' } })
   if (!searchRes.ok) return ''
   const searchData = (await searchRes.json()) as {
     query?: { search?: Array<{ title?: string }> }
   }
-  const title = searchData.query?.search?.[0]?.title
+  const title = (searchData.query?.search || []).map((item) => item.title || '').find((item) => item.includes(query.replace(/\s+/g, '')) || query.includes(item)) || searchData.query?.search?.[0]?.title
   if (!title) return ''
 
   const extractUrl =
@@ -28,7 +34,9 @@ async function wikipediaExtract(query: string): Promise<string> {
   const page = Object.values(extractData.query?.pages || {})[0]
   const extract = page?.extract?.replace(/\s+/g, ' ').trim() || ''
   if (!extract) return ''
-  return `【${page?.title || title}】\n${extract.slice(0, 500)}`
+  const heading = page?.title || title
+  if (!wikiRelevant(query, heading, extract)) return ''
+  return `【${heading}】\n${extract.slice(0, 500)}`
 }
 
 export async function searchInfo(env: Env, query: string): Promise<string> {

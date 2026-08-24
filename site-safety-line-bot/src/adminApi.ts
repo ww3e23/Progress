@@ -1,4 +1,4 @@
-import { getChat, getFeatures, listChatStates, parseFeatures, putChat, putFeatures, registerChat } from './chats'
+import { getChat, getFeatures, listChatStates, parseFeatures, purgePrivateChats, putChat, putFeatures, registerChat } from './chats'
 import { formatDuty } from './duty'
 import { searchImages } from './imageSearch'
 import { searchInfo } from './infoSearch'
@@ -50,7 +50,8 @@ export async function handleAdminApi(request: Request, env: Env): Promise<Respon
   const path = url.pathname
 
   if (path === '/api/admin/state' && request.method === 'GET') {
-    const chats = await listChatStates(env)
+    const removedPrivate = await purgePrivateChats(env)
+    const chats = await listChatStates(env, true)
     for (const state of chats) {
       if (!state.chat.name) {
         const title = await fetchChatTitle(env, state.chat)
@@ -63,6 +64,7 @@ export async function handleAdminApi(request: Request, env: Env): Promise<Respon
     }
     return jsonResponse({
       chats,
+      removedPrivate,
       adminProtected: Boolean(env.ADMIN_TOKEN),
     })
   }
@@ -92,6 +94,7 @@ export async function handleAdminApi(request: Request, env: Env): Promise<Respon
     const body = await readJson(request)
     const id = typeof body.id === 'string' ? body.id.trim() : ''
     if (!id) return errorResponse('請貼上 LINE 群組 ID（通常是 C 開頭）')
+    if (id.startsWith('U')) return errorResponse('這是個人帳號，不是群組。後台只管理群組。')
     const type = asChatType(body.type || id)
     const name = typeof body.name === 'string' ? body.name.trim() : ''
     const chat = await registerChat(env, id, type, name)

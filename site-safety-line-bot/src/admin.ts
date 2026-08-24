@@ -112,7 +112,7 @@ export function renderAdminPage(origin: string): string {
         <input id="token" type="password" autocomplete="off" placeholder="ADMIN_TOKEN">
         <button id="reload" type="button">重新整理</button>
       </div>
-      <p class="hint">把工程bot 拉進群組，並在群裡說一句話，這個群就會出現在下面。再開關功能、填地點與值班名單。<br>沒打開的功能不會在群裡回話，也不會排程推播。預覽只顯示在後台，不會發到 LINE。</p>
+      <p class="hint">把工程bot 拉進群組，並在群裡說一句話，這個群就會出現在下面。後台只顯示群組，同事的 1:1 私訊不會出現。<br>沒打開的功能不會在群裡回話，也不會排程推播。預覽只顯示在後台，不會發到 LINE。</p>
       <div class="status" id="topStatus"></div>
     </section>
 

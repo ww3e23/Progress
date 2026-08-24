@@ -30,6 +30,12 @@ function featKey(id: string): string {
   return `${FEAT_PREFIX}${id}`
 }
 
+export function isGroupLike(chat: { id: string; type?: string }): boolean {
+  if (chat.type === 'group' || chat.type === 'room') return true
+  if (chat.type === 'user') return false
+  return chat.id.startsWith('C') || chat.id.startsWith('R')
+}
+
 export function chatTypeFromSource(
   source: { type?: string } | undefined,
 ): ChatType {
@@ -147,7 +153,7 @@ export async function putFeatures(env: Env, id: string, features: ChatFeatures):
   }
 }
 
-export async function listChatStates(env: Env): Promise<ChatState[]> {
+export async function listChatStates(env: Env, groupsOnly = true): Promise<ChatState[]> {
   if (!env.TRANSLATE_KV) return []
   const chatKeys = await listKeys(env, CHAT_PREFIX)
   const langKeys = await listKeys(env, LANG_PREFIX)
@@ -168,10 +174,25 @@ export async function listChatStates(env: Env): Promise<ChatState[]> {
       note: '',
       lastSeenAt: 0,
     }
+    if (groupsOnly && !isGroupLike(chat)) continue
     states.push({ chat, features: await getFeatures(env, id) })
   }
   states.sort((a, b) => (b.chat.lastSeenAt || 0) - (a.chat.lastSeenAt || 0))
   return states
+}
+
+export async function purgePrivateChats(env: Env): Promise<number> {
+  if (!env.TRANSLATE_KV) return 0
+  const all = await listChatStates(env, false)
+  let removed = 0
+  for (const { chat } of all) {
+    if (isGroupLike(chat)) continue
+    await env.TRANSLATE_KV.delete(chatKey(chat.id))
+    await env.TRANSLATE_KV.delete(featKey(chat.id))
+    await env.TRANSLATE_KV.delete(`${LANG_PREFIX}${chat.id}`)
+    removed += 1
+  }
+  return removed
 }
 
 export async function touchChat(
@@ -181,6 +202,7 @@ export async function touchChat(
 ): Promise<ChatRecord | null> {
   const id = chatIdFromSource(source)
   if (!id || !env.TRANSLATE_KV) return null
+  if (chatTypeFromSource(source) === 'user') return null
   const now = Date.now()
   const existing = await getChat(env, id)
   const chat: ChatRecord = existing || {

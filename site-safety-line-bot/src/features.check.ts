@@ -1,4 +1,4 @@
-import { parseFeatures, DEFAULT_FEATURES } from './chats.ts'
+import { isGroupLike, parseFeatures, DEFAULT_FEATURES } from './chats.ts'
 import { featureHelp, parseFeatureCommand } from './commands.ts'
 import { dutyPeopleLine, formatDuty } from './duty.ts'
 import { allowsAdminPush, allowsScheduledDuty, allowsScheduledWeather } from './pushGuard.ts'
@@ -75,6 +75,8 @@ assert(now.hour >= 0 && now.hour <= 23, 'taipei hour')
 assert(now.weekday >= 0 && now.weekday <= 6, 'taipei weekday')
 
 assert(parseTranslateCommand('翻譯 關')?.action === 'off', 'translate off still works')
+assert(isGroupLike({ id: 'Cabc', type: 'group' }) === true, 'group like')
+assert(isGroupLike({ id: 'Uabc', type: 'user' }) === false, 'user not group')
 assert(menuText().includes('功能'), 'menu mentions 功能')
 
 console.log('feature tests passed')
