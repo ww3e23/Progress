@@ -3,7 +3,7 @@ import { featureHelp, parseFeatureCommand } from './commands.ts'
 import { dutyPeopleLine, formatDuty } from './duty.ts'
 import { allowsAdminPush, allowsScheduledDuty, allowsScheduledWeather } from './pushGuard.ts'
 import { menuText } from './reminders.ts'
-import { clampHour, taipeiParts } from './time.ts'
+import { clampHour, clampMinute, taipeiParts } from './time.ts'
 import { parseTranslateCommand } from './translate.ts'
 import { geocodeQuery, weatherLabel } from './weather.ts'
 
@@ -28,8 +28,9 @@ assert(geocodeQuery('臺中') === 'Taichung', 'taichung alias')
 assert(weatherLabel(81) === '陣雨', 'weather code 81')
 assert(weatherLabel(95) === '雷雨', 'weather code 95')
 
-assert(clampHour(7, 0) === 7, 'valid hour')
-assert(clampHour(99, 21) === 21, 'invalid hour fallback')
+assert(clampMinute(17, 0) === 17, 'valid minute')
+assert(clampMinute(99, 0) === 0, 'invalid minute fallback')
+assert(parseFeatures(JSON.stringify({ weatherMinute: 17 })).weatherMinute === 17, 'weather minute')
 
 const features = parseFeatures(JSON.stringify({
   translate: true,

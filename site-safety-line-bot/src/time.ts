@@ -60,3 +60,9 @@ export function clampHour(value: unknown, fallback: number): number {
   if (!Number.isInteger(hour) || hour < 0 || hour > 23) return fallback
   return hour
 }
+
+export function clampMinute(value: unknown, fallback = 0): number {
+  const minute = typeof value === 'number' ? value : Number(value)
+  if (!Number.isInteger(minute) || minute < 0 || minute > 59) return fallback
+  return minute
+}

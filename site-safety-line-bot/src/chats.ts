@@ -1,4 +1,4 @@
-import { clampHour } from './time.ts'
+import { clampHour, clampMinute } from './time.ts'
 import { chatIdFromSource, LANGS } from './translate.ts'
 import type { ChatFeatures, ChatRecord, ChatState, ChatType, DutyMode, Env } from './types'
 
@@ -14,6 +14,7 @@ export const DEFAULT_FEATURES: ChatFeatures = {
   weather: false,
   weatherPlace: '台北',
   weatherHour: 7,
+  weatherMinute: 0,
   duty: false,
   dutyPeople: [],
   dutyHour: 21,
@@ -70,6 +71,7 @@ export function parseFeatures(raw: string | null): ChatFeatures {
     weather: Boolean(parsed.weather),
     weatherPlace: (parsed.weatherPlace || DEFAULT_FEATURES.weatherPlace).trim() || DEFAULT_FEATURES.weatherPlace,
     weatherHour: clampHour(parsed.weatherHour, DEFAULT_FEATURES.weatherHour),
+    weatherMinute: clampMinute(parsed.weatherMinute, DEFAULT_FEATURES.weatherMinute),
     duty: Boolean(parsed.duty),
     dutyPeople: people,
     dutyHour: clampHour(parsed.dutyHour, DEFAULT_FEATURES.dutyHour),
@@ -251,8 +253,12 @@ export function enabledFeatureLabels(features: ChatFeatures): string[] {
   }
   if (features.imageSearch) labels.push('搜尋圖片')
   if (features.infoSearch) labels.push('搜尋資料')
-  if (features.weather) labels.push(`氣象播報（${features.weatherPlace} ${features.weatherHour}:00）`)
-  if (features.duty) labels.push(`夜間值班（${features.dutyHour}:00）`)
+  if (features.weather) {
+    const hh = String(features.weatherHour).padStart(2, '0')
+    const mm = String(features.weatherMinute).padStart(2, '0')
+    labels.push(`氣象播報（${features.weatherPlace} ${hh}:${mm}）`)
+  }
+  if (features.duty) labels.push(`夜間值班（${String(features.dutyHour).padStart(2, '0')}:00）`)
   if (features.safety) labels.push('工安提醒')
   return labels
 }

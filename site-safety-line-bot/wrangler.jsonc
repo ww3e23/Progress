@@ -7,7 +7,7 @@
     "enabled": true
   },
   "triggers": {
-    "crons": ["0 * * * *"]
+    "crons": ["* * * * *"]
   },
   "ai": {
     "binding": "AI"

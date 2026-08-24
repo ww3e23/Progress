@@ -181,7 +181,17 @@ export function renderAdminPage(origin: string): string {
     function hourSelect(selected) {
       const select = el('select', {});
       for (let i = 0; i < 24; i += 1) {
-        const opt = el('option', { value: String(i) }, [String(i).padStart(2, '0') + ':00']);
+        const opt = el('option', { value: String(i) }, [String(i).padStart(2, '0') + ' 時']);
+        if (i === selected) opt.selected = true;
+        select.appendChild(opt);
+      }
+      return select;
+    }
+
+    function minuteSelect(selected) {
+      const select = el('select', {});
+      for (let i = 0; i < 60; i += 1) {
+        const opt = el('option', { value: String(i) }, [String(i).padStart(2, '0') + ' 分']);
         if (i === selected) opt.selected = true;
         select.appendChild(opt);
       }
@@ -199,6 +209,7 @@ export function renderAdminPage(origin: string): string {
         weather: card.querySelector('[data-k=weather]').checked,
         weatherPlace: card.querySelector('[data-k=weatherPlace]').value.trim() || '台北',
         weatherHour: Number(card.querySelector('[data-k=weatherHour]').value),
+        weatherMinute: Number(card.querySelector('[data-k=weatherMinute]').value),
         duty: card.querySelector('[data-k=duty]').checked,
         dutyPeople: card.querySelector('[data-k=dutyPeople]').value.split(/\\n+/).map((s) => s.trim()).filter(Boolean),
         dutyHour: Number(card.querySelector('[data-k=dutyHour]').value),
@@ -279,6 +290,8 @@ export function renderAdminPage(origin: string): string {
       });
       const weatherHour = hourSelect(f.weatherHour);
       weatherHour.setAttribute('data-k', 'weatherHour');
+      const weatherMinute = minuteSelect(Number.isInteger(f.weatherMinute) ? f.weatherMinute : 0);
+      weatherMinute.setAttribute('data-k', 'weatherMinute');
       const dutyHour = hourSelect(f.dutyHour);
       dutyHour.setAttribute('data-k', 'dutyHour');
       const dayBox = el('div', { class: 'row' });
@@ -301,9 +314,10 @@ export function renderAdminPage(origin: string): string {
         featureRow('translate', '即時翻譯', '群內中文 ↔ 外語。也可傳「翻譯 泰文」。', langSelect),
         featureRow('imageSearch', '搜尋圖片', '群內傳：搜圖 安全帽。沒開則當一般訊息處理。', null),
         featureRow('infoSearch', '搜尋資料', '群內傳：查 鋼筋搭接。沒開則當一般訊息處理。', null),
-        featureRow('weather', '氣象播報', '群內傳「天氣」。沒開不會回、也不會每天推播。', el('div', { class: 'row' }, [
+        featureRow('weather', '氣象播報', '時間可自訂到分鐘。要立刻測試：打開開關 → 儲存 → 立即播報天氣。群內也可傳「天氣」。', el('div', { class: 'row' }, [
           el('input', { type: 'text', 'data-k': 'weatherPlace', value: f.weatherPlace || '台北', placeholder: '台北 / 台中 / 工地附近地名' }),
           weatherHour,
+          weatherMinute,
         ])),
         featureRow('duty', '排班／夜間值班通知', '到點自動通知。沒開不會回、也不會推播。', el('div', {}, [
           el('div', { class: 'row' }, [

@@ -52,6 +52,7 @@ export interface ChatFeatures {
   weather: boolean
   weatherPlace: string
   weatherHour: number
+  weatherMinute: number
   duty: boolean
   dutyPeople: string[]
   dutyHour: number

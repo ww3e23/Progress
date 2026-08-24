@@ -24,7 +24,7 @@ export async function runHourlyJobs(env: Env): Promise<void> {
   const states = await listChatStates(env)
   for (const { chat, features } of states) {
     try {
-      if (allowsScheduledWeather(features) && features.weatherHour === now.hour) {
+      if (allowsScheduledWeather(features) && features.weatherHour === now.hour && features.weatherMinute === now.minute) {
         if (!(await alreadySent(env, 'weather', chat.id, now.ymd))) {
           const text = await formatWeather(features.weatherPlace)
           await pushText(env, chat.id, text)
@@ -35,7 +35,7 @@ export async function runHourlyJobs(env: Env): Promise<void> {
       console.error('weather job failed', chat.id, error)
     }
     try {
-      if (allowsScheduledDuty(features, now.weekday) && features.dutyHour === now.hour) {
+      if (allowsScheduledDuty(features, now.weekday) && features.dutyHour === now.hour && now.minute === 0) {
         if (!(await alreadySent(env, 'duty', chat.id, now.ymd))) {
           await pushText(env, chat.id, formatDuty(features, now.dayOfYear))
           await markSent(env, 'duty', chat.id, now.ymd)
