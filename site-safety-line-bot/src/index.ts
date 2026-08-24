@@ -1,5 +1,5 @@
 import { renderAdminPage } from './admin'
-import { parseWebhookBody, replyText, sendReminderMessages, verifyLineSignature } from './line'
+import { hasLineToken, parseWebhookBody, replyText, sendReminderMessages, verifyLineSignature } from './line'
 import { isReminderType, menuText, reminderFromText, REMINDERS } from './reminders'
 import { chatIdFromSource, isGroupOrRoom, isMostlyChinese, parseTranslateCommand, translateHelp } from './translate'
 import { getTranslateLang, setTranslateLang, translateForChat, translateText } from './translateService'
@@ -92,48 +92,52 @@ async function handleWebhook(request: Request, env: Env): Promise<Response> {
   const body = parseWebhookBody(rawBody)
   const events = body.events ?? []
 
-  await Promise.all(
-    events.map(async (event) => {
-      if (event.type === 'join' && event.replyToken) {
-        await replyText(env, event.replyToken, translateHelp())
-        return
-      }
-      if (!event.replyToken) return
-      if (event.type === 'follow') {
-        await replyText(env, event.replyToken, menuText())
-        return
-      }
-      if (event.type !== 'message' || event.message?.type !== 'text' || !event.message.text) {
-        return
-      }
-      const text = event.message.text
-      if (await handleTranslateCommand(env, event, text)) return
-
-      const chatId = chatIdFromSource(event.source)
-      if (chatId) {
-        try {
-          const translated = await translateForChat(env, chatId, text)
-          if (translated) {
-            await replyText(env, event.replyToken, translated)
-            return
-          }
-        } catch (error) {
-          console.error('translate failed', error)
+  try {
+    await Promise.all(
+      events.map(async (event) => {
+        if (event.type === 'join' && event.replyToken) {
+          await replyText(env, event.replyToken, translateHelp())
+          return
         }
-      }
+        if (!event.replyToken) return
+        if (event.type === 'follow') {
+          await replyText(env, event.replyToken, menuText())
+          return
+        }
+        if (event.type !== 'message' || event.message?.type !== 'text' || !event.message.text) {
+          return
+        }
+        const text = event.message.text
+        if (await handleTranslateCommand(env, event, text)) return
 
-      if (isGroupOrRoom(event.source)) return
+        const chatId = chatIdFromSource(event.source)
+        if (chatId) {
+          try {
+            const translated = await translateForChat(env, chatId, text)
+            if (translated) {
+              await replyText(env, event.replyToken, translated)
+              return
+            }
+          } catch (error) {
+            console.error('translate failed', error)
+          }
+        }
 
-      const reminder = reminderFromText(text)
-      if (reminder) {
-        await replyText(env, event.replyToken, reminder.text)
-        return
-      }
-      if (/^(說明|说明|選單|选单|help|menu)$/i.test(text.trim())) {
-        await replyText(env, event.replyToken, menuText())
-      }
-    }),
-  )
+        if (isGroupOrRoom(event.source)) return
+
+        const reminder = reminderFromText(text)
+        if (reminder) {
+          await replyText(env, event.replyToken, reminder.text)
+          return
+        }
+        if (/^(說明|说明|選單|选单|help|menu)$/i.test(text.trim())) {
+          await replyText(env, event.replyToken, menuText())
+        }
+      }),
+    )
+  } catch (error) {
+    console.error('webhook handler failed', error)
+  }
 
   return textResponse('OK')
 }
@@ -144,6 +148,17 @@ export default {
 
     if (url.pathname === '/health') {
       return textResponse('OK')
+    }
+
+    if (url.pathname === '/status') {
+      return textResponse(
+        [
+          `lineToken=${hasLineToken(env) ? 'yes' : 'no'}`,
+          `lineSecret=${env.LINE_CHANNEL_SECRET ? 'yes' : 'no'}`,
+          `ai=${env.AI ? 'yes' : 'no'}`,
+          `kv=${env.TRANSLATE_KV ? 'yes' : 'no'}`,
+        ].join('\n'),
+      )
     }
 
     if (url.pathname === '/admin') {

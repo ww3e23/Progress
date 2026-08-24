@@ -46,6 +46,10 @@ export function parseWebhookBody(raw: string): LineWebhookBody {
   }
 }
 
+export function hasLineToken(env: Env): boolean {
+  return Boolean(env.LINE_CHANNEL_ACCESS_TOKEN)
+}
+
 async function linePost(env: Env, path: string, body: unknown): Promise<Response> {
   const token = env.LINE_CHANNEL_ACCESS_TOKEN
   if (!token) {
