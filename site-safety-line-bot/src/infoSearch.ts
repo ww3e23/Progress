@@ -3,7 +3,18 @@ import type { Env } from './types'
 
 const UA = 'site-safety-line-bot/1.0 (https://workers.dev)'
 const SYSTEM =
-  '你是台灣工地現場助理。用台灣繁體中文簡短回答，最多 8 行，條列重點。不要捏造法規條號或數字。不確定就明說。'
+  '你是台灣工地現場助理。用台灣繁體中文簡短回答，最多 8 行。用「· 標題：內容」條列，不要用 markdown、不要用星號、不要用編號。不要捏造法規條號或數字。不確定就明說。'
+
+export function formatInfoForLine(text: string): string {
+  return text
+    .replace(/\*\*(.+?)\*\*/g, '$1')
+    .replace(/__(.+?)__/g, '$1')
+    .replace(/^[\s>*]*[-*]\s+/gm, '· ')
+    .replace(/^\s*\d+\.\s+/gm, '· ')
+    .replace(/\*/g, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+}
 
 function wikiRelevant(query: string, title: string, extract: string): boolean {
   const q = query.replace(/\s+/g, '')
@@ -57,8 +68,8 @@ export async function searchInfo(env: Env, query: string): Promise<string> {
     console.error('wikipedia failed', error)
   }
 
-  if (gemini && wiki) return `${gemini}\n\n參考：${wiki.split('\n')[0]}`
-  if (gemini) return gemini
-  if (wiki) return wiki
+  if (gemini && wiki) return formatInfoForLine(`${gemini}\n\n參考：${wiki.split('\n')[0]}`)
+  if (gemini) return formatInfoForLine(gemini)
+  if (wiki) return formatInfoForLine(wiki)
   throw new Error('查不到資料，請換個關鍵字再試')
 }
