@@ -5,7 +5,7 @@ import { allowsAdminPush, allowsScheduledRoster, allowsScheduledWeather } from '
 import { menuText } from './reminders.ts'
 import { clampMinute, taipeiParts } from './time.ts'
 import { parseTranslateCommand } from './translate.ts'
-import { geocodeQuery, weatherLabel } from './weather.ts'
+import { geocodeQuery, weatherLabel, buildWeatherMessage, weatherSiteHint } from './weather.ts'
 
 function assert(condition: unknown, message: string): void {
   if (!condition) throw new Error(message)
@@ -28,6 +28,46 @@ assert(geocodeQuery('台北') === 'Taipei', 'taipei alias')
 assert(geocodeQuery('臺中') === 'Taichung', 'taichung alias')
 assert(weatherLabel(81) === '陣雨', 'weather code 81')
 assert(weatherLabel(95) === '雷雨', 'weather code 95')
+assert(weatherSiteHint(100, 0.6, 27) === '雨天注意濕滑、高處與電氣作業。', 'rain hint')
+assert(weatherSiteHint(10, 0, 35) === '高溫注意補水與輪班休息。', 'heat hint')
+
+const weatherText = buildWeatherMessage({
+  place: '新竹縣寶山鄉',
+  nowTemp: 26,
+  nowLabel: '雷雨',
+  nowRainMm: 0.6,
+  nowWindKmh: 10,
+  todayMin: 25,
+  todayMax: 27,
+  todayLabel: '雷雨',
+  todayRainChance: 100,
+  todayRainMm: 51,
+  tomorrowMin: 24,
+  tomorrowMax: 27,
+  tomorrowLabel: '雷雨',
+  tomorrowRainChance: 98,
+})
+assert(weatherText === [
+  '氣象｜新竹縣寶山鄉',
+  '',
+  '【現在】',
+  '26°C　雷雨',
+  '降雨　0.6 mm',
+  '風速　10 km/h',
+  '',
+  '【今日】',
+  '25–27°C　雷雨',
+  '降雨機率　100%',
+  '雨量　51 mm',
+  '',
+  '【明日】',
+  '24–27°C　雷雨',
+  '降雨機率　98%',
+  '',
+  '【工地提醒】',
+  '雨天注意濕滑、高處與電氣作業。',
+].join('\n'), 'weather layout for LINE')
+assert(!weatherText.includes('現在 26°C、雷雨，降雨'), 'old cramped weather line gone')
 
 assert(clampMinute(17, 0) === 17, 'valid minute')
 assert(clampMinute(99, 0) === 0, 'invalid minute fallback')

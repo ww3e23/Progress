@@ -99,6 +99,59 @@ export async function geocodePlace(place: string): Promise<Geo> {
   throw new Error(`找不到地點：${trimmed}`)
 }
 
+export interface WeatherSnapshot {
+  place: string
+  nowTemp: number
+  nowLabel: string
+  nowRainMm: number
+  nowWindKmh: number
+  todayMin: number
+  todayMax: number
+  todayLabel: string
+  todayRainChance: number
+  todayRainMm: number
+  tomorrowMin: number
+  tomorrowMax: number
+  tomorrowLabel: string
+  tomorrowRainChance: number
+}
+
+function formatMm(value: number): string {
+  const n = Number(value)
+  if (!Number.isFinite(n)) return '0 mm'
+  const text = Number.isInteger(n) ? String(n) : String(Math.round(n * 10) / 10)
+  return `${text} mm`
+}
+
+export function weatherSiteHint(rainChance: number, nowRainMm: number, todayMax: number): string {
+  if (rainChance >= 50 || nowRainMm > 0) return '雨天注意濕滑、高處與電氣作業。'
+  if (todayMax >= 33) return '高溫注意補水與輪班休息。'
+  return '施工前再看一次現場狀況。'
+}
+
+export function buildWeatherMessage(weather: WeatherSnapshot): string {
+  return [
+    `氣象｜${weather.place}`,
+    '',
+    '【現在】',
+    `${weather.nowTemp}°C　${weather.nowLabel}`,
+    `降雨　${formatMm(weather.nowRainMm)}`,
+    `風速　${weather.nowWindKmh} km/h`,
+    '',
+    '【今日】',
+    `${weather.todayMin}–${weather.todayMax}°C　${weather.todayLabel}`,
+    `降雨機率　${weather.todayRainChance}%`,
+    `雨量　${formatMm(weather.todayRainMm)}`,
+    '',
+    '【明日】',
+    `${weather.tomorrowMin}–${weather.tomorrowMax}°C　${weather.tomorrowLabel}`,
+    `降雨機率　${weather.tomorrowRainChance}%`,
+    '',
+    '【工地提醒】',
+    weatherSiteHint(weather.todayRainChance, weather.nowRainMm, weather.todayMax),
+  ].join('\n')
+}
+
 export async function formatWeather(place: string): Promise<string> {
   const geo = await geocodePlace(place)
   const url =
@@ -128,19 +181,22 @@ export async function formatWeather(place: string): Promise<string> {
   const daily = data.daily || {}
   const todayCode = daily.weather_code?.[0] ?? current.weather_code ?? 0
   const tomorrowCode = daily.weather_code?.[1] ?? todayCode
-  const rainHint = (daily.precipitation_probability_max?.[0] || 0) >= 50 || (current.precipitation || 0) > 0
-    ? '工地提醒：雨天注意濕滑、高處與電氣作業。'
-    : (daily.temperature_2m_max?.[0] || 0) >= 33
-      ? '工地提醒：高溫注意補水與輪班休息。'
-      : '工地提醒：施工前再看一次現場狀況。'
-
-  return [
-    `【氣象】${geo.name}`,
-    `現在 ${Math.round(current.temperature_2m || 0)}°C、${weatherLabel(current.weather_code || 0)}，降雨 ${current.precipitation ?? 0}mm，風 ${Math.round(current.wind_speed_10m || 0)}km/h`,
-    `今日 ${Math.round(daily.temperature_2m_min?.[0] || 0)}–${Math.round(daily.temperature_2m_max?.[0] || 0)}°C，${weatherLabel(todayCode)}，降雨機率 ${daily.precipitation_probability_max?.[0] ?? 0}%，雨量 ${daily.precipitation_sum?.[0] ?? 0}mm`,
-    `明日 ${Math.round(daily.temperature_2m_min?.[1] || 0)}–${Math.round(daily.temperature_2m_max?.[1] || 0)}°C，${weatherLabel(tomorrowCode)}，降雨機率 ${daily.precipitation_probability_max?.[1] ?? 0}%`,
-    rainHint,
-  ].join('\n')
+  return buildWeatherMessage({
+    place: geo.name,
+    nowTemp: Math.round(current.temperature_2m || 0),
+    nowLabel: weatherLabel(current.weather_code || 0),
+    nowRainMm: Number(current.precipitation ?? 0),
+    nowWindKmh: Math.round(current.wind_speed_10m || 0),
+    todayMin: Math.round(daily.temperature_2m_min?.[0] || 0),
+    todayMax: Math.round(daily.temperature_2m_max?.[0] || 0),
+    todayLabel: weatherLabel(todayCode),
+    todayRainChance: daily.precipitation_probability_max?.[0] ?? 0,
+    todayRainMm: Number(daily.precipitation_sum?.[0] ?? 0),
+    tomorrowMin: Math.round(daily.temperature_2m_min?.[1] || 0),
+    tomorrowMax: Math.round(daily.temperature_2m_max?.[1] || 0),
+    tomorrowLabel: weatherLabel(tomorrowCode),
+    tomorrowRainChance: daily.precipitation_probability_max?.[1] ?? 0,
+  })
 }
 
 export { weatherLabel, geocodeQuery }
