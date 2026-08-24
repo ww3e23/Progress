@@ -4,6 +4,7 @@ export interface Env {
   ADMIN_TOKEN?: string
   /** Comma-separated LINE group / user / room IDs. Empty = broadcast to all friends. */
   LINE_TO_IDS?: string
+  GEMINI_API_KEY?: string
   AI?: {
     run: (model: string, input: Record<string, unknown>) => Promise<unknown>
   }

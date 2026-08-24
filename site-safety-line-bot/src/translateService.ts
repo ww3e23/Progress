@@ -1,6 +1,10 @@
 import { formatTranslation, isMostlyChinese, LANGS, shouldSkipTranslate } from './translate'
 import type { Env } from './types'
 
+const INTERPRETER_PROMPT =
+  '台灣工地口譯。只輸出譯文。翻意思，不要硬翻。中文用台灣繁體口語。外語不要夾中文。ปิดบังฝน=遮雨/擋雨，不要翻成直擊。ห้อง=房間。ช่วยหาคนมา=叫人來幫忙。'
+
+const GEMINI_MODELS = ['gemini-3.1-flash-lite', 'gemini-2.5-flash-lite', 'gemini-2.0-flash']
 const FALLBACK_MODEL = '@cf/meta/m2m100-1.2b'
 const DAILY_LIMIT = 400
 const ZH_LABEL = '中文'
@@ -83,14 +87,56 @@ function looksWrongLanguage(text: string, targetLang: string): boolean {
   return isMostlyChinese(text)
 }
 
-async function translateWithLlm(env: Env, text: string, targetLang: string): Promise<string> {
+function pickGeminiText(result: unknown): string {
+  const data = result as {
+    candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>
+  }
+  const text = data.candidates?.[0]?.content?.parts?.map((part) => part.text || '').join('') || ''
+  return cleanTranslation(text)
+}
+
+async function translateWithGemini(env: Env, text: string, targetLang: string): Promise<string> {
+  if (!env.GEMINI_API_KEY) return ''
   const targetName = LANG_NAMES[targetLang] || targetLang
-  const result = await env.AI!.run('@cf/meta/llama-3.1-8b-instruct-fp8-fast', {
+  const body = {
+    system_instruction: { parts: [{ text: INTERPRETER_PROMPT }] },
+    contents: [{ parts: [{ text: `翻成${targetName}：\n${text}` }] }],
+    generationConfig: {
+      temperature: 0.2,
+      maxOutputTokens: 128,
+    },
+  }
+  for (const model of GEMINI_MODELS) {
+    try {
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': env.GEMINI_API_KEY,
+        },
+        body: JSON.stringify(body),
+      })
+      if (!res.ok) {
+        console.error('gemini failed', model, res.status, await res.text())
+        continue
+      }
+      const translated = pickGeminiText(await res.json())
+      if (translated && !looksWrongLanguage(translated, targetLang)) return translated
+    } catch (error) {
+      console.error('gemini error', model, error)
+    }
+  }
+  return ''
+}
+
+async function translateWithLlm(env: Env, text: string, targetLang: string): Promise<string> {
+  if (!env.AI) return ''
+  const targetName = LANG_NAMES[targetLang] || targetLang
+  const result = await env.AI.run('@cf/meta/llama-3.1-8b-instruct-fp8-fast', {
     messages: [
       {
         role: 'system',
-        content:
-          '台灣工地口譯。只輸出譯文。翻意思，不要硬翻。中文用台灣繁體口語。外語不要夾中文。ปิดบังฝน=遮雨/擋雨，不要翻成直擊。ห้อง=房間。ช่วยหาคนมา=叫人來幫忙。',
+        content: INTERPRETER_PROMPT,
       },
       {
         role: 'user',
@@ -114,16 +160,23 @@ async function translateWithM2m(env: Env, text: string, sourceLang: string, targ
 }
 
 export async function translateText(env: Env, text: string, sourceLang: string, targetLang: string): Promise<string> {
-  if (!env.AI) throw new Error('尚未綁定 Workers AI')
   try {
-    const llm = await translateWithLlm(env, text, targetLang)
-    if (llm) return llm
+    const gemini = await translateWithGemini(env, text, targetLang)
+    if (gemini) return gemini
   } catch (error) {
-    console.error('llm translate failed', error)
+    console.error('gemini translate failed', error)
   }
-  const fallback = await translateWithM2m(env, text, sourceLang, targetLang)
-  if (!fallback) throw new Error('翻譯結果是空的')
-  return fallback
+  if (env.AI) {
+    try {
+      const llm = await translateWithLlm(env, text, targetLang)
+      if (llm) return llm
+    } catch (error) {
+      console.error('llm translate failed', error)
+    }
+    const fallback = await translateWithM2m(env, text, sourceLang, targetLang)
+    if (fallback) return fallback
+  }
+  throw new Error('翻譯結果是空的')
 }
 
 export async function translateForChat(env: Env, chatId: string, text: string): Promise<string | null> {

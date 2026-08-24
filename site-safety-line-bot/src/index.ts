@@ -159,6 +159,7 @@ export default {
         [
           `lineToken=${hasLineToken(env) ? 'yes' : 'no'}`,
           `lineSecret=${env.LINE_CHANNEL_SECRET ? 'yes' : 'no'}`,
+          `gemini=${env.GEMINI_API_KEY ? 'yes' : 'no'}`,
           `ai=${env.AI ? 'yes' : 'no'}`,
           `kv=${env.TRANSLATE_KV ? 'yes' : 'no'}`,
         ].join('\n'),
