@@ -4,7 +4,7 @@ import type { Env } from './types'
 const INTERPRETER_PROMPT =
   '台灣工地口譯。只輸出譯文。翻意思，不要硬翻。中文用台灣繁體口語。外語不要夾中文。ปิดบังฝน=遮雨/擋雨，不要翻成直擊。ห้อง=房間。ช่วยหาคนมา=叫人來幫忙。'
 
-const GEMINI_MODELS = ['gemini-3.1-flash-lite', 'gemini-2.5-flash-lite', 'gemini-2.0-flash']
+const GEMINI_MODELS = ['gemini-3.1-flash-lite', 'gemini-3.5-flash-lite', 'gemini-flash-latest']
 const FALLBACK_MODEL = '@cf/meta/m2m100-1.2b'
 const DAILY_LIMIT = 400
 const ZH_LABEL = '中文'

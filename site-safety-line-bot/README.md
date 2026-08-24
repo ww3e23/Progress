@@ -58,7 +58,7 @@ npm run deploy
 
 ## 群組即時翻譯（免費）
 
-使用 Cloudflare Workers AI 的小語言模型（Llama 3.2），一天約 300 則仍在免費額度內，比純翻譯模型準。
+使用 Google Gemini（免費額度，一天 300 則很夠）。沒設定 `GEMINI_API_KEY` 時會改走 Cloudflare Llama。
 
 1. LINE Developers → Messaging API → 允許加入群組聊天
 2. 把工程bot 拉進外籍工人群組
