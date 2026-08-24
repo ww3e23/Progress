@@ -1,7 +1,7 @@
 import { formatTranslation, isMostlyChinese, LANGS, shouldSkipTranslate } from './translate'
 import type { Env } from './types'
 
-const LLM_MODEL = '@cf/meta/llama-3.2-3b-instruct'
+const LLM_MODEL = '@cf/meta/llama-3.1-8b-instruct-fp8-fast'
 const FALLBACK_MODEL = '@cf/meta/m2m100-1.2b'
 const DAILY_LIMIT = 400
 const ZH_LABEL = '中文'
@@ -86,7 +86,7 @@ async function translateWithLlm(env: Env, text: string, targetLang: string): Pro
       {
         role: 'system',
         content:
-          'You are a Taiwan construction-site interpreter. Translate the user message into the requested language. Output ONLY the translation, no quotes and no explanation. Keep numbers, times, names. If the target is Chinese, use Traditional Chinese (台灣用語). Use jobsite terms correctly: 安全帽=safety helmet, 鷹架=scaffold, 灌漿=grouting, 收工=knock off, 缺失=defect.',
+          'You are a Taiwan construction-site interpreter. Translate the user message into the requested language. Output ONLY the translation, no quotes and no explanation. Translate every word; do not leave Chinese, Thai, or Vietnamese untranslated. Keep numbers, times, and names. If the target is Chinese, use Traditional Chinese (台灣用語). Jobsite terms: 安全帽=safety helmet / mũ bảo hộ / หมวกนิรภัย; 鷹架=scaffold / giàn giáo / นั่งร้าน; 灌漿=grouting / bơm vữa / งานเทกราวต์; 收工=knock off / tan ca / เลิกงาน; 缺失=defect / lỗi / ข้อบกพร่อง.',
       },
       {
         role: 'user',
