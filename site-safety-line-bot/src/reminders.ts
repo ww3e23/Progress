@@ -75,7 +75,7 @@ export function reminderFromText(text: string): Reminder | null {
 
 export function menuText(): string {
   return [
-    '工地安全提醒 Bot',
+    '工程bot',
     '',
     '可回覆關鍵字取得提醒：',
     '· 熱危害',

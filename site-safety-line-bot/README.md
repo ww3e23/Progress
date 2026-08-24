@@ -1,4 +1,4 @@
-# 工地安全提醒 LINE Bot（新專案）
+# 工程bot（LINE）
 
 這是從 Cloudflare 正式機 `site-safety-line-bot` 拆出來的**新專案**，方便改功能、測流程，而不會覆蓋現有 Worker。
 
@@ -10,9 +10,9 @@
 
 正式機觀察到的行為：
 
-- `GET /` → `工地安全提醒 Bot 已啟動`
+- `GET /` → `工程bot 已啟動`
 - `GET /health` → `OK`
-- `GET /admin` → 工安情報系統（熱危害／高處作業／降雨）
+- `GET /admin` → 工程bot 後台（熱危害／高處作業／降雨）
 - `GET /send?type=heat|height|rain` → 發送提醒
 - `POST /webhook` → LINE webhook
 

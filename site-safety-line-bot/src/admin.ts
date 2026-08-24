@@ -4,7 +4,7 @@ export function renderAdminPage(origin: string): string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>工安情報系統</title>
+  <title>工程bot</title>
   <style>
     body {
       font-family: sans-serif;
@@ -47,8 +47,8 @@ export function renderAdminPage(origin: string): string {
   </style>
 </head>
 <body>
-  <h1>工安情報系統</h1>
-  <p>此為新專案 <code>site-safety-line-bot-dev</code>，不會覆蓋正式機。</p>
+  <h1>工程bot</h1>
+  <p>此為開發版，不會覆蓋正式機。</p>
   <label for="token">管理 token</label>
   <input id="token" type="password" autocomplete="off" placeholder="ADMIN_TOKEN">
 

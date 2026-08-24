@@ -107,6 +107,6 @@ export default {
       return handleWebhook(request, env)
     }
 
-    return textResponse('工地安全提醒 Bot 已啟動')
+    return textResponse('工程bot 已啟動')
   },
 }
