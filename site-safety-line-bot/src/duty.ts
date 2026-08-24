@@ -6,6 +6,7 @@ export const DEFAULT_NIGHT_DUTY: DateRoster = {
   hour: 21,
   minute: 0,
   period: '05:30-07:30（如遇工班加班配合工班時段）',
+  remark: '',
   days: {},
 }
 
@@ -14,6 +15,7 @@ export const DEFAULT_DAY_SHIFT: DateRoster = {
   hour: 7,
   minute: 0,
   period: '',
+  remark: '',
   days: {},
 }
 
@@ -65,11 +67,13 @@ export function parseRoster(raw: unknown, defaults: DateRoster): DateRoster {
     ? (raw as Partial<DateRoster>)
     : {}
   const period = typeof obj.period === 'string' ? obj.period.trim().slice(0, 80) : defaults.period
+  const remark = typeof obj.remark === 'string' ? obj.remark.replace(/\r\n/g, '\n').trim().slice(0, 400) : ''
   return {
     enabled: Boolean(obj.enabled),
     hour: clampHour(obj.hour, defaults.hour),
     minute: clampMinute(obj.minute, defaults.minute),
     period,
+    remark,
     days: parseRosterDays(obj.days),
   }
 }
@@ -83,7 +87,7 @@ export function formatNightDuty(roster: DateRoster, ymd: string): string {
   if (!names.length) return `【夜間值班通知】\n${ymd} 尚未排班。`
   const lines = ['【夜間值班通知】', `${ymd} 值班：${names.join('、')}`]
   if (roster.period) lines.push(`時段：${roster.period}`)
-  lines.push('請完成巡視、確認臨時用電、出入口與危險區域。')
+  if (roster.remark) lines.push(roster.remark)
   return lines.join('\n')
 }
 
@@ -92,6 +96,7 @@ export function formatDayShift(roster: DateRoster, ymd: string): string {
   if (!names.length) return `【日間上班通知】\n${ymd} 尚未排班。`
   const lines = ['【日間上班通知】', `${ymd} 上班：${names.join('、')}`]
   if (roster.period) lines.push(`時段：${roster.period}`)
+  if (roster.remark) lines.push(roster.remark)
   return lines.join('\n')
 }
 

@@ -136,6 +136,8 @@ assert(allowsAdminPush(DEFAULT_FEATURES, 'dayShift') === false, 'day push off')
 
 assert(formatNightDuty(nightOn, '2026-08-21').includes('范士朋、田啟均'), 'night message two people')
 assert(formatNightDuty(nightOn, '2026-08-21').includes('05:30-07:30'), 'night period')
+assert(!formatNightDuty(nightOn, '2026-08-21').includes('請完成巡視'), 'no hardcoded patrol line')
+assert(formatNightDuty({ ...nightOn, remark: '請確認出入口上鎖。' }, '2026-08-21').includes('請確認出入口上鎖。'), 'custom remark')
 assert(formatNightDuty(nightOn, '2026-08-22').includes('尚未排班'), 'night empty day')
 assert(formatDayShift({ ...DEFAULT_FEATURES.dayShift, days: { '2026-08-24': ['陳學鴻'] } }, '2026-08-24').includes('陳學鴻'), 'day shift message')
 assert(!formatDayShift({ ...DEFAULT_FEATURES.dayShift, days: { '2026-08-24': ['陳學鴻'] } }, '2026-08-24').includes('夜間'), 'day shift not mixed with night')

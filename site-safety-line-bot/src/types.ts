@@ -38,6 +38,7 @@ export interface DateRoster {
   hour: number
   minute: number
   period: string
+  remark: string
   days: Record<string, string[]>
 }
 

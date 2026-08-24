@@ -55,6 +55,7 @@ export function renderAdminPage(origin: string): string {
     }
     textarea { min-height: 88px; resize: vertical; }
     textarea.paste { min-height: 72px; font-size: 14px; }
+    textarea.remark { min-height: 64px; font-size: 14px; }
     .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
     .row > * { flex: 1; min-width: 120px; }
     button {
@@ -398,11 +399,19 @@ export function renderAdminPage(origin: string): string {
         type: 'text',
         'data-k': key + 'Period',
         value: (roster && roster.period) || defaultPeriod || '',
-        placeholder: defaultPeriod || '可填時段說明，可空',
+        placeholder: defaultPeriod || '時段說明，可空',
       });
+      const remark = el('textarea', {
+        class: 'remark',
+        'data-k': key + 'Remark',
+        placeholder: '通知備註，可空、可多行。沒填就不會出現在訊息裡。',
+      }, [(roster && roster.remark) || '']);
       return el('div', {}, [
         el('div', { class: 'row' }, [hour, minute]),
+        el('div', { class: 'hint' }, ['時段說明（顯示成「時段：…」，可空）']),
         period,
+        el('div', { class: 'hint' }, ['通知備註（顯示在名單下方，可自己寫，可空）']),
+        remark,
         hidden,
         toggle,
         calBox,
@@ -418,6 +427,7 @@ export function renderAdminPage(origin: string): string {
         hour: Number(card.querySelector('[data-k=' + key + 'Hour]').value),
         minute: Number(card.querySelector('[data-k=' + key + 'Minute]').value),
         period: card.querySelector('[data-k=' + key + 'Period]').value.trim(),
+        remark: card.querySelector('[data-k=' + key + 'Remark]').value.trim(),
         days: days,
       };
     }
@@ -515,8 +525,8 @@ export function renderAdminPage(origin: string): string {
       weatherHour.setAttribute('data-k', 'weatherHour');
       const weatherMinute = minuteSelect(Number.isInteger(f.weatherMinute) ? f.weatherMinute : 0);
       weatherMinute.setAttribute('data-k', 'weatherMinute');
-      const night = f.nightDuty || { enabled: false, hour: 21, minute: 0, period: '05:30-07:30（如遇工班加班配合工班時段）', days: {} };
-      const day = f.dayShift || { enabled: false, hour: 7, minute: 0, period: '', days: {} };
+      const night = f.nightDuty || { enabled: false, hour: 21, minute: 0, period: '05:30-07:30（如遇工班加班配合工班時段）', remark: '', days: {} };
+      const day = f.dayShift || { enabled: false, hour: 7, minute: 0, period: '', remark: '', days: {} };
       const onlyTranslate = !!f.translate && !f.imageSearch && !f.infoSearch && !f.weather && !night.enabled && !day.enabled && !f.safety;
       const card = el('article', { class: 'card collapsed', 'data-id': chat.id, 'data-type': chat.type }, [
         el('button', { class: 'card-head', type: 'button', onClick: () => {
