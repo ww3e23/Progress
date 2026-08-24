@@ -1,0 +1,8 @@
+# 複製為 .dev.vars 後填入（不要提交真實值）
+LINE_CHANNEL_ACCESS_TOKEN=
+LINE_CHANNEL_SECRET=
+ADMIN_TOKEN=change-me
+
+# 可選：指定要推播的 LINE 群組 / 使用者 ID，逗號分隔
+# 留空則使用 broadcast（發給所有好友）
+# LINE_TO_IDS=Cxxxxxxxx,Uxxxxxxxx
