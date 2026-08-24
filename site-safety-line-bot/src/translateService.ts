@@ -1,7 +1,6 @@
 import { formatTranslation, isMostlyChinese, LANGS, shouldSkipTranslate } from './translate'
 import type { Env } from './types'
 
-const LLM_MODELS = ['@cf/zai-org/glm-4.7-flash', '@cf/meta/llama-3.1-8b-instruct-fp8-fast']
 const FALLBACK_MODEL = '@cf/meta/m2m100-1.2b'
 const DAILY_LIMIT = 400
 const ZH_LABEL = '中文'
@@ -79,6 +78,11 @@ function cleanTranslation(text: string): string {
     .trim()
 }
 
+function looksWrongLanguage(text: string, targetLang: string): boolean {
+  if (targetLang === 'zh') return false
+  return isMostlyChinese(text)
+}
+
 async function translateWithLlm(env: Env, text: string, targetLang: string): Promise<string> {
   const targetName = LANG_NAMES[targetLang] || targetLang
   const messages = [
@@ -89,6 +93,7 @@ async function translateWithLlm(env: Env, text: string, targetLang: string): Pro
         '只輸出譯文，不要解釋、不要加引號。',
         '翻意思，不要逐字硬翻；用自然口語。',
         '目標是中文時，一律用台灣繁體，用語像現場在講話。',
+        '目標不是中文時，禁止輸出中文。',
         '泰文 ปิดบังฝน / กันฝน / ที่บังฝน = 遮雨、擋雨、蓋帆布，絕對不要翻成「直擊」。',
         'อาคาร = 棟／建物；ห้อง = 房間／室內；น้ำไหลเข้า = 進水、漏進去。',
         'ช่วยหาคนมา = 找人來幫忙／叫人過來。',
@@ -96,14 +101,18 @@ async function translateWithLlm(env: Env, text: string, targetLang: string): Pro
     },
     {
       role: 'user',
-      content: `請翻成${targetName}：\n${text}`,
+      content: `目標語言：${targetName}\n請只輸出這個語言的譯文：\n${text}`,
     },
   ]
-  for (const model of LLM_MODELS) {
+  const models =
+    targetLang === 'zh'
+      ? ['@cf/zai-org/glm-4.7-flash', '@cf/meta/llama-3.1-8b-instruct-fp8-fast']
+      : ['@cf/meta/llama-3.1-8b-instruct-fp8-fast', '@cf/zai-org/glm-4.7-flash']
+  for (const model of models) {
     try {
       const result = await env.AI!.run(model, { messages, max_tokens: 256 })
       const translated = pickTranslated(result)
-      if (translated) return translated
+      if (translated && !looksWrongLanguage(translated, targetLang)) return translated
     } catch (error) {
       console.error(`${model} translate failed`, error)
     }
