@@ -7,6 +7,7 @@ import type { ChatFeatures, ChatRecord, ChatState, ChatType, Env } from './types
 const CHAT_PREFIX = 'chat:'
 const FEAT_PREFIX = 'feat:'
 const LANG_PREFIX = 'lang:'
+const INDEX_KEY = 'index:chats'
 
 export const DEFAULT_FEATURES: ChatFeatures = {
   translate: false,
@@ -107,16 +108,48 @@ export function displayChatName(chat: ChatRecord): string {
   return chat.note.trim() || chat.name.trim() || chat.id
 }
 
-async function listKeys(env: Env, prefix: string): Promise<string[]> {
-  if (!env.TRANSLATE_KV?.list) return []
-  const names: string[] = []
-  let cursor: string | undefined
-  do {
-    const page = await env.TRANSLATE_KV.list({ prefix, limit: 1000, cursor })
-    for (const key of page.keys) names.push(key.name)
-    cursor = page.list_complete ? undefined : page.cursor
-  } while (cursor)
-  return names
+export function parseChatIndex(raw: string | null): string[] {
+  if (!raw) return []
+  try {
+    const parsed = JSON.parse(raw) as { ids?: unknown } | unknown
+    const ids = Array.isArray(parsed)
+      ? parsed
+      : parsed && typeof parsed === 'object'
+        ? (parsed as { ids?: unknown }).ids
+        : []
+    if (!Array.isArray(ids)) return []
+    return [...new Set(ids.map((id) => String(id || '').trim()).filter(Boolean))]
+  } catch {
+    return []
+  }
+}
+
+async function readChatIndex(env: Env): Promise<string[]> {
+  if (!env.TRANSLATE_KV) return []
+  return parseChatIndex(await env.TRANSLATE_KV.get(INDEX_KEY))
+}
+
+async function writeChatIndex(env: Env, ids: string[]): Promise<void> {
+  if (!env.TRANSLATE_KV) return
+  await env.TRANSLATE_KV.put(INDEX_KEY, JSON.stringify({ ids, updatedAt: Date.now() }))
+}
+
+async function rememberChatId(env: Env, id: string): Promise<void> {
+  const trimmed = id.trim()
+  if (!trimmed || trimmed.startsWith('U')) return
+  const ids = await readChatIndex(env)
+  if (ids.includes(trimmed)) return
+  ids.push(trimmed)
+  await writeChatIndex(env, ids)
+}
+
+async function forgetChatId(env: Env, id: string): Promise<void> {
+  const trimmed = id.trim()
+  if (!trimmed) return
+  const ids = await readChatIndex(env)
+  const next = ids.filter((item) => item !== trimmed)
+  if (next.length === ids.length) return
+  await writeChatIndex(env, next)
 }
 
 export async function getChat(env: Env, id: string): Promise<ChatRecord | null> {
@@ -127,6 +160,7 @@ export async function getChat(env: Env, id: string): Promise<ChatRecord | null> 
 export async function putChat(env: Env, chat: ChatRecord): Promise<void> {
   if (!env.TRANSLATE_KV) throw new Error('尚未綁定 TRANSLATE_KV')
   await env.TRANSLATE_KV.put(chatKey(chat.id), JSON.stringify(chat))
+  if (isGroupLike(chat)) await rememberChatId(env, chat.id)
 }
 
 export async function getFeatures(env: Env, id: string): Promise<ChatFeatures> {
@@ -150,18 +184,20 @@ export async function putFeatures(env: Env, id: string, features: ChatFeatures):
   } else {
     await env.TRANSLATE_KV.delete(`${LANG_PREFIX}${id}`)
   }
+  await rememberChatId(env, id)
+}
+
+export async function deleteChat(env: Env, id: string): Promise<void> {
+  if (!env.TRANSLATE_KV) throw new Error('尚未綁定 TRANSLATE_KV')
+  await env.TRANSLATE_KV.delete(chatKey(id))
+  await env.TRANSLATE_KV.delete(featKey(id))
+  await env.TRANSLATE_KV.delete(`${LANG_PREFIX}${id}`)
+  await forgetChatId(env, id)
 }
 
 export async function listChatStates(env: Env, groupsOnly = true): Promise<ChatState[]> {
   if (!env.TRANSLATE_KV) return []
-  const chatKeys = await listKeys(env, CHAT_PREFIX)
-  const langKeys = await listKeys(env, LANG_PREFIX)
-  const featKeys = await listKeys(env, FEAT_PREFIX)
-  const ids = new Set<string>()
-  for (const key of chatKeys) ids.add(key.slice(CHAT_PREFIX.length))
-  for (const key of langKeys) ids.add(key.slice(LANG_PREFIX.length))
-  for (const key of featKeys) ids.add(key.slice(FEAT_PREFIX.length))
-
+  const ids = await readChatIndex(env)
   const states: ChatState[] = []
   for (const id of ids) {
     if (!id) continue
@@ -186,9 +222,7 @@ export async function purgePrivateChats(env: Env): Promise<number> {
   let removed = 0
   for (const { chat } of all) {
     if (isGroupLike(chat)) continue
-    await env.TRANSLATE_KV.delete(chatKey(chat.id))
-    await env.TRANSLATE_KV.delete(featKey(chat.id))
-    await env.TRANSLATE_KV.delete(`${LANG_PREFIX}${chat.id}`)
+    await deleteChat(env, chat.id)
     removed += 1
   }
   return removed

@@ -1,4 +1,4 @@
-import { isGroupLike, parseFeatures, DEFAULT_FEATURES } from './chats.ts'
+import { isGroupLike, parseChatIndex, parseFeatures, DEFAULT_FEATURES } from './chats.ts'
 import { featureHelp, parseFeatureCommand } from './commands.ts'
 import { isRebarWeightQuery, rebarWeightTable } from './rebar.ts'
 import { formatDayShift, formatNightDuty, parseNamesInput, parseRosterPaste } from './duty.ts'
@@ -192,6 +192,9 @@ assert(now.weekday >= 0 && now.weekday <= 6, 'taipei weekday')
 assert(parseTranslateCommand('翻譯 關')?.action === 'off', 'translate off still works')
 assert(isGroupLike({ id: 'Cabc', type: 'group' }) === true, 'group like')
 assert(isGroupLike({ id: 'Uabc', type: 'user' }) === false, 'user not group')
+assert(parseChatIndex(null).length === 0, 'empty index')
+assert(parseChatIndex('{"ids":["Caaa","Caaa","Cbbb"]}').join(',') === 'Caaa,Cbbb', 'unique index ids')
+assert(parseChatIndex('["Cxxx"]').join(',') === 'Cxxx', 'array index')
 assert(menuText().includes('功能'), 'menu mentions 功能')
 
 console.log('feature tests passed')

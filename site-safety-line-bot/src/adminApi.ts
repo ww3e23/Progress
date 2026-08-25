@@ -1,4 +1,4 @@
-import { getChat, getFeatures, listChatStates, parseFeatures, purgePrivateChats, putChat, putFeatures, registerChat } from './chats'
+import { deleteChat, getChat, getFeatures, listChatStates, parseFeatures, putChat, putFeatures, registerChat } from './chats'
 import { formatDayShift, formatNightDuty } from './duty'
 import { searchImages } from './imageSearch'
 import { searchInfo } from './infoSearch'
@@ -50,7 +50,6 @@ export async function handleAdminApi(request: Request, env: Env): Promise<Respon
   const path = url.pathname
 
   if (path === '/api/admin/state' && request.method === 'GET') {
-    const removedPrivate = await purgePrivateChats(env)
     const chats = await listChatStates(env, true)
     for (const state of chats) {
       if (!state.chat.name) {
@@ -64,7 +63,7 @@ export async function handleAdminApi(request: Request, env: Env): Promise<Respon
     }
     return jsonResponse({
       chats,
-      removedPrivate,
+      removedPrivate: 0,
       adminProtected: Boolean(env.ADMIN_TOKEN),
     })
   }
@@ -129,9 +128,7 @@ export async function handleAdminApi(request: Request, env: Env): Promise<Respon
     const id = typeof body.id === 'string' ? body.id.trim() : ''
     if (!id) return errorResponse('缺少群組 id')
     if (!env.TRANSLATE_KV) return errorResponse('尚未綁定 TRANSLATE_KV', 500)
-    await env.TRANSLATE_KV.delete(`chat:${id}`)
-    await env.TRANSLATE_KV.delete(`feat:${id}`)
-    await env.TRANSLATE_KV.delete(`lang:${id}`)
+    await deleteChat(env, id)
     return jsonResponse({ ok: true, id })
   }
 
