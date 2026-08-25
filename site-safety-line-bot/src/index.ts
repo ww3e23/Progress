@@ -102,7 +102,7 @@ async function handleFeatureCommand(env: Env, event: LineWebhookEvent, text: str
   if (!command) return false
 
   if (command.kind === 'help') {
-    await deliverText(env, event, featureHelp(features, enabledFeatureLabels(features)))
+    await deliverText(env, event, featureHelp(features, enabledFeatureLabels(features), chatIdFromSource(event.source)))
     return true
   }
 

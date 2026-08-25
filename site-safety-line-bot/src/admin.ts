@@ -168,7 +168,7 @@ export function renderAdminPage(origin: string): string {
         <input id="token" type="password" autocomplete="off" placeholder="ADMIN_TOKEN">
         <button id="reload" type="button">重新整理</button>
       </div>
-      <p class="hint">把工程bot 拉進群組，並在群裡說一句話，這個群就會出現在下面。後台只顯示群組，同事的 1:1 私訊不會出現。<br>群組卡片預設收合，點標題即可展開。夜間值班與日間上班是兩套獨立月曆，不要填在同一份名單。<br>沒打開的功能不會在群裡回話，也不會排程推播。預覽只顯示在後台，不會發到 LINE。<br>後台改用群組索引，不再每天掃 KV 清單，才不會一天額度用完載不進來。</p>
+      <p class="hint">把工程bot 拉進群組，並在群裡說一句話，這個群就會出現在下面。後台只顯示群組，同事的 1:1 私訊不會出現。<br>群組卡片預設收合，點標題即可展開。夜間值班與日間上班是兩套獨立月曆，不要填在同一份名單。<br>沒打開的功能不會在群裡回話，也不會排程推播。預覽只顯示在後台，不會發到 LINE。<br>後台改用群組索引，不再每天掃 KV 清單。若群裡已有 bot 但這裡沒出現：請到該群傳「*功能」，再按重新整理。</p>
       <div class="status" id="topStatus"></div>
     </section>
 

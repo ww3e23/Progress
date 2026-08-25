@@ -258,6 +258,7 @@ export async function touchChat(
     }
   }
   await putChat(env, chat)
+  console.log('touch chat', chat.id, chat.name || chat.type)
   return chat
 }
 

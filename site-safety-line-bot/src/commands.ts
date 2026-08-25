@@ -72,9 +72,13 @@ export function infoUsage(): string {
   ].join('\n')
 }
 
-export function featureHelp(features: ChatFeatures, enabled: string[]): string {
+export function featureHelp(features: ChatFeatures, enabled: string[], chatId?: string | null): string {
+  const footer =
+    chatId && (chatId.startsWith('C') || chatId.startsWith('R'))
+      ? `\n\n此群 ID：${chatId}\n若後台沒看到這個群，傳完這句再去重新整理即可。`
+      : ''
   if (enabled.length === 0) {
-    return '此聊天尚未開啟功能。請管理員到後台勾選：即時翻譯、搜圖、查資料、氣象、夜間值班、日間上班。'
+    return '此聊天尚未開啟功能。請管理員到後台勾選：即時翻譯、搜圖、查資料、氣象、夜間值班、日間上班。' + footer
   }
   const commands: string[] = []
   if (features.translate) commands.push('· 翻譯 泰文／翻譯 關')
@@ -90,5 +94,5 @@ export function featureHelp(features: ChatFeatures, enabled: string[]): string {
     '',
     '指令請用 * 開頭，一般對話不會觸發：',
     ...commands,
-  ].join('\n')
+  ].join('\n') + footer
 }
