@@ -1,8 +1,8 @@
-import { formatTranslation, isMostlyChinese, LANGS, shouldSkipTranslate } from './translate'
-import type { Env } from './types'
+import { formatTranslation, isMostlyChinese, LANGS, shouldSkipTranslate, stripLineMentions } from './translate'
+import type { Env, LineMentionee } from './types'
 
 const INTERPRETER_PROMPT =
-  '台灣工地口譯。只輸出譯文。翻意思，不要硬翻。中文用台灣繁體口語。外語不要夾中文。ปิดบังฝน=遮雨/擋雨，不要翻成直擊。ห้อง=房間。ช่วยหาคนมา=叫人來幫忙。'
+  '台灣工地口譯。只輸出譯文。翻意思，不要硬翻。中文用台灣繁體口語。外語不要夾中文。不要翻譯或改寫人名、暱稱、@提及。ปิดบังฝน=遮雨/擋雨，不要翻成直擊。ห้อง=房間。ช่วยหาคนมา=叫人來幫忙。'
 
 const GEMINI_MODELS = ['gemini-3.1-flash-lite', 'gemini-3.5-flash-lite', 'gemini-flash-latest']
 const FALLBACK_MODEL = '@cf/meta/m2m100-1.2b'
@@ -190,8 +190,14 @@ export async function translateText(env: Env, text: string, sourceLang: string, 
   throw new Error('翻譯結果是空的')
 }
 
-export async function translateForChat(env: Env, chatId: string, text: string): Promise<string | null> {
-  if (shouldSkipTranslate(text)) return null
+export async function translateForChat(
+  env: Env,
+  chatId: string,
+  text: string,
+  mentionees?: LineMentionee[] | null,
+): Promise<string | null> {
+  const source = stripLineMentions(text, mentionees)
+  if (shouldSkipTranslate(text, mentionees)) return null
   const lang = await getTranslateLang(env, chatId)
   if (!lang) return null
   if (!(await underQuota(env))) {
@@ -199,12 +205,12 @@ export async function translateForChat(env: Env, chatId: string, text: string): 
   }
 
   const option = LANGS.find((item) => item.code === lang)
-  const toChinese = !isMostlyChinese(text)
+  const toChinese = !isMostlyChinese(source)
   const sourceLang = toChinese ? lang : 'zh'
   const targetLang = toChinese ? 'zh' : lang
   const label = toChinese ? ZH_LABEL : option?.label || lang
 
-  const translated = await translateText(env, text, sourceLang, targetLang)
+  const translated = await translateText(env, source, sourceLang, targetLang)
   if (!translated || translated === text) return null
   await bumpQuota(env)
   return formatTranslation(label, translated)

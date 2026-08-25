@@ -1,5 +1,5 @@
 import { reminderFromText, isReminderType, menuText } from './reminders.ts'
-import { isMostlyChinese, parseTranslateCommand, shouldSkipTranslate } from './translate.ts'
+import { isMostlyChinese, parseTranslateCommand, shouldSkipTranslate, stripLineMentions } from './translate.ts'
 
 function assert(condition: unknown, message: string): void {
   if (!condition) throw new Error(message)
@@ -27,5 +27,18 @@ assert(shouldSkipTranslate('🌐 中文：hello'), 'skip already translated')
 assert(!shouldSkipTranslate('查 鋼筋搭接'), 'plain 查 is not a command')
 assert(shouldSkipTranslate('*查 鋼筋搭接'), 'skip starred info command from translate')
 assert(shouldSkipTranslate('*搜圖 安全帽'), 'skip starred image command from translate')
+assert(stripLineMentions('@范士朋 明天幾點到') === '明天幾點到', 'strip leading mention')
+assert(stripLineMentions('@范士朋') === '', 'mention only')
+assert(stripLineMentions('明天幾點到') === '明天幾點到', 'plain text stays')
+assert(stripLineMentions('@A @B 開會') === '開會', 'strip two mentions')
+assert(stripLineMentions('請@范士朋來看') === '請@范士朋來看', 'inline at-sign is not a LINE mention')
+assert(
+  stripLineMentions('@John Smith 來了', [{ index: 0, length: 11 }]) === '來了',
+  'strip mention by LINE index',
+)
+assert(stripLineMentions('來了 @范士朋') === '來了', 'strip trailing mention')
+assert(stripLineMentions('@สมชาย มาแล้ว') === 'มาแล้ว', 'strip thai mention')
+assert(shouldSkipTranslate('@范士朋') === true, 'skip mention-only message')
+assert(shouldSkipTranslate('@范士朋 明天幾點到') === false, 'translate remaining words')
 
 console.log('reminder tests passed')

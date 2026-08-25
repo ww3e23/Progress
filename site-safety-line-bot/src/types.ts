@@ -84,6 +84,13 @@ export interface LineImageMessage {
 
 export type LineMessage = LineTextMessage | LineImageMessage
 
+export interface LineMentionee {
+  index: number
+  length: number
+  type?: string
+  userId?: string
+}
+
 export interface LineWebhookEvent {
   type: string
   replyToken?: string
@@ -96,6 +103,9 @@ export interface LineWebhookEvent {
   message?: {
     type: string
     text?: string
+    mention?: {
+      mentionees?: LineMentionee[]
+    }
   }
 }
 

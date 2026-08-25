@@ -181,12 +181,13 @@ async function processEvents(env: Env, events: LineWebhookEvent[]): Promise<void
         continue
       }
       const text = event.message.text
+      const mentionees = event.message.mention?.mentionees
       if (await handleTranslateCommand(env, event, text, features)) continue
       if (features && (await handleFeatureCommand(env, event, text, features))) continue
 
       if (chatId && features?.translate) {
         try {
-          const translated = await translateForChat(env, chatId, text)
+          const translated = await translateForChat(env, chatId, text, mentionees)
           if (translated) {
             await deliverText(env, event, translated)
             continue

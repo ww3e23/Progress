@@ -1,4 +1,5 @@
 import { parseFeatureCommand } from './commands.ts'
+import type { LineMentionee } from './types.ts'
 
 export const BOT_NAME = '工程bot'
 export const TRANSLATE_MARK = '🌐'
@@ -37,8 +38,28 @@ export function isMostlyChinese(text: string): boolean {
   return cjk / chars.length >= 0.25
 }
 
-export function shouldSkipTranslate(text: string): boolean {
-  const trimmed = text.trim()
+export function stripLineMentions(text: string, mentionees?: LineMentionee[] | null): string {
+  let next = text
+  if (mentionees && mentionees.length > 0) {
+    const ranges = mentionees
+      .filter((item) => Number.isFinite(item.index) && Number.isFinite(item.length) && item.length > 0)
+      .sort((a, b) => b.index - a.index)
+    for (const range of ranges) {
+      const start = Math.max(0, range.index)
+      const end = Math.min(next.length, range.index + range.length)
+      if (start >= end) continue
+      next = `${next.slice(0, start)}${next.slice(end)}`
+    }
+  }
+  return next
+    .replace(/(^|[\s　])[@＠][^\s@＠]+(?=[\s　]|$)/g, '$1')
+    .replace(/[ \t]{2,}/g, ' ')
+    .replace(/[ \t]+\n/g, '\n')
+    .trim()
+}
+
+export function shouldSkipTranslate(text: string, mentionees?: LineMentionee[] | null): boolean {
+  const trimmed = stripLineMentions(text, mentionees)
   if (!trimmed) return true
   if (trimmed.startsWith(TRANSLATE_MARK)) return true
   if (trimmed.length <= 1) return true
