@@ -288,4 +288,21 @@ export async function formatWeather(place: string, link = ''): Promise<string> {
   })
 }
 
+export function isWeatherQuery(query: string): boolean {
+  const text = query.replace(/\s+/g, '')
+  return /天氣|天气|氣象|气象|預報|预报|降雨|下雨|幾度|几度|冰雹|雷雨|颱風|台风/.test(text)
+}
+
+export function weatherPlaceFromQuery(query: string, fallback = '台北'): string {
+  const text = query.trim()
+  if (/寶山/.test(text)) return '新竹縣寶山鄉'
+  const place = text
+    .replace(/今天|今日|明天|明日|會不會|会不会|有沒有|有没有|嗎|吗|呢|怎麼|怎么/g, ' ')
+    .replace(/天氣|天气|氣象|气象|預報|预报|降雨|下雨|幾度|几度|冰雹|雷雨|伴隨|伴随|少量|短暫|短暂/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+  if (!place || /^(下|有|的|是)+$/.test(place)) return fallback
+  return place
+}
+
 export { weatherLabel, geocodeQuery }

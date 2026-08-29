@@ -6,7 +6,7 @@ import { allowsAdminPush, allowsScheduledRoster, allowsScheduledWeather } from '
 import { menuText } from './reminders.ts'
 import { clampMinute, isScheduleDue, scheduleSlot, taipeiParts } from './time.ts'
 import { parseTranslateCommand } from './translate.ts'
-import { geocodeQuery, weatherLabel, representativeWeatherCode, buildWeatherMessage, weatherSiteHint, parseWeatherLink } from './weather.ts'
+import { geocodeQuery, weatherLabel, representativeWeatherCode, buildWeatherMessage, weatherSiteHint, parseWeatherLink, isWeatherQuery, weatherPlaceFromQuery } from './weather.ts'
 
 function assert(condition: unknown, message: string): void {
   if (!condition) throw new Error(message)
@@ -43,6 +43,9 @@ assert(geocodeQuery('台北') === 'Taipei', 'taipei alias')
 assert(geocodeQuery('臺中') === 'Taichung', 'taichung alias')
 assert(geocodeQuery('新竹') === 'Hsinchu', 'hsinchu city alias')
 assert(geocodeQuery('新竹縣寶山鄉') === '新竹縣寶山鄉', 'do not map township to city')
+assert(isWeatherQuery('今天新竹會不會下冰雹') === true, 'hail question is weather')
+assert(weatherPlaceFromQuery('新竹縣寶山鄉天氣', '台北') === '新竹縣寶山鄉', 'weather place 寶山')
+assert(weatherPlaceFromQuery('今天會不會下冰雹', '新竹縣寶山鄉') === '新竹縣寶山鄉', 'weather fallback place')
 assert(weatherLabel(81) === '陣雨', 'weather code 81')
 assert(weatherLabel(95) === '雷雨', 'weather code 95')
 assert(weatherLabel(96) === '雷雨', 'hail code is still 雷雨 for Taiwan')

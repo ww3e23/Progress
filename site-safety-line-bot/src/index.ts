@@ -136,7 +136,7 @@ async function handleFeatureCommand(env: Env, event: LineWebhookEvent, text: str
       await deliverText(env, event, infoUsage())
       return true
     }
-    const answer = await searchInfo(env, command.query)
+    const answer = await searchInfo(env, command.query, features.weatherPlace, features.weatherLink)
     await deliverText(env, event, answer.slice(0, 4900))
     return true
   }

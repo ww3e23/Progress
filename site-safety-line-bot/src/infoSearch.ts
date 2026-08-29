@@ -1,13 +1,14 @@
 import { askGemini } from './translateService'
 import { infoUsage } from './commands'
 import { isRebarWeightQuery, rebarWeightTable } from './rebar.ts'
+import { formatWeather, isWeatherQuery, weatherPlaceFromQuery } from './weather.ts'
 import type { Env } from './types'
 
 export { isRebarWeightQuery, rebarWeightTable }
 
 const UA = 'site-safety-line-bot/1.0 (https://workers.dev)'
 const SYSTEM =
-  '你是台灣工地現場助理。用台灣繁體中文回答。用「· 」條列，不要 markdown、不要用星號當粗體。工地常用對照表（例如鋼筋號數與 kg/m）請直接列出公認數字，不要叫對方去查表。不要杜撰法規條號。沒把握的數字就說不確定。表格類最多 20 行。'
+  '你是台灣工地現場助理。用台灣繁體中文回答。用「· 」條列，不要 markdown、不要用星號當粗體。工地常用對照表（例如鋼筋號數與 kg/m）請直接列出公認數字，不要叫對方去查表。台灣天氣不要寫冰雹，除非中央氣象署已發冰雹特報。不要杜撰法規條號。沒把握的數字就說不確定。表格類最多 20 行。'
 
 export function formatInfoForLine(text: string): string {
   return text
@@ -54,10 +55,11 @@ async function wikipediaExtract(query: string): Promise<string> {
   return `【${heading}】\n${extract.slice(0, 500)}`
 }
 
-export async function searchInfo(env: Env, query: string): Promise<string> {
+export async function searchInfo(env: Env, query: string, weatherPlace = '台北', weatherLink = ''): Promise<string> {
   const q = query.trim().slice(0, 200)
   if (!q) return infoUsage()
   if (isRebarWeightQuery(q)) return rebarWeightTable()
+  if (isWeatherQuery(q)) return formatWeather(weatherPlaceFromQuery(q, weatherPlace), weatherLink)
 
   let gemini = ''
   try {
