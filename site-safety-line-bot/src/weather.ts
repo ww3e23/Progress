@@ -41,36 +41,45 @@ interface Geo {
   longitude: number
 }
 
+export function taiwanSafeWeatherCode(code: number): number {
+  if (code === 96 || code === 99) return 95
+  if (code === 48) return 45
+  if (code === 56 || code === 57) return 51
+  if (code === 66 || code === 67) return 63
+  if (code >= 71 && code <= 77) return 63
+  if (code === 85 || code === 86) return 81
+  return code
+}
+
 function weatherLabel(code: number): string {
-  if (code === 0) return '晴'
-  if (code === 1) return '多雲時晴'
-  if (code === 2) return '多雲'
-  if (code === 3) return '陰'
-  if (code === 45 || code === 48) return '霧'
-  if (code >= 51 && code <= 57) return '毛毛雨'
-  if (code >= 61 && code <= 67) return '雨'
-  if (code === 80 || code === 81) return '陣雨'
-  if (code === 82) return '大雨'
-  if (code >= 71 && code <= 77) return '雪'
-  if (code === 95 || code === 96 || code === 99) return '雷雨'
-  return `天氣代碼 ${code}`
+  const safe = taiwanSafeWeatherCode(code)
+  if (safe === 0) return '晴'
+  if (safe === 1) return '多雲時晴'
+  if (safe === 2) return '多雲'
+  if (safe === 3) return '陰'
+  if (safe === 45) return '霧'
+  if (safe >= 51 && safe <= 55) return '毛毛雨'
+  if (safe >= 61 && safe <= 65) return '雨'
+  if (safe === 80 || safe === 81) return '陣雨'
+  if (safe === 82) return '大雨'
+  if (safe === 95) return '雷雨'
+  return '多雲'
 }
 
 export function representativeWeatherCode(codes: number[], fallback = 0): number {
-  const normalized = codes
-    .filter((code) => Number.isFinite(code))
-    .map((code) => (code === 96 || code === 99 ? 95 : code))
-  if (normalized.length === 0) return fallback === 96 || fallback === 99 ? 95 : fallback
+  const normalized = codes.filter((code) => Number.isFinite(code)).map((code) => taiwanSafeWeatherCode(code))
+  const safeFallback = taiwanSafeWeatherCode(fallback)
+  if (normalized.length === 0) return safeFallback
   if (normalized.some((code) => code === 95)) return 95
   if (normalized.some((code) => code === 82)) return 82
   if (normalized.some((code) => code === 80 || code === 81)) return 81
-  if (normalized.some((code) => code >= 61 && code <= 67)) return 63
-  if (normalized.some((code) => code >= 51 && code <= 57)) return 51
-  if (normalized.some((code) => code === 45 || code === 48)) return 45
+  if (normalized.some((code) => code >= 61 && code <= 65)) return 63
+  if (normalized.some((code) => code >= 51 && code <= 55)) return 51
+  if (normalized.some((code) => code === 45)) return 45
   if (normalized.some((code) => code === 3)) return 3
   if (normalized.some((code) => code === 2)) return 2
   if (normalized.some((code) => code === 1)) return 1
-  return normalized[0] ?? fallback
+  return normalized[0] ?? safeFallback
 }
 
 function codesForDay(times: string[] | undefined, codes: number[] | undefined, ymd: string): number[] {

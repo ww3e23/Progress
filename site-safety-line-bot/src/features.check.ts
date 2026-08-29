@@ -6,7 +6,7 @@ import { allowsAdminPush, allowsScheduledRoster, allowsScheduledWeather } from '
 import { menuText } from './reminders.ts'
 import { clampMinute, isScheduleDue, scheduleSlot, taipeiParts } from './time.ts'
 import { parseTranslateCommand } from './translate.ts'
-import { geocodeQuery, weatherLabel, representativeWeatherCode, buildWeatherMessage, weatherSiteHint, parseWeatherLink, isWeatherQuery, weatherPlaceFromQuery } from './weather.ts'
+import { geocodeQuery, weatherLabel, representativeWeatherCode, taiwanSafeWeatherCode, buildWeatherMessage, weatherSiteHint, parseWeatherLink, isWeatherQuery, weatherPlaceFromQuery } from './weather.ts'
 
 function assert(condition: unknown, message: string): void {
   if (!condition) throw new Error(message)
@@ -50,6 +50,13 @@ assert(weatherLabel(81) === '陣雨', 'weather code 81')
 assert(weatherLabel(95) === '雷雨', 'weather code 95')
 assert(weatherLabel(96) === '雷雨', 'hail code is still 雷雨 for Taiwan')
 assert(weatherLabel(99) === '雷雨', 'heavy hail code is still 雷雨')
+assert(weatherLabel(56) === '毛毛雨', 'freezing drizzle is 毛毛雨')
+assert(weatherLabel(67) === '雨', 'freezing rain is 雨')
+assert(weatherLabel(75) === '雨', 'snow code is 雨 on Taiwan sites')
+assert(weatherLabel(85) === '陣雨', 'snow shower is 陣雨')
+assert(taiwanSafeWeatherCode(48) === 45, 'rime fog is fog')
+assert(!weatherLabel(71).includes('雪'), 'do not say 雪')
+assert(!weatherLabel(96).includes('冰雹'), 'do not say 冰雹')
 assert(representativeWeatherCode([0, 0, 2, 96, 95, 95, 51]) === 95, 'one hail hour does not headline the day')
 assert(representativeWeatherCode([51, 51, 3, 1], 96) === 51, 'drizzle day not hail')
 assert(weatherSiteHint(100, 0.6, 27) === '雨天注意濕滑、高處與電氣作業。', 'rain hint')
