@@ -6,7 +6,7 @@ import { allowsAdminPush, allowsScheduledRoster, allowsScheduledWeather } from '
 import { menuText } from './reminders.ts'
 import { clampMinute, isScheduleDue, scheduleSlot, taipeiParts } from './time.ts'
 import { parseTranslateCommand } from './translate.ts'
-import { geocodeQuery, weatherLabel, buildWeatherMessage, weatherSiteHint, parseWeatherLink } from './weather.ts'
+import { geocodeQuery, weatherLabel, representativeWeatherCode, buildWeatherMessage, weatherSiteHint, parseWeatherLink } from './weather.ts'
 
 function assert(condition: unknown, message: string): void {
   if (!condition) throw new Error(message)
@@ -41,9 +41,16 @@ assert(parseFeatureCommand('*搜圖')?.kind === 'image' && parseFeatureCommand('
 
 assert(geocodeQuery('台北') === 'Taipei', 'taipei alias')
 assert(geocodeQuery('臺中') === 'Taichung', 'taichung alias')
+assert(geocodeQuery('新竹') === 'Hsinchu', 'hsinchu city alias')
+assert(geocodeQuery('新竹縣寶山鄉') === '新竹縣寶山鄉', 'do not map township to city')
 assert(weatherLabel(81) === '陣雨', 'weather code 81')
 assert(weatherLabel(95) === '雷雨', 'weather code 95')
+assert(weatherLabel(96) === '雷雨', 'hail code is still 雷雨 for Taiwan')
+assert(weatherLabel(99) === '雷雨', 'heavy hail code is still 雷雨')
+assert(representativeWeatherCode([0, 0, 2, 96, 95, 95, 51]) === 95, 'one hail hour does not headline the day')
+assert(representativeWeatherCode([51, 51, 3, 1], 96) === 51, 'drizzle day not hail')
 assert(weatherSiteHint(100, 0.6, 27) === '雨天注意濕滑、高處與電氣作業。', 'rain hint')
+assert(weatherSiteHint(100, 0.6, 27, '雷雨') === '午後可能有雷陣雨，高處、起重與電氣作業留意。', 'thunder hint')
 assert(weatherSiteHint(10, 0, 35) === '高溫注意補水與輪班休息。', 'heat hint')
 
 const weatherText = buildWeatherMessage({
@@ -80,7 +87,7 @@ assert(weatherText === [
   '降雨機率　98%',
   '',
   '【工地提醒】',
-  '雨天注意濕滑、高處與電氣作業。',
+  '午後可能有雷陣雨，高處、起重與電氣作業留意。',
 ].join('\n'), 'weather layout for LINE')
 assert(!weatherText.includes('現在 26°C、雷雨，降雨'), 'old cramped weather line gone')
 assert(!weatherText.includes('【參考】'), 'no source link by default')
