@@ -20,6 +20,33 @@ function starredBody(text: string): string | null {
   return match ? match[1].trim() : null
 }
 
+const ROSTER_RANGE =
+  '昨天|昨日|昨晚|今天|今日|今晚|明天|明日|後天|后天|7天|七天|一週|一周|本週|本周|這週|这周|近7天|近七天|過去7天|过去7天|本月|這個月|这个月|整月|月曆|月历'
+
+function rosterRangeSpec(raw: string): string | undefined {
+  if (/昨天|昨日|昨晚/.test(raw)) return '昨天'
+  if (/明天|明日/.test(raw)) return '明天'
+  if (/後天|后天/.test(raw)) return '後天'
+  if (/近7天|近七天|過去7天|过去7天/.test(raw)) return '近7天'
+  if (/7天|七天|一週|一周|本週|本周|這週|这周/.test(raw)) return '7天'
+  if (/本月|這個月|这个月|整月|月曆|月历/.test(raw)) return '本月'
+  return undefined
+}
+
+function parseTimeFirstRoster(body: string): FeatureCommand | null {
+  const compact = body.replace(/\s+/g, '')
+  const dated = compact.match(/^(\d{1,2}[/.－-]\d{1,2})的?(誰|谁)?(夜間|夜间|日間|日间)?(值班|排班|上班)$/)
+  if (dated) {
+    return { kind: dated[4] === '上班' ? 'dayShift' : 'duty', spec: dated[1] }
+  }
+  const match = compact.match(new RegExp(`^(${ROSTER_RANGE})的?(誰|谁)?(夜間|夜间|日間|日间)?(值班|排班|上班)$`))
+  if (!match) return null
+  return {
+    kind: match[4] === '上班' ? 'dayShift' : 'duty',
+    spec: rosterRangeSpec(match[1]),
+  }
+}
+
 export function parseFeatureCommand(text: string): FeatureCommand | null {
   const body = starredBody(text)
   if (!body) return null
@@ -41,6 +68,9 @@ export function parseFeatureCommand(text: string): FeatureCommand | null {
     const place = weather[2]?.trim()
     return { kind: 'weather', place: place || undefined }
   }
+
+  const timeFirst = parseTimeFirstRoster(body)
+  if (timeFirst) return timeFirst
 
   const duty = body.match(/^(值班|今晚值班|夜間值班|夜间值班|排班|誰值班|谁值班)(?:\s+(.+))?$/)
   if (duty) {
@@ -105,8 +135,8 @@ export function featureHelp(features: ChatFeatures, enabled: string[], chatId?: 
   if (features.imageSearch) commands.push('· *搜圖 安全帽')
   if (features.infoSearch) commands.push('· *查 熱危害（工地問題都可以問）')
   if (features.weather) commands.push('· *天氣　或　*天氣 台中')
-  if (features.nightDuty.enabled) commands.push('· *值班　昨天／明天／7天／本月')
-  if (features.dayShift.enabled) commands.push('· *上班　昨天／明天／7天／本月')
+  if (features.nightDuty.enabled) commands.push('· *值班／*明天值班／*昨天值班／*7天值班／*本月值班')
+  if (features.dayShift.enabled) commands.push('· *上班／*明天上班／*昨天上班／*7天上班／*本月上班')
   commands.push('· *功能')
   return [
     '此聊天已開啟：',
