@@ -1,0 +1,60 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "site-safety-line-bot-dev",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-24",
+  "observability": {
+    "enabled": true
+  },
+  "triggers": {
+    "crons": []
+  },
+  "ai": {
+    "binding": "AI"
+  },
+  "kv_namespaces": [
+    {
+      "binding": "TRANSLATE_KV",
+      "id": "8e28a38cc9694141a549cd66847383d0"
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "FEATURE_STORE",
+        "class_name": "FeatureStore"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1-feature-store",
+      "new_sqlite_classes": ["FeatureStore"]
+    }
+  ],
+  "env": {
+    "production": {
+      "name": "site-safety-line-bot",
+      "triggers": {
+        "crons": ["* * * * *"]
+      },
+      "ai": {
+        "binding": "AI"
+      },
+      "kv_namespaces": [
+        {
+          "binding": "TRANSLATE_KV",
+          "id": "8e28a38cc9694141a549cd66847383d0"
+        }
+      ],
+      "durable_objects": {
+        "bindings": [
+          {
+            "name": "FEATURE_STORE",
+            "class_name": "FeatureStore"
+          }
+        ]
+      }
+    }
+  }
+}

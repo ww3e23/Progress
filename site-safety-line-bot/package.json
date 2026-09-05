@@ -1,0 +1,18 @@
+{
+  "name": "site-safety-line-bot-dev",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "deploy:prod": "wrangler deploy --env production",
+    "types": "wrangler types",
+    "check": "wrangler types && tsc --noEmit",
+    "test": "node --experimental-strip-types src/reminders.check.ts && node --experimental-strip-types src/features.check.ts"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.2",
+    "wrangler": "^4.125.0"
+  }
+}
