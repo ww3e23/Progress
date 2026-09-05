@@ -168,7 +168,7 @@ export function renderAdminPage(origin: string): string {
         <input id="token" type="password" autocomplete="off" placeholder="ADMIN_TOKEN">
         <button id="reload" type="button">重新整理</button>
       </div>
-      <p class="hint">把工程bot 拉進群組，並在群裡說一句話，這個群就會出現在下面。後台只顯示群組，同事的 1:1 私訊不會出現。<br>群組卡片預設收合，點標題即可展開。夜間值班與日間上班是兩套獨立月曆，不要填在同一份名單。<br>沒打開的功能不會在群裡回話，也不會排程推播。預覽只顯示在後台，不會發到 LINE。<br>後台改用群組索引，不再每天掃 KV 清單。若群裡已有 bot 但這裡沒出現：請到該群傳「*功能」，再按重新整理。</p>
+      <p class="hint">把工程bot 拉進群組，並在群裡說一句話，這個群就會出現在下面。後台只顯示群組，同事的 1:1 私訊不會出現。<br>群組卡片預設收合，點標題即可展開。夜間值班與日間上班是兩套獨立月曆，不要填在同一份名單。<br>沒打開的功能不會在群裡回話，也不會排程推播。預覽只顯示在後台，不會發到 LINE。<br>儲存後群裡傳「*值班」會立刻讀最新名單。指令只回「今天」；今天格子是空的就會顯示尚未排班，可傳「*值班 本月」核對整月。<br>後台改用群組索引，不再每天掃 KV 清單。若群裡已有 bot 但這裡沒出現：請到該群傳「*功能」，再按重新整理。</p>
       <div class="status" id="topStatus"></div>
     </section>
 
@@ -459,7 +459,14 @@ export function renderAdminPage(origin: string): string {
             features: readFeatures(card),
           }),
         });
-        if (!silent) status.textContent = '已儲存';
+        if (!silent) {
+          const saved = readFeatures(card);
+          const today = taipeiYmd();
+          const nightNames = ((saved.nightDuty && saved.nightDuty.days && saved.nightDuty.days[today]) || []).join('、');
+          status.textContent = nightNames
+            ? '已儲存。今日夜間值班：' + nightNames + '\\n群裡傳 *值班 可立刻查到。'
+            : '已儲存。今日夜間值班尚未填人，群裡 *值班 會顯示尚未排班。可傳 *值班 本月 核對整月。';
+        }
       } catch (error) {
         status.textContent = error.message;
         throw error;
@@ -558,7 +565,7 @@ export function renderAdminPage(origin: string): string {
             el('div', { class: 'hint' }, ['參考網址（可空。LINE 會變成可點連結。填 open-meteo 會附上該地點資料頁，也可貼氣象局或其他網址）']),
             el('input', { type: 'text', 'data-k': 'weatherLink', value: f.weatherLink || '', placeholder: '可空／open-meteo／https://…' }),
           ])),
-          featureRow('nightDuty', '夜間值班', '與日間上班分開。依日期指定 1～2 人，當天沒人就不推播。群內查詢請傳「*值班」。', rosterEditor('nightDuty', night, '05:30-07:30（如遇工班加班配合工班時段）')),
+          featureRow('nightDuty', '夜間值班', '與日間上班分開。依日期指定 1～2 人，當天沒人就不推播。群內查今日請傳「*值班」，查整月請傳「*值班 本月」。儲存後會立刻生效。', rosterEditor('nightDuty', night, '05:30-07:30（如遇工班加班配合工班時段）')),
           featureRow('dayShift', '日間上班人員', '不要和夜間值班混用。依日期指定當天上班的人，可每天一人或兩人。群內查詢請傳「*上班」。', rosterEditor('dayShift', day, '')),
           featureRow('safety', '工安提醒推播', '允許後台對此群發送熱危害／高處／降雨。沒開按了也不會發到群裡。', null),
           el('div', { class: 'actions' }, [

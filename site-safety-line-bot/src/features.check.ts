@@ -1,7 +1,8 @@
 import { isGroupLike, parseChatIndex, parseFeatures, DEFAULT_FEATURES } from './chats.ts'
-import { featureHelp, parseFeatureCommand } from './commands.ts'
+import { featureHelp, parseFeatureCommand, rosterInfoKind } from './commands.ts'
 import { isRebarWeightQuery, rebarWeightTable } from './rebar.ts'
-import { formatDayShift, formatNightDuty, parseNamesInput, parseRosterPaste } from './duty.ts'
+import { formatDayShift, formatNightDuty, formatRosterMonth, parseNamesInput, parseRosterPaste, resolveRosterSpec } from './duty.ts'
+import { featureVolKeys, pickNewestRaw } from './featureStore.ts'
 import { allowsAdminPush, allowsScheduledRoster, allowsScheduledWeather } from './pushGuard.ts'
 import { menuText } from './reminders.ts'
 import { clampMinute, isScheduleDue, scheduleSlot, taipeiParts } from './time.ts'
@@ -30,7 +31,12 @@ assert(parseFeatureCommand('*天氣')?.kind === 'weather', 'weather command')
 assert(parseFeatureCommand('*天氣 台中')?.kind === 'weather', 'weather place')
 assert(parseFeatureCommand('*值班')?.kind === 'duty', 'duty command')
 assert(parseFeatureCommand('＊今晚值班')?.kind === 'duty', 'fullwidth star duty')
+assert(parseFeatureCommand('*值班 本月')?.kind === 'duty' && parseFeatureCommand('*值班 本月')?.['spec'] === '本月', 'duty month command')
+assert(parseFeatureCommand('*值班 9/8')?.['spec'] === '9/8', 'duty date command')
 assert(parseFeatureCommand('*上班')?.kind === 'dayShift', 'day shift command')
+assert(rosterInfoKind('值班') === 'night', 'info duty uses roster')
+assert(rosterInfoKind('本月值班') === 'night-month', 'info month duty uses roster')
+assert(rosterInfoKind('熱危害') === null, 'other info not roster')
 assert(parseFeatureCommand('*功能')?.kind === 'help', 'help command')
 assert(parseFeatureCommand('值班') === null, 'duty without star is ignored')
 assert(parseFeatureCommand('天氣') === null, 'weather without star is ignored')
@@ -189,6 +195,18 @@ assert(formatNightDuty(nightOn, '2026-08-21').includes('05:30-07:30'), 'night pe
 assert(!formatNightDuty(nightOn, '2026-08-21').includes('請完成巡視'), 'no hardcoded patrol line')
 assert(formatNightDuty({ ...nightOn, remark: '請確認出入口上鎖。' }, '2026-08-21').includes('請確認出入口上鎖。'), 'custom remark')
 assert(formatNightDuty(nightOn, '2026-08-22').includes('尚未排班'), 'night empty day')
+assert(formatNightDuty(nightOn, '2026-08-20').includes('最近已排：2026-08-21'), 'empty today still shows nearby roster')
+assert(formatRosterMonth('night', nightOn, 2026, 8).includes('21日 范士朋、田啟均'), 'month roster lists names')
+assert(formatRosterMonth('night', nightOn, 2026, 9).includes('尚未排班'), 'other month empty')
+
+const dutyNow = { year: 2026, month: 9, day: 5, hour: 17, minute: 19, weekday: 6, ymd: '2026-09-05', dayOfYear: 247 }
+assert(resolveRosterSpec(undefined, dutyNow).ymd === '2026-09-05', 'duty default today')
+assert(resolveRosterSpec('明天', dutyNow).ymd === '2026-09-06', 'duty tomorrow')
+assert(resolveRosterSpec('本月', dutyNow).wholeMonth === true, 'duty this month')
+assert(resolveRosterSpec('9/8', dutyNow).ymd === '2026-09-08', 'duty month/day')
+assert(pickNewestRaw(['{"updatedAt":1}', '{"updatedAt":9,"ok":true}', '{"updatedAt":3}'])?.includes('"ok":true') === true, 'newest feature raw')
+assert(featureVolKeys('Cabc', 1_000_000).read.length === 2, 'volatile read keys')
+assert(featureVolKeys('Cabc', 1_000_000).write.length === 6, 'volatile write keys')
 assert(formatDayShift({ ...DEFAULT_FEATURES.dayShift, days: { '2026-08-24': ['陳學鴻'] } }, '2026-08-24').includes('陳學鴻'), 'day shift message')
 assert(!formatDayShift({ ...DEFAULT_FEATURES.dayShift, days: { '2026-08-24': ['陳學鴻'] } }, '2026-08-24').includes('夜間'), 'day shift not mixed with night')
 
@@ -196,6 +214,7 @@ const help = featureHelp(features, ['即時翻譯（泰文）'])
 assert(help.includes('翻譯 泰文'), 'help lists translate')
 assert(help.includes('*搜圖 安全帽'), 'help lists enabled image')
 assert(help.includes('*值班'), 'help lists night duty')
+assert(help.includes('*值班 本月'), 'help lists month duty')
 assert(featureHelp(features, ['即時翻譯（泰文）'], 'Cabc123').includes('此群 ID：Cabc123'), 'help shows group id')
 assert(featureHelp({ ...features, infoSearch: true }, ['即時翻譯（泰文）']).includes('*查 熱危害'), 'help says any site question')
 const helpNoImage = featureHelp({ ...features, imageSearch: false, nightDuty: DEFAULT_FEATURES.nightDuty }, ['即時翻譯（泰文）'])

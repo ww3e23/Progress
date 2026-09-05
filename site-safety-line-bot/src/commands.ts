@@ -4,9 +4,11 @@ export type FeatureCommand =
   | { kind: 'image'; query: string }
   | { kind: 'info'; query: string }
   | { kind: 'weather'; place?: string }
-  | { kind: 'duty' }
-  | { kind: 'dayShift' }
+  | { kind: 'duty'; spec?: string }
+  | { kind: 'dayShift'; spec?: string }
   | { kind: 'help' }
+
+export type RosterInfoKind = 'night' | 'day' | 'night-month' | 'day-month'
 
 function stripMention(text: string): string {
   return text.trim().replace(/^[@＠]\S+\s+/, '')
@@ -40,12 +42,14 @@ export function parseFeatureCommand(text: string): FeatureCommand | null {
     return { kind: 'weather', place: place || undefined }
   }
 
-  if (/^(值班|今晚值班|夜間值班|夜间值班|排班|誰值班|谁值班)$/.test(body)) {
-    return { kind: 'duty' }
+  const duty = body.match(/^(值班|今晚值班|夜間值班|夜间值班|排班|誰值班|谁值班)(?:\s+(.+))?$/)
+  if (duty) {
+    return { kind: 'duty', spec: duty[2]?.trim() || undefined }
   }
 
-  if (/^(上班|今日上班|日間上班|日間人員|谁上班|誰上班)$/.test(body)) {
-    return { kind: 'dayShift' }
+  const dayShift = body.match(/^(上班|今日上班|日間上班|日間人員|谁上班|誰上班)(?:\s+(.+))?$/)
+  if (dayShift) {
+    return { kind: 'dayShift', spec: dayShift[2]?.trim() || undefined }
   }
 
   const info = body.match(/^(查詢|查询|搜尋|搜寻|查|問|问)(?:\s*(.+))?$/)
@@ -58,6 +62,15 @@ export function parseFeatureCommand(text: string): FeatureCommand | null {
     return { kind: 'info', query: searchAlias[2].trim() }
   }
 
+  return null
+}
+
+export function rosterInfoKind(query: string): RosterInfoKind | null {
+  const text = query.replace(/\s+/g, '')
+  if (!text) return null
+  const month = /本月|這個月|这个月|月曆|月历/.test(text)
+  if (/(日間|白天)?上班/.test(text) && !/值班/.test(text)) return month ? 'day-month' : 'day'
+  if (/值班|排班|今晚誰|今晚谁/.test(text)) return month ? 'night-month' : 'night'
   return null
 }
 
@@ -85,8 +98,8 @@ export function featureHelp(features: ChatFeatures, enabled: string[], chatId?: 
   if (features.imageSearch) commands.push('· *搜圖 安全帽')
   if (features.infoSearch) commands.push('· *查 熱危害（工地問題都可以問）')
   if (features.weather) commands.push('· *天氣　或　*天氣 台中')
-  if (features.nightDuty.enabled) commands.push('· *值班')
-  if (features.dayShift.enabled) commands.push('· *上班')
+  if (features.nightDuty.enabled) commands.push('· *值班　或　*值班 本月')
+  if (features.dayShift.enabled) commands.push('· *上班　或　*上班 本月')
   commands.push('· *功能')
   return [
     '此聊天已開啟：',

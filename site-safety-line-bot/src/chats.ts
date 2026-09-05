@@ -1,4 +1,12 @@
 import { DEFAULT_DAY_SHIFT, DEFAULT_NIGHT_DUTY, parseRoster } from './duty.ts'
+import {
+  clearFeatureStore,
+  pickNewestRaw,
+  readFeatureStore,
+  readFeatureVolatile,
+  writeFeatureStore,
+  writeFeatureVolatile,
+} from './featureStore.ts'
 import { clampHour, clampMinute } from './time.ts'
 import { chatIdFromSource, LANGS } from './translate.ts'
 import { parseWeatherLink } from './weather.ts'
@@ -163,8 +171,7 @@ export async function putChat(env: Env, chat: ChatRecord): Promise<void> {
   if (isGroupLike(chat)) await rememberChatId(env, chat.id)
 }
 
-export async function getFeatures(env: Env, id: string): Promise<ChatFeatures> {
-  const features = parseFeatures(env.TRANSLATE_KV ? await env.TRANSLATE_KV.get(featKey(id)) : null)
+async function withLegacyLang(env: Env, id: string, features: ChatFeatures): Promise<ChatFeatures> {
   if (!features.translateLang && env.TRANSLATE_KV) {
     const lang = await env.TRANSLATE_KV.get(`${LANG_PREFIX}${id}`)
     if (lang && LANGS.some((item) => item.code === lang)) {
@@ -175,16 +182,29 @@ export async function getFeatures(env: Env, id: string): Promise<ChatFeatures> {
   return features
 }
 
-export async function putFeatures(env: Env, id: string, features: ChatFeatures): Promise<void> {
+export async function getFeatures(env: Env, id: string, options?: { volatile?: boolean }): Promise<ChatFeatures> {
+  const stored = await readFeatureStore(env, id)
+  if (stored) return withLegacyLang(env, id, parseFeatures(stored))
+
+  const kvRaw = env.TRANSLATE_KV ? await env.TRANSLATE_KV.get(featKey(id), { cacheTtl: 30 }) : null
+  const volatileRaw = options?.volatile ? await readFeatureVolatile(env, id) : null
+  return withLegacyLang(env, id, parseFeatures(pickNewestRaw([volatileRaw, kvRaw]) || kvRaw))
+}
+
+export async function putFeatures(env: Env, id: string, features: ChatFeatures): Promise<ChatFeatures> {
   if (!env.TRANSLATE_KV) throw new Error('尚未綁定 TRANSLATE_KV')
   const clean = parseFeatures(JSON.stringify(features))
-  await env.TRANSLATE_KV.put(featKey(id), JSON.stringify(clean))
+  const raw = JSON.stringify({ ...clean, updatedAt: Date.now() })
+  await env.TRANSLATE_KV.put(featKey(id), raw)
+  await writeFeatureVolatile(env, id, raw)
+  await writeFeatureStore(env, id, raw)
   if (clean.translate && clean.translateLang) {
     await env.TRANSLATE_KV.put(`${LANG_PREFIX}${id}`, clean.translateLang)
   } else {
     await env.TRANSLATE_KV.delete(`${LANG_PREFIX}${id}`)
   }
   await rememberChatId(env, id)
+  return clean
 }
 
 export async function deleteChat(env: Env, id: string): Promise<void> {
@@ -192,6 +212,7 @@ export async function deleteChat(env: Env, id: string): Promise<void> {
   await env.TRANSLATE_KV.delete(chatKey(id))
   await env.TRANSLATE_KV.delete(featKey(id))
   await env.TRANSLATE_KV.delete(`${LANG_PREFIX}${id}`)
+  await clearFeatureStore(env, id)
   await forgetChatId(env, id)
 }
 

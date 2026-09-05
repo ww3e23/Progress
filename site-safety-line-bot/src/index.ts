@@ -1,8 +1,8 @@
 import { renderAdminPage } from './admin'
 import { handleAdminApi, requireAdmin } from './adminApi'
 import { enabledFeatureLabels, getFeatures, putFeatures, touchChat } from './chats'
-import { featureHelp, infoUsage, parseFeatureCommand } from './commands'
-import { formatDayShift, formatNightDuty } from './duty'
+import { featureHelp, infoUsage, parseFeatureCommand, rosterInfoKind } from './commands'
+import { formatDayShift, formatNightDuty, formatRosterMonth, resolveRosterSpec } from './duty'
 import { searchImages } from './imageSearch'
 import { searchInfo } from './infoSearch'
 import {
@@ -17,7 +17,6 @@ import {
 } from './line'
 import { isReminderType, menuText, reminderFromText, REMINDERS } from './reminders'
 import { runHourlyJobs } from './schedule'
-import { taipeiParts } from './time'
 import { chatIdFromSource, isGroupOrRoom, isMostlyChinese, parseTranslateCommand, translateHelp } from './translate'
 import { getTranslateLang, setTranslateLang, translateForChat, translateText } from './translateService'
 import { formatWeather } from './weather'
@@ -136,6 +135,28 @@ async function handleFeatureCommand(env: Env, event: LineWebhookEvent, text: str
       await deliverText(env, event, infoUsage())
       return true
     }
+    const rosterKind = rosterInfoKind(command.query)
+    if (rosterKind) {
+      const chatId = chatIdFromSource(event.source)
+      const fresh = chatId ? await getFeatures(env, chatId, { volatile: true }) : features
+      const spec = resolveRosterSpec(/本月|這個月|这个月|月曆|月历/.test(command.query) ? '本月' : undefined)
+      if (rosterKind === 'night' && fresh.nightDuty.enabled) {
+        await deliverText(env, event, formatNightDuty(fresh.nightDuty, spec.ymd))
+        return true
+      }
+      if (rosterKind === 'night-month' && fresh.nightDuty.enabled) {
+        await deliverText(env, event, formatRosterMonth('night', fresh.nightDuty, spec.year, spec.month))
+        return true
+      }
+      if (rosterKind === 'day' && fresh.dayShift.enabled) {
+        await deliverText(env, event, formatDayShift(fresh.dayShift, spec.ymd))
+        return true
+      }
+      if (rosterKind === 'day-month' && fresh.dayShift.enabled) {
+        await deliverText(env, event, formatRosterMonth('day', fresh.dayShift, spec.year, spec.month))
+        return true
+      }
+    }
     const answer = await searchInfo(env, command.query, features.weatherPlace, features.weatherLink)
     await deliverText(env, event, answer.slice(0, 4900))
     return true
@@ -150,13 +171,25 @@ async function handleFeatureCommand(env: Env, event: LineWebhookEvent, text: str
 
   if (command.kind === 'duty') {
     if (!features.nightDuty.enabled) return false
-    await deliverText(env, event, formatNightDuty(features.nightDuty, taipeiParts().ymd))
+    const chatId = chatIdFromSource(event.source)
+    const fresh = chatId ? await getFeatures(env, chatId, { volatile: true }) : features
+    const spec = resolveRosterSpec(command.spec)
+    const text = spec.wholeMonth
+      ? formatRosterMonth('night', fresh.nightDuty, spec.year, spec.month)
+      : formatNightDuty(fresh.nightDuty, spec.ymd)
+    await deliverText(env, event, text)
     return true
   }
 
   if (command.kind === 'dayShift') {
     if (!features.dayShift.enabled) return false
-    await deliverText(env, event, formatDayShift(features.dayShift, taipeiParts().ymd))
+    const chatId = chatIdFromSource(event.source)
+    const fresh = chatId ? await getFeatures(env, chatId, { volatile: true }) : features
+    const spec = resolveRosterSpec(command.spec)
+    const text = spec.wholeMonth
+      ? formatRosterMonth('day', fresh.dayShift, spec.year, spec.month)
+      : formatDayShift(fresh.dayShift, spec.ymd)
+    await deliverText(env, event, text)
     return true
   }
 
@@ -234,6 +267,8 @@ async function handleWebhook(request: Request, env: Env, ctx?: ExecutionContext)
   return textResponse('OK')
 }
 
+export { FeatureStore } from './featureStore'
+
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url)
@@ -300,3 +335,5 @@ export default {
     await runHourlyJobs(env, when)
   },
 }
+
+export { FeatureStore } from './featureStore'

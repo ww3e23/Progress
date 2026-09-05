@@ -85,8 +85,8 @@ export async function handleAdminApi(request: Request, env: Env): Promise<Respon
     if (chatInput?.type) existing.type = asChatType(chatInput.type)
     await putChat(env, existing)
     const features = parseFeatures(JSON.stringify(body.features || {}))
-    await putFeatures(env, id, features)
-    return jsonResponse({ chat: existing, features: await getFeatures(env, id) })
+    const saved = await putFeatures(env, id, features)
+    return jsonResponse({ chat: existing, features: saved })
   }
 
   if (path === '/api/admin/register' && request.method === 'POST') {
@@ -177,7 +177,7 @@ export async function handleAdminApi(request: Request, env: Env): Promise<Respon
     const kind = typeof body.kind === 'string' ? body.kind : ''
     const previewOnly = body.preview === true || body.preview === '1'
     if (!id && !previewOnly) return errorResponse('缺少群組 id')
-    const features = id ? await getFeatures(env, id) : parseFeatures(null)
+    const features = id ? await getFeatures(env, id, { volatile: true }) : parseFeatures(null)
     let text = ''
     if (kind === 'weather') {
       text = await formatWeather(features.weatherPlace, features.weatherLink)

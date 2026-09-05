@@ -1,3 +1,12 @@
+export interface DurableObjectStubLike {
+  fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response>
+}
+
+export interface DurableObjectNamespaceLike {
+  idFromName(name: string): unknown
+  get(id: unknown): DurableObjectStubLike
+}
+
 export interface Env {
   LINE_CHANNEL_ACCESS_TOKEN?: string
   LINE_CHANNEL_SECRET?: string
@@ -9,10 +18,11 @@ export interface Env {
     run: (model: string, input: Record<string, unknown>) => Promise<unknown>
   }
   TRANSLATE_KV?: KVStore
+  FEATURE_STORE?: DurableObjectNamespaceLike
 }
 
 export interface KVStore {
-  get: (key: string) => Promise<string | null>
+  get: (key: string, options?: { cacheTtl?: number; type?: 'text' | 'json' }) => Promise<string | null>
   put: (key: string, value: string, options?: { expirationTtl?: number }) => Promise<void>
   delete: (key: string) => Promise<void>
   list?: (options?: { prefix?: string; limit?: number; cursor?: string }) => Promise<{
