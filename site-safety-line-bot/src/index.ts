@@ -315,5 +315,3 @@ export default {
     await runHourlyJobs(env, when)
   },
 }
-
-export { FeatureStore } from './featureStore'
