@@ -8,7 +8,7 @@ export type FeatureCommand =
   | { kind: 'dayShift'; spec?: string }
   | { kind: 'help' }
 
-export type RosterInfoKind = 'night' | 'day' | 'night-month' | 'day-month'
+export type RosterInfoQuery = { kind: 'night' | 'day'; spec?: string }
 
 function stripMention(text: string): string {
   return text.trim().replace(/^[@＠]\S+\s+/, '')
@@ -65,13 +65,20 @@ export function parseFeatureCommand(text: string): FeatureCommand | null {
   return null
 }
 
-export function rosterInfoKind(query: string): RosterInfoKind | null {
+export function rosterInfoQuery(query: string): RosterInfoQuery | null {
   const text = query.replace(/\s+/g, '')
   if (!text) return null
-  const month = /本月|這個月|这个月|月曆|月历/.test(text)
-  if (/(日間|白天)?上班/.test(text) && !/值班/.test(text)) return month ? 'day-month' : 'day'
-  if (/值班|排班|今晚誰|今晚谁/.test(text)) return month ? 'night-month' : 'night'
-  return null
+  const isDay = /(日間|白天)?上班/.test(text) && !/值班/.test(text)
+  const isNight = /值班|排班|今晚誰|今晚谁/.test(text)
+  if (!isDay && !isNight) return null
+  let spec: string | undefined
+  if (/昨天|昨日|昨晚/.test(text)) spec = '昨天'
+  else if (/明天|明日/.test(text)) spec = '明天'
+  else if (/後天|后天/.test(text)) spec = '後天'
+  else if (/近7天|近七天|過去7天|过去7天/.test(text)) spec = '近7天'
+  else if (/7天|七天|一週|一周|本週|本周|這週|这周/.test(text)) spec = '7天'
+  else if (/本月|這個月|这个月|月曆|月历|整月/.test(text)) spec = '本月'
+  return { kind: isDay ? 'day' : 'night', spec }
 }
 
 export function infoUsage(): string {
@@ -98,8 +105,8 @@ export function featureHelp(features: ChatFeatures, enabled: string[], chatId?: 
   if (features.imageSearch) commands.push('· *搜圖 安全帽')
   if (features.infoSearch) commands.push('· *查 熱危害（工地問題都可以問）')
   if (features.weather) commands.push('· *天氣　或　*天氣 台中')
-  if (features.nightDuty.enabled) commands.push('· *值班　或　*值班 本月')
-  if (features.dayShift.enabled) commands.push('· *上班　或　*上班 本月')
+  if (features.nightDuty.enabled) commands.push('· *值班　昨天／明天／7天／本月')
+  if (features.dayShift.enabled) commands.push('· *上班　昨天／明天／7天／本月')
   commands.push('· *功能')
   return [
     '此聊天已開啟：',

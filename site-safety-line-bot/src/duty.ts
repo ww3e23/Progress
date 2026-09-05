@@ -117,16 +117,16 @@ export function formatDayShift(roster: DateRoster, ymd: string): string {
   return lines.join('\n')
 }
 
-export function formatRosterMonth(kind: 'night' | 'day', roster: DateRoster, year: number, month: number): string {
-  const title = kind === 'night' ? '【夜間值班】' : '【日間上班】'
-  const prefix = `${year}-${pad2(month)}-`
-  const rows = Object.entries(roster.days)
-    .filter(([day, names]) => day.startsWith(prefix) && names.length)
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([day, names]) => `${Number(day.slice(8))}日 ${names.join('、')}`)
-  if (!rows.length) return `${title}\n${year}年${month}月尚未排班。`
-  return [title, `${year}年${month}月`, ...rows].join('\n')
+export type RosterSpecResult = {
+  mode: 'day' | 'list'
+  ymd: string
+  year: number
+  month: number
+  ymds: string[]
+  title: string
 }
+
+const WEEKDAY_LABELS = ['日', '一', '二', '三', '四', '五', '六']
 
 export function addTaipeiDays(parts: TaipeiParts, days: number): { year: number; month: number; day: number; ymd: string } {
   const dt = new Date(Date.UTC(parts.year, parts.month - 1, parts.day + days))
@@ -136,38 +136,103 @@ export function addTaipeiDays(parts: TaipeiParts, days: number): { year: number;
   return { year, month, day, ymd: toYmd(year, month, day) }
 }
 
-export function resolveRosterSpec(spec: string | undefined, now = taipeiParts()): {
-  ymd: string
-  year: number
-  month: number
-  wholeMonth: boolean
-} {
+export function weekdayLabel(ymd: string): string {
+  const [year, month, day] = ymd.split('-').map(Number)
+  return WEEKDAY_LABELS[new Date(Date.UTC(year, month - 1, day)).getUTCDay()] || ''
+}
+
+export function shortRosterDate(ymd: string): string {
+  const [, month, day] = ymd.split('-')
+  return `${Number(month)}/${Number(day)}（${weekdayLabel(ymd)}）`
+}
+
+export function ymdsFromParts(parts: TaipeiParts, startOffset: number, count: number): string[] {
+  return Array.from({ length: count }, (_, index) => addTaipeiDays(parts, startOffset + index).ymd)
+}
+
+export function ymdsInMonth(year: number, month: number): string[] {
+  const last = new Date(Date.UTC(year, month, 0)).getUTCDate()
+  return Array.from({ length: last }, (_, index) => toYmd(year, month, index + 1))
+}
+
+function daySpec(parts: { year: number; month: number; ymd: string }): RosterSpecResult {
+  return {
+    mode: 'day',
+    ymd: parts.ymd,
+    year: parts.year,
+    month: parts.month,
+    ymds: [parts.ymd],
+    title: parts.ymd,
+  }
+}
+
+function listSpec(title: string, ymds: string[], fallback: TaipeiParts): RosterSpecResult {
+  const first = ymds[0] || fallback.ymd
+  const [year, month] = first.split('-').map(Number)
+  return {
+    mode: 'list',
+    ymd: first,
+    year: year || fallback.year,
+    month: month || fallback.month,
+    ymds,
+    title,
+  }
+}
+
+export function resolveRosterSpec(spec: string | undefined, now = taipeiParts()): RosterSpecResult {
   const text = (spec || '').trim()
-  if (!text || /^(今天|今日|今晚)$/.test(text)) {
-    return { ymd: now.ymd, year: now.year, month: now.month, wholeMonth: false }
+  if (!text || /^(今天|今日|今晚)$/.test(text)) return daySpec(now)
+
+  if (/^(昨天|昨日|昨晚)$/.test(text)) return daySpec(addTaipeiDays(now, -1))
+  if (/^(明天|明日)$/.test(text)) return daySpec(addTaipeiDays(now, 1))
+  if (/^(後天|后天)$/.test(text)) return daySpec(addTaipeiDays(now, 2))
+
+  if (/^(7天|七天|一週|一周|本週|本周|這週|这周|未來7天|未来7天|未來七天)$/.test(text)) {
+    const ymds = ymdsFromParts(now, 0, 7)
+    return listSpec(`未來 7 天（${shortRosterDate(ymds[0])}～${shortRosterDate(ymds[6])}）`, ymds, now)
   }
-  if (/^(本月|這個月|这个月|月曆|月历)$/.test(text)) {
-    return { ymd: now.ymd, year: now.year, month: now.month, wholeMonth: true }
+  if (/^(近7天|近七天|過去7天|过去7天)$/.test(text)) {
+    const ymds = ymdsFromParts(now, -6, 7)
+    return listSpec(`近 7 天（${shortRosterDate(ymds[0])}～${shortRosterDate(ymds[6])}）`, ymds, now)
   }
-  if (/^(明天|明日)$/.test(text)) {
-    const next = addTaipeiDays(now, 1)
-    return { ymd: next.ymd, year: next.year, month: next.month, wholeMonth: false }
+  if (/^(本月|這個月|这个月|月曆|月历|整月)$/.test(text)) {
+    return listSpec(`${now.year}年${now.month}月`, ymdsInMonth(now.year, now.month), now)
   }
-  if (/^(後天|后天)$/.test(text)) {
-    const next = addTaipeiDays(now, 2)
-    return { ymd: next.ymd, year: next.year, month: next.month, wholeMonth: false }
-  }
+
   const iso = text.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/)
   if (iso) {
     const ymd = toYmd(Number(iso[1]), Number(iso[2]), Number(iso[3]))
-    if (isYmd(ymd)) return { ymd, year: Number(iso[1]), month: Number(iso[2]), wholeMonth: false }
+    if (isYmd(ymd)) return daySpec({ year: Number(iso[1]), month: Number(iso[2]), ymd })
   }
   const md = text.match(/^(\d{1,2})[/.－-](\d{1,2})$/)
   if (md) {
     const ymd = toYmd(now.year, Number(md[1]), Number(md[2]))
-    if (isYmd(ymd)) return { ymd, year: now.year, month: Number(md[1]), wholeMonth: false }
+    if (isYmd(ymd)) return daySpec({ year: now.year, month: Number(md[1]), ymd })
   }
-  return { ymd: now.ymd, year: now.year, month: now.month, wholeMonth: false }
+  return daySpec(now)
+}
+
+export function formatRosterMonth(kind: 'night' | 'day', roster: DateRoster, year: number, month: number): string {
+  return formatRosterBySpec(kind, roster, listSpec(`${year}年${month}月`, ymdsInMonth(year, month), {
+    ...taipeiParts(),
+    year,
+    month,
+    ymd: toYmd(year, month, 1),
+  }))
+}
+
+export function formatRosterBySpec(kind: 'night' | 'day', roster: DateRoster, spec: RosterSpecResult): string {
+  if (spec.mode === 'day') {
+    return kind === 'night' ? formatNightDuty(roster, spec.ymd) : formatDayShift(roster, spec.ymd)
+  }
+  const title = kind === 'night' ? '【夜間值班】' : '【日間上班】'
+  const rows = spec.ymds.map((ymd) => {
+    const names = namesForDate(roster, ymd)
+    return names.length ? `${shortRosterDate(ymd)} ${names.join('、')}` : `${shortRosterDate(ymd)} 尚未排班`
+  })
+  const lines = [title, spec.title, ...rows]
+  if (roster.period) lines.push(`時段：${roster.period}`)
+  return lines.join('\n')
 }
 
 export function parseRosterPaste(text: string, year: number, month: number): Record<string, string[]> {

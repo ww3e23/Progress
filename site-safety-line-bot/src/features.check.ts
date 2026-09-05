@@ -1,7 +1,7 @@
 import { isGroupLike, parseChatIndex, parseFeatures, DEFAULT_FEATURES } from './chats.ts'
-import { featureHelp, parseFeatureCommand, rosterInfoKind } from './commands.ts'
+import { featureHelp, parseFeatureCommand, rosterInfoQuery } from './commands.ts'
 import { isRebarWeightQuery, rebarWeightTable } from './rebar.ts'
-import { formatDayShift, formatNightDuty, formatRosterMonth, parseNamesInput, parseRosterPaste, resolveRosterSpec } from './duty.ts'
+import { formatDayShift, formatNightDuty, formatRosterBySpec, formatRosterMonth, parseNamesInput, parseRosterPaste, resolveRosterSpec } from './duty.ts'
 import { featureVolKeys, pickNewestRaw } from './featureStore.ts'
 import { allowsAdminPush, allowsScheduledRoster, allowsScheduledWeather } from './pushGuard.ts'
 import { menuText } from './reminders.ts'
@@ -32,11 +32,16 @@ assert(parseFeatureCommand('*天氣 台中')?.kind === 'weather', 'weather place
 assert(parseFeatureCommand('*值班')?.kind === 'duty', 'duty command')
 assert(parseFeatureCommand('＊今晚值班')?.kind === 'duty', 'fullwidth star duty')
 assert(parseFeatureCommand('*值班 本月')?.kind === 'duty' && parseFeatureCommand('*值班 本月')?.['spec'] === '本月', 'duty month command')
+assert(parseFeatureCommand('*值班 昨天')?.['spec'] === '昨天', 'duty yesterday command')
+assert(parseFeatureCommand('*值班 7天')?.['spec'] === '7天', 'duty week command')
+assert(parseFeatureCommand('*上班 明天')?.kind === 'dayShift' && parseFeatureCommand('*上班 明天')?.['spec'] === '明天', 'day shift tomorrow')
 assert(parseFeatureCommand('*值班 9/8')?.['spec'] === '9/8', 'duty date command')
 assert(parseFeatureCommand('*上班')?.kind === 'dayShift', 'day shift command')
-assert(rosterInfoKind('值班') === 'night', 'info duty uses roster')
-assert(rosterInfoKind('本月值班') === 'night-month', 'info month duty uses roster')
-assert(rosterInfoKind('熱危害') === null, 'other info not roster')
+assert(rosterInfoQuery('值班')?.kind === 'night', 'info duty uses roster')
+assert(rosterInfoQuery('昨天值班')?.spec === '昨天', 'info yesterday duty')
+assert(rosterInfoQuery('7天上班')?.kind === 'day' && rosterInfoQuery('7天上班')?.spec === '7天', 'info week day shift')
+assert(rosterInfoQuery('本月值班')?.spec === '本月', 'info month duty uses roster')
+assert(rosterInfoQuery('熱危害') === null, 'other info not roster')
 assert(parseFeatureCommand('*功能')?.kind === 'help', 'help command')
 assert(parseFeatureCommand('值班') === null, 'duty without star is ignored')
 assert(parseFeatureCommand('天氣') === null, 'weather without star is ignored')
@@ -196,14 +201,18 @@ assert(!formatNightDuty(nightOn, '2026-08-21').includes('請完成巡視'), 'no 
 assert(formatNightDuty({ ...nightOn, remark: '請確認出入口上鎖。' }, '2026-08-21').includes('請確認出入口上鎖。'), 'custom remark')
 assert(formatNightDuty(nightOn, '2026-08-22').includes('尚未排班'), 'night empty day')
 assert(formatNightDuty(nightOn, '2026-08-20').includes('最近已排：2026-08-21'), 'empty today still shows nearby roster')
-assert(formatRosterMonth('night', nightOn, 2026, 8).includes('21日 范士朋、田啟均'), 'month roster lists names')
+assert(formatRosterMonth('night', nightOn, 2026, 8).includes('8/21（五） 范士朋、田啟均'), 'month roster lists names')
 assert(formatRosterMonth('night', nightOn, 2026, 9).includes('尚未排班'), 'other month empty')
 
 const dutyNow = { year: 2026, month: 9, day: 5, hour: 17, minute: 19, weekday: 6, ymd: '2026-09-05', dayOfYear: 247 }
 assert(resolveRosterSpec(undefined, dutyNow).ymd === '2026-09-05', 'duty default today')
+assert(resolveRosterSpec('昨天', dutyNow).ymd === '2026-09-04', 'duty yesterday')
 assert(resolveRosterSpec('明天', dutyNow).ymd === '2026-09-06', 'duty tomorrow')
-assert(resolveRosterSpec('本月', dutyNow).wholeMonth === true, 'duty this month')
+assert(resolveRosterSpec('本月', dutyNow).mode === 'list' && resolveRosterSpec('本月', dutyNow).ymds.length === 30, 'duty this month')
+assert(resolveRosterSpec('7天', dutyNow).mode === 'list' && resolveRosterSpec('7天', dutyNow).ymds.join(',') === '2026-09-05,2026-09-06,2026-09-07,2026-09-08,2026-09-09,2026-09-10,2026-09-11', 'duty next 7 days')
 assert(resolveRosterSpec('9/8', dutyNow).ymd === '2026-09-08', 'duty month/day')
+assert(formatRosterBySpec('night', nightOn, resolveRosterSpec('7天', { ...dutyNow, ymd: '2026-08-21', year: 2026, month: 8, day: 21 })).includes('8/21（五） 范士朋、田啟均'), '7 day list includes filled day')
+assert(formatRosterBySpec('night', nightOn, resolveRosterSpec('7天', { ...dutyNow, ymd: '2026-08-21', year: 2026, month: 8, day: 21 })).includes('尚未排班'), '7 day list shows empty days')
 assert(pickNewestRaw(['{"updatedAt":1}', '{"updatedAt":9,"ok":true}', '{"updatedAt":3}'])?.includes('"ok":true') === true, 'newest feature raw')
 assert(featureVolKeys('Cabc', 1_000_000).read.length === 2, 'volatile read keys')
 assert(featureVolKeys('Cabc', 1_000_000).write.length === 6, 'volatile write keys')
@@ -214,7 +223,7 @@ const help = featureHelp(features, ['即時翻譯（泰文）'])
 assert(help.includes('翻譯 泰文'), 'help lists translate')
 assert(help.includes('*搜圖 安全帽'), 'help lists enabled image')
 assert(help.includes('*值班'), 'help lists night duty')
-assert(help.includes('*值班 本月'), 'help lists month duty')
+assert(help.includes('昨天／明天／7天／本月'), 'help lists duty ranges')
 assert(featureHelp(features, ['即時翻譯（泰文）'], 'Cabc123').includes('此群 ID：Cabc123'), 'help shows group id')
 assert(featureHelp({ ...features, infoSearch: true }, ['即時翻譯（泰文）']).includes('*查 熱危害'), 'help says any site question')
 const helpNoImage = featureHelp({ ...features, imageSearch: false, nightDuty: DEFAULT_FEATURES.nightDuty }, ['即時翻譯（泰文）'])
